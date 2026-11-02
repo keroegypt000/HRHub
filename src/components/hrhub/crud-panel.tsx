@@ -111,11 +111,22 @@ export function CrudPanel<T extends { id: string }>({
   const save = async () => {
     setSaving(true);
     try {
+      // تجهيز الـpayload حسب نوع الحقل: الأرقام أرقام فعلية، الاختيارات الفارغة والمدات = null
+      // (Prisma يرفض '' في الحقول الرقمية/المرتبطة — وتسبب خطأ خادم إن أُرسلت كما هي)
       const payload: Record<string, unknown> = {};
       for (const f of fields) {
         const v = form[f.key];
-        if (f.type === 'date' && (v === '' || v === null)) payload[f.key] = null;
-        else payload[f.key] = v;
+        if (f.type === 'date' || f.type === 'select') {
+          payload[f.key] = v === '' || v === null || v === undefined ? null : v;
+        } else if (f.type === 'number') {
+          if (v === '' || v === null || v === undefined) payload[f.key] = null;
+          else {
+            const n = Number(v);
+            payload[f.key] = Number.isFinite(n) ? n : null;
+          }
+        } else {
+          payload[f.key] = v === undefined ? null : v;
+        }
       }
       if (editing) {
         await api(`${entityPath}/${editing.id}`, { method: 'PUT', body: JSON.stringify(payload) });

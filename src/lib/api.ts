@@ -57,7 +57,15 @@ export async function handle(fn: () => Promise<NextResponse>): Promise<NextRespo
     if (msg.includes('Unique constraint')) return fail(400, 'قيمة مكررة — توجد سجل بنفس المعرف بالفعل');
     if (msg.includes('Record to update not found') || msg.includes('Record not found'))
       return fail(404, 'السجل غير موجود');
-    console.error('API error:', msg);
+    if (msg.includes('Foreign key constraint'))
+      return fail(400, 'قيمة مرتبطة غير صحيحة — تأكد من اختيار القسم/الموظف/السجل المرتبط بشكل صحيح');
+    // أخطاء تحقق Prisma (نوع خاطئ، حقل مفقود، قيمة غير صالحة) → رسالة مفهومة 400
+    if (msg.includes('is missing') || msg.includes('Invalid value') || msg.includes('Unknown argument') ||
+        msg.includes('Provided') || msg.includes('Invalid `prisma') || msg.includes('Got invalid')) {
+      console.error('API validation error:', msg);
+      return fail(400, 'بيانات غير صالحة — راجع الحقول الإجبارية وأنواع القيم (أرقام/تواريخ) ثم أعد المحاولة');
+    }
+    console.error('API error:', msg, err instanceof Error ? `\n${err.stack}` : '');
     return fail(500, 'حدث خطأ غير متوقع في الخادم');
   }
 }

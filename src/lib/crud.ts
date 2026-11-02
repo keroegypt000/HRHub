@@ -1,5 +1,6 @@
 // lib/crud.ts — مصنع CRUD موحد: قائمة/إنشاء/تعديل/حذف + تدقيق + نقطة استعادة لكل كتابة
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { AuthUser } from '@/lib/auth';
 import { HttpError, ok } from '@/lib/api';
@@ -20,6 +21,49 @@ function delegate(model: string): ModelDelegate {
   const d = map[model];
   if (!d) throw new HttpError(500, `نموذج غير معروف: ${model}`);
   return d;
+}
+
+// ===== تصحيح أنواع البيانات حسب الـ Schema (DMMF) =====
+// الفورم يرسل نصوصًا من الـ inputs — نحوّلها لما يتوقعه Prisma:
+// أرقام Int/Float من نصوص، '' → null للحقول القابلة للفراغ، وتجاهل null للحقول الإجبارية
+const MODEL_SCALARS: Record<string, Map<string, { type: string; required: boolean; hasDefault: boolean }>> = {};
+for (const m of Prisma.dmmf.datamodel.models) {
+  MODEL_SCALARS[m.name.toLowerCase()] = new Map(
+    m.fields
+      .filter((f) => f.kind === 'scalar')
+      .map((f) => [f.name, { type: String(f.type), required: f.isRequired, hasDefault: f.hasDefault }])
+  );
+}
+
+const NUMERIC_TYPES = new Set(['Int', 'Float', 'BigInt', 'Decimal']);
+
+export function sanitizeData(model: string, data: Record<string, unknown>): Record<string, unknown> {
+  const fields = MODEL_SCALARS[model.toLowerCase()];
+  if (!fields) return data;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) {
+    const f = fields.get(k);
+    if (!f) { out[k] = v; continue; } // حقول غير معروفة أو علاقات متداخلة — تُمرر كما هي
+    if (v === null || v === undefined || (typeof v === 'string' && v.trim() === '')) {
+      if (f.required) continue; // حقل إجباري بقيمة فارغة — يُقصى (الافتراضي يعمل أو التحقق يرفض برسالة واضحة)
+      out[k] = null;
+      continue;
+    }
+    if (NUMERIC_TYPES.has(f.type) && typeof v === 'string') {
+      const s = v.trim();
+      if (s === '') { if (!f.required) out[k] = null; continue; }
+      const n = Number(s);
+      if (Number.isFinite(n)) { out[k] = f.type === 'Int' || f.type === 'BigInt' ? Math.round(n) : n; continue; }
+      if (!f.required) { out[k] = null; continue; }
+      continue; // قيمة غير رقمية لحقل إجباري — التحقق الأعلى يعرض رسالة مناسبة
+    }
+    if (f.type === 'Boolean' && typeof v === 'string') {
+      out[k] = v === 'true' || v === 'نعم' || v === '1';
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
 }
 
 export interface CrudConfig {
@@ -114,6 +158,7 @@ export async function crudCreate(
   const err = cfg.validate ? await cfg.validate(data, 'create') : null;
   if (err) throw new HttpError(400, err);
   if (cfg.beforeCreate) data = await cfg.beforeCreate(data, user);
+  data = sanitizeData(cfg.model, data);
 
   const row = await d.create({ data, include: cfg.include });
   const name = cfg.describe ? cfg.describe(row) : String(row.name || row.id);
@@ -147,6 +192,7 @@ export async function crudUpdate(
   const err = cfg.validate ? await cfg.validate(data, 'update') : null;
   if (err) throw new HttpError(400, err);
   if (cfg.beforeUpdate) data = await cfg.beforeUpdate(data, existing);
+  data = sanitizeData(cfg.model, data);
 
   const row = await d.update({ where: { id }, data, include: cfg.include });
   const name = cfg.describe ? cfg.describe(row) : String(row.name || id);
