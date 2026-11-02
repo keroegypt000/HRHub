@@ -129,7 +129,10 @@ model Employee {
   hireDate         DateTime?
   basicSalary      Float             @default(0) // د.ك ثلاث خانات عشرية
   bankAccount      String?
-  status           String            @default("active") // active|suspended|on_leave|terminated
+  status           String            @default("active") // active|suspended|on_leave|terminated|deceased
+  departureDate    DateTime?         // تاريخ ترك العمل / الوفاة
+  departureReason  String?           // resigned|terminated|retired|deceased|contract_end
+  deathDate        DateTime?         // تاريخ الوفاة (صفحة المتوفين)
   pin              String?           // معرف البصمة داخل الأجهزة
   notes            String?
   createdAt        DateTime          @default(now())
@@ -144,6 +147,8 @@ model Employee {
   leaveRequests    LeaveRequest[]
   payslips         Payslip[]
   files            FileUpload[]      @relation("EmpFiles")
+  passports        Passport[]
+  settlements      DepartureSettlement[]
 
   @@index([name])
   @@index([status])
@@ -173,6 +178,84 @@ model Contract {
   employee           Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   renewalOf          Contract?  @relation("Renewals", fields: [renewalOfId], references: [id])
   renewals           Contract[] @relation("Renewals")
+}
+
+// ===== التنبيهات: الجوازات والسيارات وعقود الشركة ونهاية الخدمة =====
+model Passport {
+  id          String    @id @default(cuid())
+  employeeId  String?
+  holderName  String    // اسم صاحب الجواز
+  passportNo  String
+  nationality String?
+  issueDate   DateTime?
+  expiryDate  DateTime
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([expiryDate])
+}
+
+model Vehicle {
+  id               String    @id @default(cuid())
+  plateNo          String    @unique
+  make             String?   // الماركة
+  model            String?   // الموديل
+  year             Int?
+  color            String?
+  driverName       String?   // السائق المسؤول
+  licenseExpiry    DateTime? // رخصة السير
+  insuranceExpiry  DateTime? // وثيقة التأمين
+  inspectionExpiry DateTime? // الفحص الدوري
+  insuranceCompany String?
+  policyNo         String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model CompanyContract {
+  id           String    @id @default(cuid())
+  name         String    // اسم/وصف العقد
+  counterparty String?   // الطرف الآخر
+  contractNo   String?
+  type         String?   // توريد|خدمات|إيجار|صيانة...
+  value        Float?    // قيمة العقد
+  startDate    DateTime?
+  endDate      DateTime
+  renewal      Boolean   @default(true) // قابل للتجديد
+  status       String    @default("active") // active|expired|terminated
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([endDate])
+}
+
+// تسوية نهاية الخدمة والمستحقات — واحدة لكل موظف عند ترك العمل أو الوفاة
+model DepartureSettlement {
+  id             String    @id @default(cuid())
+  employeeId     String    @unique
+  departureDate  DateTime
+  reason         String    // resigned|terminated|retired|deceased|contract_end
+  hireDate       DateTime?
+  lastWage       Float     @default(0)   // آخر أجر شهري (أساسي + بدلات منتظمة)
+  yearsServed    Float     @default(0)
+  indemnityFull  Float     @default(0)   // المكافأة كاملة قبل معامل السبب
+  reasonFactor   Float     @default(1)   // معامل القانون حسب السبب
+  eosAmount      Float     @default(0)   // مكافأة نهاية الخدمة المستحقة
+  leaveAllowance Float     @default(0)   // بدل الإجازات غير المستخدمة
+  otherDues      Float     @default(0)   // مستحقات أخرى
+  deductions     Float     @default(0)   // استقطاعات/قروض
+  totalDue       Float     @default(0)
+  paidAmount     Float     @default(0)
+  status         String    @default("pending") // pending|partial|paid
+  paidAt         DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 // ===== الأجهزة والبصمة والورديات =====

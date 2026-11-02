@@ -20,7 +20,7 @@ interface EmployeeRow extends Record<string, unknown> {
   department?: { id: string; name: string } | null;
   position?: { id: string; name: string } | null;
   status: string; basicSalary: number; phone?: string | null; pin?: string | null;
-  nationality?: string | null; civilId?: string | null; hireDate?: string | null;
+  nationality?: string | null; civilId?: string | null; hireDate?: string | null; birthDate?: string | null;
   photo?: { id: string } | null;
   _count?: { contracts: number; leaveRequests: number };
 }
@@ -33,7 +33,7 @@ interface EmployeeFull extends EmployeeRow {
   leaveRequests: { id: string; leaveType: { name: string }; fromDate: string; toDate: string; days: number; status: string }[];
   payslips: { id: string; period: { name: string }; netPay: number; status: string }[];
   dailyAttendance: { id: string; date: string; status: string; lateMinutes: number; otMinutes: number; workedMinutes: number }[];
-  files: { id: string; fileName: string; mimeType: string; size: number; createdAt: string }[];
+  files: { id: string; fileName: string; mimeType: string; size: number; createdAt: string; ownerTag?: string | null }[];
 }
 
 function Avatar({ emp, size = 'h-10 w-10' }: { emp: { photoId?: string | null; photo?: { id: string } | null; name: string }; size?: string }) {
@@ -329,7 +329,8 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
           { key: 'bankAccount', label: 'الحساب البنكي', type: 'text' },
           { key: 'status', label: 'الحالة', type: 'select', options: [
             { value: 'active', label: 'نشط' }, { value: 'suspended', label: 'موقوف' },
-            { value: 'on_leave', label: 'في إجازة' }, { value: 'terminated', label: 'منتهي الخدمة' },
+            { value: 'on_leave', label: 'في إجازة' }, { value: 'terminated', label: 'منصرف' },
+            { value: 'deceased', label: 'متوفى (يُفضَّل التسجيل من تبويب نهاية الخدمة)' },
           ] },
           { key: 'pin', label: 'PIN الجهاز (افتراضي = الرقم الوظيفي)', type: 'text' },
           { key: 'address', label: 'العنوان', type: 'textarea', span: 2 },

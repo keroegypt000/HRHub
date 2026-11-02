@@ -238,3 +238,56 @@ export function contractNoticeDoc(
     signatures: ['الموظف', 'الموارد البشرية', 'الختم'],
   }, companyName);
 }
+
+// ===== 6. كشف مستحقات نهاية الخدمة =====
+export interface SettlementDocData {
+  employee: { name: string; code: string; department?: { name: string } | null; nationality?: string | null; civilId?: string | null };
+  reasonAr: string;
+  departureDate: string;
+  hireDate: string;
+  yearsServed: number;
+  lastWage: number;
+  indemnityFull: number;
+  factor: number;
+  eosAmount: number;
+  leaveAllowance: number;
+  otherDues: number;
+  deductions: number;
+  totalDue: number;
+  paidAmount: number;
+  note?: string;
+  law: string;
+}
+
+export function indemnityDoc(s: SettlementDocData, companyName = 'شركة ADMS'): string {
+  const remaining = Math.round((s.totalDue - s.paidAmount) * 1000) / 1000;
+  const row = (label: string, value: number, cls = '') =>
+    `<tr><th>${esc(label)}</th><td class="num ${cls}">${fmtKWD(value)} د.ك</td></tr>`;
+  const body = `
+    <p>الموظف: <b>${esc(s.employee.name)}</b> (${esc(s.employee.code)})
+       ${s.employee.department ? ` — القسم: <b>${esc(s.employee.department.name)}</b>` : ''}</p>
+    <table>
+      <tr><th>سبب نهاية الخدمة</th><td>${esc(s.reasonAr)}</td><th>تاريخها</th><td>${esc(s.departureDate)}</td></tr>
+      <tr><th>تاريخ التعيين</th><td>${esc(s.hireDate)}</td><th>مدة الخدمة</th><td>${esc(s.yearsServed)} سنة</td></tr>
+      <tr><th>آخر أجر شهري</th><td class="num">${fmtKWD(s.lastWage)} د.ك</td><th>المعامل القانوني</th><td class="num">${esc(String(s.factor))}</td></tr>
+    </table>
+    <table>
+      ${row('مكافأة نهاية الخدمة (القانونية كاملة)', s.indemnityFull)}
+      ${row('المكافأة المستحقة بعد المعامل', s.eosAmount)}
+      ${row('بدل الإجازات غير المستخدمة', s.leaveAllowance)}
+      ${row('مستحقات أخرى', s.otherDues)}
+      ${row('الاستقطاعات / القروض', s.deductions)}
+      <tr class="net"><th>إجمالي المستحقات</th><td class="num">${fmtKWD(s.totalDue)} د.ك</td></tr>
+      ${row('المدفوع حتى الآن', s.paidAmount)}
+      <tr class="net"><th>المتبقي للسداد</th><td class="num">${fmtKWD(remaining)} د.ك</td></tr>
+    </table>
+    ${s.note ? `<p>ملاحظات: ${esc(s.note)}</p>` : ''}
+    <p class="tafqit">المرجع القانوني: ${esc(s.law)} — تُحسب المكافأة نصف شهر لكل سنة من أول 5 سنوات وشهرًا لكل سنة بعدها، وتُصرف بالكامل عند إنهاء الخدمة أو الوفاة وعلى درجات عند الاستقالة حسب المادة 49.</p>`;
+  return voucherDocHtml({
+    title: 'كشف مستحقات نهاية الخدمة',
+    refNo: `EOS-${s.employee.code}-${Date.now().toString().slice(-6)}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['الموظف / المستحقون', 'الموارد البشرية', 'المحاسب'],
+  }, companyName);
+}

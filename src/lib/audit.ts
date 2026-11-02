@@ -30,6 +30,8 @@ const ENTITY_AR: Record<string, string> = {
   'salary-component': 'مكوّن راتب', 'payroll-period': 'فترة رواتب', payslip: 'قسيمة راتب',
   settings: 'الإعدادات', file: 'ملف', import: 'استيراد', restore: 'نقطة استعادة',
   session: 'جلسة', 'payslip-item': 'بند قسيمة',
+  passport: 'جواز سفر', vehicle: 'مركبة', 'company-contract': 'عقد شركة',
+  settlement: 'تسوية مستحقات', 'end-of-service': 'نهاية خدمة',
 };
 
 export function describeAr(action: AuditAction, entity: string, name?: string): string {

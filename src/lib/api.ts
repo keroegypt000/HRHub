@@ -46,14 +46,46 @@ export async function requireWrite(req: NextRequest, entity: string): Promise<Au
   return user;
 }
 
+/** رسالة خطأ قصيرة آمنة للعرض */
+function brief(msg: string, max = 240): string {
+  return msg.replace(/\s+/g, ' ').slice(0, max);
+}
+
 /** غلاف موحد لمسارات الـ API: يلتقط الأخطاء ويرد بالعربية */
 export async function handle(fn: () => Promise<NextResponse>): Promise<NextResponse> {
   try {
     return await fn();
   } catch (err) {
     if (err instanceof HttpError) return fail(err.status, err.message);
+
+    // استخراج كود Prisma والرسالة الحقيقية — بدل إخفائها خلف رسالة عامة
+    const e = err as { code?: string; message?: string; meta?: Record<string, unknown> };
+    const code = e?.code || '';
     const msg = err instanceof Error ? err.message : String(err);
-    // أخطاء القيود الفريدة وغيرها
+    const meta = (e?.meta && typeof e.meta === 'object') ? e.meta : null;
+
+    // تسجيل كامل في لوج الخادم (يظهر في Vercel Logs)
+    console.error('════ API ERROR ════', new Date().toISOString());
+    console.error('code:', code || '—');
+    console.error('message:', msg);
+    if (meta) console.error('meta:', JSON.stringify(meta));
+    if (err instanceof Error && err.stack) console.error(err.stack);
+
+    // أخطاء Prisma المعروفة بأكوادها → رسالة عربية تحدد المشكلة بالضبط
+    if (code === 'P2021' || code === 'P2022') {
+      const target = String(meta?.table || meta?.column || 'غير محدد');
+      return fail(500, `قاعدة البيانات غير مكتملة: ${code === 'P2021' ? 'الجدول' : 'العمود'} «${target}» غير موجود — نفّذ prisma db push أو سكربت الترحيل ثم أعد المحاولة (كود ${code})`);
+    }
+    if (code === 'P2003') return fail(400, 'قيمة مرتبطة غير صحيحة — السجل المرتبط (قسم/موظف/عقد...) غير موجود أو محذوف');
+    if (code === 'P2002') {
+      const target = String(meta?.target || '').replace(/[^a-zA-Z_,]/g, '');
+      return fail(400, `قيمة مكررة — يوجد سجل آخر بنفس القيمة${target ? ` (${target})` : ''}`);
+    }
+    if (code === 'P2025') return fail(404, 'السجل غير موجود — ربما حُذف بواسطة مستخدم آخر');
+    if (code === 'P1001' || code === 'P1000') return fail(500, `تعذر الاتصال بقاعدة البيانات (كود ${code}) — تحقق من DATABASE_URL`);
+    if (code.startsWith('P')) return fail(500, `خطأ قاعدة بيانات (${code}): ${brief(msg)}`);
+
+    // أخطاء قيود عامة (نصوص بدون كود)
     if (msg.includes('Unique constraint')) return fail(400, 'قيمة مكررة — توجد سجل بنفس المعرف بالفعل');
     if (msg.includes('Record to update not found') || msg.includes('Record not found'))
       return fail(404, 'السجل غير موجود');
@@ -62,11 +94,9 @@ export async function handle(fn: () => Promise<NextResponse>): Promise<NextRespo
     // أخطاء تحقق Prisma (نوع خاطئ، حقل مفقود، قيمة غير صالحة) → رسالة مفهومة 400
     if (msg.includes('is missing') || msg.includes('Invalid value') || msg.includes('Unknown argument') ||
         msg.includes('Provided') || msg.includes('Invalid `prisma') || msg.includes('Got invalid')) {
-      console.error('API validation error:', msg);
-      return fail(400, 'بيانات غير صالحة — راجع الحقول الإجبارية وأنواع القيم (أرقام/تواريخ) ثم أعد المحاولة');
+      return fail(400, `بيانات غير صالحة: ${brief(msg)}`);
     }
-    console.error('API error:', msg, err instanceof Error ? `\n${err.stack}` : '');
-    return fail(500, 'حدث خطأ غير متوقع في الخادم');
+    return fail(500, `حدث خطأ غير متوقع في الخادم: ${brief(msg)}`);
   }
 }
 

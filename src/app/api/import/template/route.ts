@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireRead, handle, HttpError } from '@/lib/api';
 import { TEMPLATES, templateBuffer } from '@/lib/excel';
 
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const tpl = TEMPLATES[entity];
     if (!tpl) throw new HttpError(404, 'قالب غير معروف');
     const buf = templateBuffer(tpl.columns, tpl.sheet);
-    return new Response(new Uint8Array(buf), {
+    return new NextResponse(new Uint8Array(buf), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="adms-template-${entity}.xlsx"`,

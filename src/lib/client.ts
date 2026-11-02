@@ -123,6 +123,8 @@ export const STATUS_AR: Record<string, string> = {
   online: 'متصل', offline: 'غير متصل', unknown: 'غير معروف',
   fixed: 'ثابتة', flexible: 'مرنة', auto: 'تلقائي',
   earning: 'مكمل', deduction: 'استقطاع',
+  deceased: 'متوفى', partial: 'مدفوع جزئيًا',
+  resigned: 'استقالة', retired: 'تقاعد', contract_end: 'انتهاء عقد',
   admin: 'مدير النظام', hr: 'موارد بشرية', accountant: 'محاسب', supervisor: 'مشرف', viewer: 'مشاهد',
 };
 
@@ -149,4 +151,6 @@ export const STATUS_COLORS: Record<string, string> = {
   offline: 'bg-red-100 text-red-700 border-red-200',
   suspended: 'bg-amber-100 text-amber-800 border-amber-200',
   on_leave: 'bg-blue-100 text-blue-700 border-blue-200',
+  deceased: 'bg-slate-200 text-slate-700 border-slate-300',
+  partial: 'bg-amber-100 text-amber-800 border-amber-200',
 };

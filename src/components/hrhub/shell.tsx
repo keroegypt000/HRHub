@@ -10,6 +10,7 @@ import {
   LayoutDashboard, Users, Network, FileSignature, Clock4, Fingerprint, CalendarCheck2,
   Plane, Sparkles, MonitorSmartphone, Wallet, SlidersHorizontal, BarChart3,
   FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu,
+  BellRing, Hourglass, Flower2, UserMinus,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -25,6 +26,10 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'employees', label: 'الموظفون', icon: Users },
   { key: 'departments', label: 'الأقسام والمسميات', icon: Network },
   { key: 'contracts', label: 'العقود', icon: FileSignature },
+  { key: 'alerts', label: 'التنبيهات والنفاذ', icon: BellRing },
+  { key: 'end-of-service', label: 'نهاية الخدمة', icon: Hourglass },
+  { key: 'departed', label: 'المنصرفون والمستحقات', icon: UserMinus },
+  { key: 'deceased', label: 'الموظفون المتوفون', icon: Flower2 },
   { key: 'shifts', label: 'الورديات', icon: Clock4 },
   { key: 'attendance-logs', label: 'سجل البصمة', icon: Fingerprint },
   { key: 'daily-attendance', label: 'الحضور اليومي', icon: CalendarCheck2 },

@@ -1,9 +1,15 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, handle, HttpError } from '@/lib/api';
 import { exportBuffer, workDaysToText } from '@/lib/excel';
 import { kuwaitMidnight, dateKey, fmtTime, fmtDate } from '@/lib/time';
 import { tafqitKWD } from '@/lib/tafqit';
+
+/** أسماء عربية لحالات الحضور في ملفات التصدير */
+const STATUS_AR: Record<string, string> = {
+  present: 'حاضر', late: 'متأخر', half_day: 'نص يوم', absent: 'غائب',
+  leave: 'في إجازة', holiday: 'عطلة رسمية', weekend: 'راحة أسبوعية', missed_punch: 'بصمة ناقصة',
+};
 
 /** تصدير أي قسم Excel بفلاتره الحالية — incl. ملف البنك للرواتب المصروفة */
 export async function GET(req: NextRequest) {
@@ -173,7 +179,7 @@ export async function GET(req: NextRequest) {
           return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
         }).join(',')))
         .join('\r\n');
-      return new Response(`\uFEFF${csv}`, {
+      return new NextResponse(`\uFEFF${csv}`, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
           'Content-Disposition': `attachment; filename="${fileName}.csv"`,
@@ -182,7 +188,7 @@ export async function GET(req: NextRequest) {
     }
 
     const buf = exportBuffer(entity, rows);
-    return new Response(new Uint8Array(buf), {
+    return new NextResponse(new Uint8Array(buf), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${fileName}.xlsx"`,

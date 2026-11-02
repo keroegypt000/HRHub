@@ -20,7 +20,7 @@ export async function saveFile(params: UploadParams): Promise<{ id: string }> {
       fileName: params.fileName,
       mimeType: params.mimeType,
       size: params.data.length,
-      data: params.data,
+      data: new Uint8Array(params.data),
       ownerTag: params.ownerTag || null,
       employeeId: params.employeeId || null,
       createdBy: params.createdBy || null,

@@ -10,13 +10,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import {
   Users, UserCheck, UserX, Plane, MonitorSmartphone, Clock3,
-  AlertTriangle, FileSignature, Fingerprint,
+  AlertTriangle, FileSignature, Fingerprint, BellRing,
 } from 'lucide-react';
+
+interface ExpiryAlert {
+  id: string; kind: string; kindAr: string; title: string; subtitle: string;
+  expiry: string; daysLeft: number; level: 'expired' | 'd30' | 'd60' | 'd90';
+}
 
 interface DashboardData {
   kpis: {
     activeEmployees: number; present: number; late: number; absent: number;
     onLeave: number; missedPunch: number; devicesOnline: number; devicesTotal: number; pendingLeaves: number;
+    halfDay?: number;
   };
   latestLogs: {
     id: string; time: string; date: string; employeeName: string | null; employeeCode: string | null;
@@ -51,6 +57,7 @@ function KpiCard({ title, value, sub, icon: Icon, tone }: {
 export function DashboardSection() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [live, setLive] = useState(true);
+  const [expiry, setExpiry] = useState<{ alerts: ExpiryAlert[]; summary: { expired: number; d30: number; d60: number; d90: number } } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -60,9 +67,16 @@ export function DashboardSection() {
         if (mounted) setData(d);
       } catch { /* تجاهل أخطاء polling */ }
     };
+    const loadExpiry = () => {
+      api<{ alerts: ExpiryAlert[]; summary: { expired: number; d30: number; d60: number; d90: number } }>('/api/alerts')
+        .then((d) => { if (mounted) setExpiry(d); })
+        .catch(() => {});
+    };
     load();
+    loadExpiry();
     const t = setInterval(load, 10_000); // سجل حي كل 10 ثوانٍ — إحساس BioTime
-    return () => { mounted = false; clearInterval(t); };
+    const t2 = setInterval(loadExpiry, 60_000); // التنبيهات كل دقيقة
+    return () => { mounted = false; clearInterval(t); clearInterval(t2); };
   }, []);
 
   if (!data) {
@@ -102,11 +116,18 @@ export function DashboardSection() {
         <KpiCard title="في إجازة" value={k.onLeave} sub={`طلبات معلقة: ${k.pendingLeaves}`} icon={Plane} tone="bg-blue-100 text-blue-700" />
         <KpiCard title="أجهزة متصلة" value={`${k.devicesOnline}/${k.devicesTotal}`} icon={MonitorSmartphone} tone="bg-teal-100 text-teal-700" />
         <KpiCard title="عقود تنتهي قريبًا" value={data.alerts.length} sub="خلال 90 يومًا" icon={FileSignature} tone="bg-orange-100 text-orange-700" />
+        <KpiCard
+          title="تنبيهات نفاذ الجوازات والسيارات وعقود الشركة"
+          value={expiry ? (expiry.summary.expired + expiry.summary.d30 + expiry.summary.d60 + expiry.summary.d90) : 0}
+          sub={expiry && expiry.summary.expired > 0 ? `منها ${expiry.summary.expired} منتهية الآن!` : 'خلال 90 يومًا'}
+          icon={BellRing}
+          tone={expiry && expiry.summary.expired > 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}
+        />
         <KpiCard title="سجلات حية" value={data.latestLogs.length} sub="آخر السجلات أسفل" icon={Fingerprint} tone="bg-violet-100 text-violet-700" />
       </div>
 
       {/* تنبيهات */}
-      {(data.alerts.length > 0 || data.devicesOfflineAlert.length > 0 || data.isNewDevice) && (
+      {(data.alerts.length > 0 || data.devicesOfflineAlert.length > 0 || data.isNewDevice || (expiry && expiry.alerts.length > 0)) && (
         <div className="space-y-2">
           {data.isNewDevice && (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 flex items-center gap-2">
@@ -124,6 +145,15 @@ export function DashboardSection() {
             <div key={a.contractId} className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-900 flex items-center gap-2">
               <FileSignature className="h-4 w-4 shrink-0" />
               عقد {a.contractNo} للموظف {a.employeeName} ينتهي خلال {a.daysLeft} يومًا ({a.endDate.slice(0, 10)})
+            </div>
+          ))}
+          {expiry && expiry.alerts.slice(0, 4).map((a) => (
+            <div key={`${a.kind}-${a.id}`} className={a.level === 'expired'
+              ? 'rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900 flex items-center gap-2'
+              : 'rounded-lg border border-orange-200 bg-orange-50/70 p-3 text-sm text-orange-900 flex items-center gap-2'}>
+              <BellRing className="h-4 w-4 shrink-0" />
+              {a.kindAr}: {a.title} {a.subtitle ? `— ${a.subtitle}` : ''} {' '}
+              {a.daysLeft < 0 ? <b>منتهي منذ {Math.abs(a.daysLeft)} يوم</b> : `ينتهي خلال ${a.daysLeft} يومًا`}
             </div>
           ))}
         </div>

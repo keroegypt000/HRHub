@@ -27,8 +27,12 @@ export async function GET(req: NextRequest) {
         settings: canWrite(user, 'settings'),
         import: canWrite(user, 'import'),
         export: canWrite(user, 'export'),
+        // الأقسام الجديدة: التنبيهات ونهاية الخدمة والمستحقات
+        passports: canWrite(user, 'passports'),
+        vehicles: canWrite(user, 'vehicles'),
+        companyContracts: canWrite(user, 'company-contracts'),
+        settlements: canWrite(user, 'settlements'),
       },
-      role: user.role,
     });
   });
 }

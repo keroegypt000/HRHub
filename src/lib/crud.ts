@@ -31,7 +31,7 @@ for (const m of Prisma.dmmf.datamodel.models) {
   MODEL_SCALARS[m.name.toLowerCase()] = new Map(
     m.fields
       .filter((f) => f.kind === 'scalar')
-      .map((f) => [f.name, { type: String(f.type), required: f.isRequired, hasDefault: f.hasDefault }])
+      .map((f) => [f.name, { type: String(f.type), required: f.isRequired, hasDefault: f.default != null }])
   );
 }
 
@@ -166,7 +166,7 @@ export async function crudCreate(
     userId: user.id, action: 'create', entity: cfg.entity, entityId: row.id as string,
     changes: { after: data }, description: `إنشاء ${cfg.label}: ${name}`,
   });
-  await createRestorePoint(user.id, `إنشاء ${cfg.label}: ${name}`);
+  await createRestorePoint(user.id, `إنشاء ${cfg.label}: ${name}`).catch((e) => console.error('restore point error (non-fatal):', e));
   return ok(row, 201);
 }
 
@@ -201,7 +201,7 @@ export async function crudUpdate(
     changes: { before: existing, after: data, diff: diffChanges(existing, data) },
     description: `تعديل ${cfg.label}: ${name}`,
   });
-  await createRestorePoint(user.id, `تعديل ${cfg.label}: ${name}`);
+  await createRestorePoint(user.id, `تعديل ${cfg.label}: ${name}`).catch((e) => console.error('restore point error (non-fatal):', e));
   return ok(row);
 }
 
@@ -222,7 +222,7 @@ export async function crudDelete(
     userId: user.id, action: 'delete', entity: cfg.entity, entityId: id,
     changes: { before: existing }, description: `حذف ${cfg.label}: ${name}`,
   });
-  await createRestorePoint(user.id, `حذف ${cfg.label}: ${name}`);
+  await createRestorePoint(user.id, `حذف ${cfg.label}: ${name}`).catch((e) => console.error('restore point error (non-fatal):', e));
   return ok({ deleted: true });
 }
 

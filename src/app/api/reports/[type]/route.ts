@@ -166,6 +166,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
         const types = await db.leaveType.findMany({ where: { active: true } });
         const approved = await db.leaveRequest.findMany({
           where: { status: 'approved', ...(Object.keys(empWhere).length ? { employee: empWhere } : {}) },
+          include: { leaveType: true },
         });
         const rows = employees.map((e) => {
           const mine = approved.filter((a) => a.employeeId === e.id);

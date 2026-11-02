@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, requireWrite, handle } from '@/lib/api';
 import { crudList, crudCreate, crudUpdate, crudDelete, CrudConfig } from '@/lib/crud';
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     for (const row of data.rows || []) {
       row.status = row.lastSeenAt && now - new Date(row.lastSeenAt).getTime() < 90_000 ? 'online' : 'offline';
     }
-    return new Response(JSON.stringify(data), {
+    return new NextResponse(JSON.stringify(data), {
       status: res.status,
       headers: { 'content-type': 'application/json' },
     });

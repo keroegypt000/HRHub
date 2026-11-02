@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, fail, handle } from '@/lib/api';
 import { tafqitKWD } from '@/lib/tafqit';
@@ -115,6 +115,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const { getSettings } = await import('@/lib/settings');
     const settings = await getSettings();
     const html = payslipPrintHtml(slip as never, settings.companyName || 'شركة ADMS');
-    return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    return new NextResponse(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   });
 }

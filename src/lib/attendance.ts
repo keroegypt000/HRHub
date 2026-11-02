@@ -88,7 +88,7 @@ export async function resolveShift(employeeId: string, key: string): Promise<{ i
     orderBy: { fromDate: 'desc' },
     include: { shift: true },
   });
-  let shift = null;
+  let shift: Awaited<ReturnType<typeof db.shift.findUnique>> = null;
   for (const a of assignments) {
     if (a.fromDate.getTime() > dayStart.getTime()) continue;
     if (a.toDate && a.toDate.getTime() < dayStart.getTime()) continue;
