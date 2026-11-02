@@ -1,0 +1,713 @@
+     1→# 🧑‍💼 البرومت الكامل — إعادة بناء نظام HRHub بالكامل (HRMS بديل BioTime)
+     2→
+     3→> **إزاي تستخدم الملف ده؟** انسخ المحتوى كله والصقه في أي أداة ذكاء اصطناعي (Claude / ChatGPT / Z.ai...) كأول رسالة، واطلب منه يبني المشروع خطوة بخطوة بنفس الترتيب الموجود في القسم الأخير. البرومت ده يوصف النظام 100%: كل جدول، كل صفحة، كل قاعدة عمل، كل ميزة.
+     4→>
+     5→> **مستقل تمامًا عن PropertyHub:** مستودع GitHub جديد باسم `hrhub` وقاعدة بيانات جديدة — بنفس الهيكل التقني ونمط التصميم فقط، وبلا أي مشاركة في الكود أو البيانات أو المفاتيح.
+     6→
+     7→---
+     8→
+     9→## 1) الهوية والهدف
+    10→
+    11→ابنِ لي نظامًا متكاملًا لإدارة الموارد البشرية والحضور والرواتب باسم **HRHub**:
+    12→
+    13→- **السوق المستهدف:** دولة الكويت (عملة **دينار كويتي KWD** بـ 3 خانات عشرية — 1000 فلس = 1 دينار — الرمز المعروض `د.ك`).
+    14→- **اللغة والاتجاه:** واجهة **عربية بالكامل RTL** (`<html lang="ar" dir="rtl">`)، كل التسميات والحالات والرسائل بالعربية، مع أرقام لاتينية.
+    15→- **المستخدمون:** مالك المكتب (مدير النظام)، فريق الموارد البشرية، المحاسب، المشرفون على الأقسام، ومشاهدون بقراءة فقط.
+    16→- **النطاق الوظيفي:** ملف موظف كامل بالصور، عقود عمل، ورديات وجدولة، سجل بصمة خام من أجهزة **ZKTeco** عبر الـ IP (نفس أسلوب BioTime)، حضور يومي محسوب آليًا، إجازات وعطلات، رواتب محسوبة من الحضور، تقارير شاملة، واستيراد وتصدير Excel.
+    17→- **الفلسفة:** المعالجة الآلية الكاملة — السجلة الخام لا تُعدل أبدًا، والحالة اليومية تُشتق منها بقواعد وردية معلنة، والراتب يُبنى من الحالة اليومية بمعادلات شفافة قابلة للتدقيق من أي محاسب.
+    18→- **الهوية المعروضة:** «HRHub — إدارة الموارد البشرية والحضور والرواتب» بشعار أيقونة موظف باللون الأخضر الزمردي (`icon.svg` + `logo.svg`).
+    19→
+    20→## 2) التقنيات (Tech Stack)
+    21→
+    22→| الطبقة | الاختيار |
+    23→|---|---|
+    24→| Framework | **Next.js 16 (App Router)** + **React 19** + TypeScript |
+    25→| Styling | **Tailwind CSS 4** + **shadcn/ui** (كل مكونات Radix: Dialog, Select, Table, Badge, Card, Tabs...) |
+    26→| Database | **PostgreSQL** عبر **Prisma ORM** (Prisma Postgres المستضاف على Vercel) |
+    27→| Icons / Toasts | **lucide-react** + **sonner** |
+    28→| Auth | مخصص بدون مكتبات: scrypt + جلسات في قاعدة البيانات (Cookie HttpOnly + Bearer) |
+    29→| Excel | **SheetJS (xlsx)** للاستيراد والتصدير داخل المتصفح وفي السيرفر |
+    30→| التخزين | **Cloudflare R2** (متوافق S3 عبر @aws-sdk/client-s3) مع وضع احتياطي داخل قاعدة البيانات للصور والملفات |
+    31→| النشر | **Vercel** (نشر تلقائي بعد كل push على main) |
+    32→
+    33→## 3) قاعدة البيانات — Prisma Schema كامل (22 جدولًا)
+    34→
+    35→انسخ هذا الـ schema حرفيًا في `prisma/schema.prisma` ثم نفّذ `prisma db push`:
+    36→
+    37→```prisma
+    38→generator client {
+    39→  provider = "prisma-client-js"
+    40→}
+    41→
+    42→datasource db {
+    43→  provider = "postgresql"
+    44→  url      = env("DATABASE_URL")
+    45→}
+    46→
+    47→// ===== المصادقة والنظام =====
+    48→model User {
+    49→  id           String         @id @default(cuid())
+    50→  username     String         @unique
+    51→  name         String
+    52→  passwordHash String
+    53→  salt         String
+    54→  role         String         @default("viewer") // admin|hr|accountant|supervisor|viewer
+    55→  permissions  String?        // JSON صلاحيات دقيقة تتجاوز افتراضي الدور
+    56→  active       Boolean        @default(true)
+    57→  createdAt    DateTime       @default(now())
+    58→  updatedAt    DateTime       @updatedAt
+    59→  sessions     Session[]
+    60→  auditLogs    AuditLog[]
+    61→  restores     RestorePoint[]
+    62→}
+    63→
+    64→model Session {
+    65→  id        String   @id @default(cuid())
+    66→  token     String   @unique
+    67→  userId    String
+    68→  expiresAt DateTime
+    69→  createdAt DateTime @default(now())
+    70→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    71→}
+    72→
+    73→model AuditLog {
+    74→  id          String   @id @default(cuid())
+    75→  userId      String?
+    76→  action      String   // create|update|delete|login|sync|import|approve|pay
+    77→  entity      String
+    78→  entityId    String?
+    79→  changes     String?  // JSON before/after
+    80→  description String   // وصف عربي تلقائي
+    81→  createdAt   DateTime @default(now())
+    82→  user        User?    @relation(fields: [userId], references: [id])
+    83→
+    84→  @@index([createdAt])
+    85→}
+    86→
+    87→model RestorePoint {
+    88→  id          String   @id @default(cuid())
+    89→  userId      String?
+    90→  description String
+    91→  snapshot    String   // JSON لقطة للأقسام الأساسية
+    92→  createdAt   DateTime @default(now())
+    93→  user        User?    @relation(fields: [userId], references: [id])
+    94→}
+    95→
+    96→model FileUpload {
+    97→  id         String    @id @default(cuid())
+    98→  fileName   String
+    99→  mimeType   String
+   100→  size       Int
+   101→  data       Bytes?    // وضع احتياطي داخل القاعدة
+   102→  r2Key      String?   // مفتاح Cloudflare R2
+   103→  ownerTag   String?   // employee_photo|contract_file|leave_attachment
+   104→  employeeId String?
+   105→  createdAt  DateTime  @default(now())
+   106→  createdBy  String?
+   107→  employee   Employee? @relation("EmpFiles", fields: [employeeId], references: [id])
+   108→  empPhoto   Employee? @relation("EmpPhoto")
+   109→}
+   110→
+   111→model ImportLog {
+   112→  id          String   @id @default(cuid())
+   113→  entity      String
+   114→  fileName    String
+   115→  totalRows   Int
+   116→  successRows Int
+   117→  failedRows  Int
+   118→  errors      String?  // JSON أخطاء كل صف
+   119→  createdBy   String?
+   120→  createdAt   DateTime @default(now())
+   121→}
+   122→
+   123→// ===== الهيكل التنظيمي والموظفون والعقود =====
+   124→model Department {
+   125→  id        String       @id @default(cuid())
+   126→  name      String
+   127→  notes     String?
+   128→  createdAt DateTime     @default(now())
+   129→  updatedAt DateTime     @updatedAt
+   130→  parentId  String?
+   131→  parent    Department?  @relation("DeptTree", fields: [parentId], references: [id])
+   132→  children  Department[] @relation("DeptTree")
+   133→  employees Employee[]
+   134→}
+   135→
+   136→model Position {
+   137→  id        String     @id @default(cuid())
+   138→  name      String
+   139→  notes     String?
+   140→  createdAt DateTime   @default(now())
+   141→  updatedAt DateTime   @updatedAt
+   142→  employees Employee[]
+   143→}
+   144→
+   145→model Employee {
+   146→  id               String            @id @default(cuid())
+   147→  code             String            @unique // الرقم الوظيفي = pin الجهاز افتراضيًا
+   148→  name             String
+   149→  photoId          String?
+   150→  gender           String?
+   151→  nationality      String?
+   152→  civilId          String?           @unique // الرقم المدني
+   153→  passportNo       String?
+   154→  phone            String?
+   155→  email            String?
+   156→  address          String?
+   157→  birthDate        DateTime?
+   158→  maritalStatus    String?
+   159→  departmentId     String?
+   160→  positionId       String?
+   161→  hireDate         DateTime?
+   162→  basicSalary      Float             @default(0) // د.ك ثلاث خانات عشرية
+   163→  bankAccount      String?
+   164→  status           String            @default("active") // active|suspended|on_leave|terminated
+   165→  pin              String?           // معرف البصمة داخل الأجهزة
+   166→  notes            String?
+   167→  createdAt        DateTime          @default(now())
+   168→  updatedAt        DateTime          @updatedAt
+   169→  department       Department?       @relation(fields: [departmentId], references: [id])
+   170→  position         Position?         @relation(fields: [positionId], references: [id])
+   171→  photo            FileUpload?       @relation("EmpPhoto", fields: [photoId], references: [id])
+   172→  contracts        Contract[]
+   173→  attendanceLogs   AttendanceLog[]
+   174→  dailyAttendance  DailyAttendance[]
+   175→  shiftAssignments ShiftAssignment[]
+   176→  leaveRequests    LeaveRequest[]
+   177→  payslips         Payslip[]
+   178→  files            FileUpload[]      @relation("EmpFiles")
+   179→
+   180→  @@index([name])
+   181→  @@index([status])
+   182→}
+   183→
+   184→model Contract {
+   185→  id                 String     @id @default(cuid())
+   186→  employeeId         String
+   187→  contractNo         String     @unique
+   188→  type               String     @default("full_time") // full_time|part_time|temporary|consultant
+   189→  startDate          DateTime
+   190→  endDate            DateTime?
+   191→  durationMonths     Int?
+   192→  basicSalary        Float
+   193→  housingAllowance   Float      @default(0)
+   194→  transportAllowance Float      @default(0)
+   195→  otherAllowance     Float      @default(0)
+   196→  hoursPerDay        Float      @default(8)
+   197→  daysPerWeek        Int        @default(5)
+   198→  status             String     @default("active") // active|expired|terminated|renewed
+   199→  renewalOfId        String?
+   200→  terminatedAt       DateTime?
+   201→  terminationReason  String?
+   202→  notes              String?
+   203→  createdAt          DateTime   @default(now())
+   204→  updatedAt          DateTime   @updatedAt
+   205→  employee           Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   206→  renewalOf          Contract?  @relation("Renewals", fields: [renewalOfId], references: [id])
+   207→  renewals           Contract[] @relation("Renewals")
+   208→}
+   209→
+   210→// ===== الأجهزة والبصمة والورديات =====
+   211→model Device {
+   212→  id             String          @id @default(cuid())
+   213→  sn             String          @unique // الرقم التسلسلي للجهاز
+   214→  name           String
+   215→  model          String?
+   216→  location       String?
+   217→  ipAddress      String?
+   218→  port           Int?
+   219→  lastSeenAt     DateTime?
+   220→  lastIp         String?
+   221→  status         String          @default("unknown") // online|offline|unknown
+   222→  enabled        Boolean         @default(true)
+   223→  pushVersion    String?
+   224→  createdAt      DateTime        @default(now())
+   225→  updatedAt      DateTime        @updatedAt
+   226→  attendanceLogs AttendanceLog[]
+   227→}
+   228→
+   229→model AttendanceLog {
+   230→  id         String    @id @default(cuid())
+   231→  sn         String
+   232→  pin        String    // معرف المستخدم داخل الجهاز
+   233→  employeeId String?
+   234→  punchTime  DateTime
+   235→  status     Int       @default(0) // 0 دخول|1 خروج|2 خروج استراحة|3 عودة|4 دخول إضافي|5 خروج إضافي
+   236→  verify     Int       @default(1) // 1 بصمة|3 كلمة سر|4 بطاقة|15 وجه
+   237→  workCode   String?
+   238→  source     String    @default("adms") // adms|biotime|excel|manual
+   239→  createdAt  DateTime  @default(now())
+   240→  device     Device    @relation(fields: [sn], references: [sn], onDelete: Cascade)
+   241→  employee   Employee? @relation(fields: [employeeId], references: [id])
+   242→
+   243→  @@unique([sn, pin, punchTime, status])
+   244→  @@index([punchTime])
+   245→  @@index([employeeId])
+   246→}
+   247→
+   248→model Shift {
+   249→  id                String            @id @default(cuid())
+   250→  name              String
+   251→  type              String            @default("fixed") // fixed|flexible|auto
+   252→  startTime         String            // "08:00"
+   253→  endTime           String            // "17:00"
+   254→  crossDay          Boolean           @default(false) // وردية ليلية تعبر منتصف الليل
+   255→  graceMinutes      Int               @default(10)
+   256→  earlyGraceMinutes Int               @default(10)
+   257→  otEnabled         Boolean           @default(true)
+   258→  otRoundMinutes    Int               @default(15)
+   259→  halfDayMinutes    Int               @default(240)
+   260→  workDays          String            @default("[0,1,2,3,4]") // 0=الأحد
+   261→  active            Boolean           @default(true)
+   262→  createdAt         DateTime          @default(now())
+   263→  updatedAt         DateTime          @updatedAt
+   264→  assignments       ShiftAssignment[]
+   265→  dailyAttendance   DailyAttendance[]
+   266→}
+   267→
+   268→model ShiftAssignment {
+   269→  id         String    @id @default(cuid())
+   270→  employeeId String
+   271→  shiftId    String
+   272→  fromDate   DateTime
+   273→  toDate     DateTime?
+   274→  createdAt  DateTime  @default(now())
+   275→  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   276→  shift      Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+   277→
+   278→  @@index([employeeId, fromDate])
+   279→}
+   280→
+   281→model DailyAttendance {
+   282→  id            String    @id @default(cuid())
+   283→  employeeId    String
+   284→  date          DateTime  @db.Date
+   285→  shiftId       String?
+   286→  firstIn       DateTime?
+   287→  lastOut       DateTime?
+   288→  workedMinutes Int       @default(0)
+   289→  lateMinutes   Int       @default(0)
+   290→  earlyMinutes  Int       @default(0)
+   291→  otMinutes     Int       @default(0)
+   292→  status        String    @default("absent") // present|late|half_day|absent|leave|holiday|weekend|missed_punch
+   293→  note          String?
+   294→  processedAt   DateTime  @default(now())
+   295→  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   296→  shift         Shift?    @relation(fields: [shiftId], references: [id])
+   297→
+   298→  @@unique([employeeId, date])
+   299→  @@index([date])
+   300→}
+   301→
+   302→// ===== الإجازات والعطلات =====
+   303→model LeaveType {
+   304→  id        String         @id @default(cuid())
+   305→  name      String
+   306→  code      String         @unique
+   307→  paid      Boolean        @default(true)
+   308→  quotaDays Float?
+   309→  color     String?
+   310→  active    Boolean        @default(true)
+   311→  requests  LeaveRequest[]
+   312→}
+   313→
+   314→model LeaveRequest {
+   315→  id          String    @id @default(cuid())
+   316→  employeeId  String
+   317→  leaveTypeId String
+   318→  fromDate    DateTime
+   319→  toDate      DateTime
+   320→  days        Float
+   321→  reason      String?
+   322→  status      String    @default("pending") // pending|approved|rejected|cancelled
+   323→  reviewedBy  String?
+   324→  reviewedAt  DateTime?
+   325→  createdAt   DateTime  @default(now())
+   326→  updatedAt   DateTime  @updatedAt
+   327→  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   328→  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+   329→
+   330→  @@index([fromDate])
+   331→}
+   332→
+   333→model Holiday {
+   334→  id        String    @id @default(cuid())
+   335→  name      String
+   336→  date      DateTime  @db.Date
+   337→  endDate   DateTime? @db.Date // نطاق عطلة (مثل عيد الفطر)
+   338→  recurring Boolean   @default(false)
+   339→  createdAt DateTime  @default(now())
+   340→}
+   341→
+   342→// ===== الرواتب =====
+   343→model SalaryComponent {
+   344→  id             String        @id @default(cuid())
+   345→  name           String
+   346→  code           String        @unique
+   347→  type           String        // earning|deduction
+   348→  calculation    String        @default("fixed") // fixed|attendance|percent|manual
+   349→  value          Float         @default(0)
+   350→  percentOfBasic Float?
+   351→  active         Boolean       @default(true)
+   352→  order          Int           @default(0)
+   353→  items          PayslipItem[]
+   354→}
+   355→
+   356→model PayrollPeriod {
+   357→  id         String    @id @default(cuid())
+   358→  name       String    @unique // "2026-01"
+   359→  startDate  DateTime
+   360→  endDate    DateTime
+   361→  status     String    @default("draft") // draft|computed|approved|paid
+   362→  computedAt DateTime?
+   363→  approvedBy String?
+   364→  approvedAt DateTime?
+   365→  paidAt     DateTime?
+   366→  notes      String?
+   367→  createdAt  DateTime  @default(now())
+   368→  payslips   Payslip[]
+   369→}
+   370→
+   371→model Payslip {
+   372→  id               String         @id @default(cuid())
+   373→  periodId         String
+   374→  employeeId       String
+   375→  basicSalary      Float
+   376→  totalEarnings    Float
+   377→  totalDeductions  Float
+   378→  netPay           Float
+   379→  workedDays       Float          @default(0)
+   380→  absenceDays      Float          @default(0)
+   381→  otHours          Float          @default(0)
+   382→  otAmount         Float          @default(0)
+   383→  lateMinutes      Int            @default(0)
+   384→  lateDeduction    Float          @default(0)
+   385→  absenceDeduction Float          @default(0)
+   386→  status           String         @default("draft")
+   387→  notes            String?
+   388→  createdAt        DateTime       @default(now())
+   389→  period           PayrollPeriod  @relation(fields: [periodId], references: [id], onDelete: Cascade)
+   390→  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   391→  items            PayslipItem[]
+   392→
+   393→  @@unique([periodId, employeeId])
+   394→}
+   395→
+   396→model PayslipItem {
+   397→  id          String           @id @default(cuid())
+   398→  payslipId   String
+   399→  componentId String?
+   400→  name        String
+   401→  type        String           // earning|deduction
+   402→  amount      Float
+   403→  note        String?
+   404→  payslip     Payslip          @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+   405→  component   SalaryComponent? @relation(fields: [componentId], references: [id])
+   406→}
+   407→```
+   408→
+   409→## 4) المصادقة والأدوار والصلاحيات
+   410→
+   411→### 4.1 المصادقة
+   412→- **تسجيل دخول** باسم مستخدم وكلمة سر. التشفير: `crypto.scryptSync(password, salt, 64)` مع salt عشوائي 16 بايت، والمقارنة بـ `crypto.timingSafeEqual` — مطابق تمامًا لمعايير PropertyHub.
+   413→- **الجلسات:** token عشوائي 32 بايت base64url يُخزن في جدول `Session` مع انتهاء بعد **12 ساعة**، ويُجدد تلقائيًا عند تجاوز نصف المدة.
+   414→- **إرسال التوكن بطريقتين:** كوكي `sid` بـ `HttpOnly; SameSite=Lax` **و** ترويسة `Authorization: Bearer <token>` (الواجهة تخزنه في localStorage تحت المفتاح `sid`).
+   415→- **Rate limiting** على تسجيل الدخول: 5 محاولات فاشلة → قفل 10 دقائق (in-memory Map).
+   416→- **شاشة إعداد أول مرة:** عند عدم وجود أي مستخدمين تظهر شاشة إعداد لإنشاء حساب المدير الأول (`GET /api/setup-needed` و `POST /api/setup`).
+   417→- عند فشل أي طلب بـ 401 تُنظف الجلسة محليًا وتظهر شاشة الدخول (مع تجاهل أخطاء 401 خلال أول 3 ثوانٍ بعد الدخول لتجنب سباق التحقق).
+   418→
+   419→### 4.2 الأدوار (خمسة)
+   420→| الدور | الكود | الصلاحيات |
+   421→|---|---|---|
+   422→| مدير النظام | `admin` | كل شيء — بما فيه المستخدمون والتدقيق والاستعادة والإعدادات الحساسة |
+   423→| موارد بشرية | `hr` | الكتابة في: موظفون، أقسام ومسميات، عقود، ورديات وتوزيعها، إجازات وعطلات، أجهزة، ملفات، اعتماد الحضور اليومي |
+   424→| محاسب | `accountant` | الكتابة في: فترات الرواتب (إنشاء/حساب/اعتماد/صرف)، مكونات الراتب؛ قراءة كاملة للحضور والتقارير |
+   425→| مشرف | `supervisor` | طلبات إجازة لفريقه، قراءة حضور فريقه وتقاريره، تسجيل سجلات يدوية بموافقة HR |
+   426→| مشاهد | `viewer` | قراءة فقط لكل ما يسمح به دوره دون أي كتابة |
+   427→
+   428→### 4.3 الصلاحيات الدقيقة
+   429→- كل مستخدم يمكن أن يملك حقل `permissions` JSON اختياريًا بصيغة `{"payroll": true, "devices": false, ...}` يتجاوز الافتراضي الخاص بدوره.
+   430→- **التحقق يتم في السيرفر داخل كل مسار API** (دالتا `canWrite(role, entity)` و `canRead(role, entity)`) وليس في الواجهة فقط.
+   431→- **الأقسام الإدارية** (سجل التدقيق، نقاط الاستعادة، المستخدمون، الإعدادات الحساسة) **تُخفى من القائمة الجانبية** لغير المديرين **وتُحمى في الـ API أيضًا** — الإخفاء وحده لا يكفي.
+   432→- كل عملية كتابة تُسجَّل في `AuditLog` مع (المستخدم، الإجراء، الكيان، المعرّف، التغييرات JSON، وصف عربي تلقائي).
+   433→
+   434→## 5) محرك البصمة ZKTeco (أهم ميزة في النظام)
+   435→
+   436→ملف `src/lib/zk/*` — قلب النظام الذي يجعله بديلًا حقيقيًا لـ BioTime. يدعم المحرك **ثلاثة أوضاع** لجلب السجلات، تعمل جنبًا إلى جنب وتلتقي جميعها في جدول `AttendanceLog` الخام الموحد.
+   437→
+   438→### 5.1 الوضع الأول — ADMS Push مباشر (الافتراضي)
+   439→النظام يعمل كخادم ADMS (Attendance Device Management Server) يستقبل اتصالات الأجهزة مباشرة. يُضبط الجهاز من قائمته: **Comm → ADMS: Server IP = دومين النظام، Port = 80، Server Path = `/iclock/`**. بعدها يبدأ الجهاز بالدفع التلقائي لكل بصمة جديدة خلال ثوانٍ، مع رفع السجلات غير المتصلة (Offline Records) عند عودة الاتصال.
+   440→
+   441→- **Handshake:** `GET /iclock/cdata?SN=<serial>&pushver=...&options=all` — يرد الخادم بـ `OK` وسلسلة إعدادات قصيرة (مثل `VERIFY=1,INFORM=0`) ويُنشئ/يحدّث سجل الجهاز في جدول `Device`.
+   442→- **Keep-alive:** طلبات دورية كل نحو 30 ثانية — يُحدَّث `lastSeenAt` و`lastIp` وتُعاد حالة `online` فورًا؛ أي جهاز لم يظهر خلال 90 ثانية يُعد `offline` في لوحة التحكم.
+   443→- **السجلات:** `POST /iclock/cdata?SN=...&table=ATTLOG&stamp=...` — كل سطر سجلة بصيغة مفصولة بفواصل جدوبة أو مشفرة Hex (تُفك تلقائيًا): `pin\tpunchTime\tstatus\tverify\tworkCode`.
+   444→- **المستخدمون:** `table=USERINFO` و `table=FP` — لمزامنة الأسماء من الجهاز وربط الـ pin بموظف تلقائيًا إن أمكن.
+   445→- **أوامر عكسية:** الاستجابة للطلب تحمل أوامر بسيطة (مثل `CHECKIN`) تُدار من صفحة الأجهزة لإجبار الجهاز على إعادة رفع البيانات.
+   446→
+   447→| القيمة | الحالة status | القيمة | طريقة التحقق verify |
+   448→|---|---|---|---|
+   449→| 0 | دخول Check-in | 1 | بصمة الإصبع Fingerprint |
+   450→| 1 | خروج Check-out | 3 | كلمة سر Password |
+   451→| 2 | خروج لاستراحة Break-out | 4 | بطاقة Card |
+   452→| 3 | عودة من الاستراحة Break-in | 15 | وجه Face |
+   453→| 4 | دخول عمل إضافي OT-in | 0 | غير محدد |
+   454→| 5 | خروج من عمل إضافي OT-out | | |
+   455→
+   456→### 5.2 الوضع الثاني — سحب من خادم BioTime قائم (REST API)
+   457→إذا كان العميل يشغّل BioTime 8.5 أو 9.5 على خادم محلي، يتصل HRHub به عبر واجهته الرسمية ويجرّ كل شيء دون مساس بالأجهزة نفسها. تُخزن بيانات الاعتماد في الإعدادات (مدير فقط) وتُنفذ المزامنة يدويًا أو تلقائيًا كل 15 دقيقة:
+   458→
+   459→```http
+   460→POST /jwt-api-token-auth/          { username, password }  ->  { token }
+   461→Authorization: JWT <token>
+   462→
+   463→GET /api/personnel/employees/?page_size=1000        الموظفون + الأقسام + المسميات
+   464→GET /api/area/?page_size=1000                       المناطق / الفروع
+   465→GET /api/device/?page_size=1000                     الأجهزة وحالتها
+   466→GET /api/transaction/?start_time=2026-01-01 00:00:00
+   467→                    &end_time=2026-01-31 23:59:59
+   468→                    &page_size=1000&page=1          سجلات الحضور
+   469→```
+   470→
+   471→- يتعامل المحرك مع الاختلافات الطفيفة في أسماء الحقول بين الإصدارات بمرونة (mapping table)، ويدعم الترقيم (pagination) حتى استنفاد كل النتائج.
+   472→- المزامنة تُسجل في `AuditLog` (action=`sync`) مع عدد السجلات الجديدة والمكررة المتجاهلة.
+   473→
+   474→### 5.3 الوضع الثالث — استيراد Excel يدوي
+   475→لأي حالة استثنائية أو انتقال أولي من نظام قديم: قالب Excel جاهز (الأعمدة: الرقم الوظيفي، الرقم التسلسلي للجهاز SN، وقت السجلة، الحالة، طريقة التحقق) يُرفع من قسم الاستيراد، وتُنفذ القراءة كاملة داخل transaction مع تقرير نجاح/فشل لكل صف. يُميَّز بالمصير `source=excel`.
+   476→
+   477→### 5.4 خط معالجة الحضور (Attendance Pipeline)
+   478→ملف `src/lib/attendance.ts` — يحوّل السجلات الخام إلى حالة يومية نهائية في جدول `DailyAttendance` وفق القواعد الآتية، وتُعاد المعالجة تلقائيًا عند وصول أي سجلة جديدة تؤثر في اليوم، أو يدويًا بزر «إعادة معالجة»:
+   479→
+   480→1. **De-duplication:** قيد فريد `(sn, pin, punchTime, status)` يمنع تكرار السجلة مهما أرسلها الجهاز أو جاءت من أكثر من مصدر.
+   481→2. **ربط الموظف:** البحث بـ `pin` أولًا ثم بـ `code`؛ إن لم يوجد تطابق يبقى السجل في شاشة «سجلات غير معروفة» لربطه يدويًا أو بمطابقة جماعية من Excel.
+   482→3. **تحديد الوردية:** آخر توزيعة `ShiftAssignment` سارية لتاريخ اليوم، وإلا الوردية الافتراضية من الإعدادات.
+   483→4. **أولوية تغطية اليوم:** عطلة رسمية Holiday ← إجازة معتمدة Leave ← يوم راحة أسبوعية (خارج `workDays` للوردية) ← يوم عمل عادي.
+   484→5. **الحساب:** `firstIn` أقرب سجلة و`lastOut` أبعد سجلة؛ `workedMinutes = lastOut − firstIn` — سجل واحد فقط (أقل من 10 دقائق فرق) يعني حالة `missed_punch`.
+   485→6. **التأخير:** `max(0, firstIn − (بداية الوردية + graceMinutes))` بالدقائق — ولا يُحسب في يوم راحة أو عطلة.
+   486→7. **الخروج المبكر:** `max(0, (نهاية الوردية − earlyGraceMinutes) − lastOut)` بالدقائق، مع تجاوز منتصف الليل تلقائيًا للورديات ذات `crossDay`.
+   487→8. **الإضافي:** المدة بعد نهاية الوردية تُقرَّب لأقرب `otRoundMinutes` ولا تُحتسب إلا إذا كانت `otEnabled` مفعلة بالوردية، مع دعم حالات OT-in/OT-out الصادرة من الجهاز.
+   488→9. **الحالات النهائية:** `present` أو `late` أو `half_day` (عتبة `halfDayMinutes`) أو `absent` (يوم عمل بلا سجلات) أو `missed_punch` أو `leave` أو `holiday` أو `weekend`.
+   489→10. **الشفافية:** كل سطر يومي يعرض سجلاته المصدرية عند فتحه — لا رقم بلا مصدر، وهذا أساس ثقة المحاسب بالتقارير.
+   490→
+   491→### 5.5 مراقبة الأجهزة
+   492→- صفحة الأجهزة تعرض: الحالة الحية (online/offline)، آخر ظهور وآخر IP، عدد سجلات اليوم، إصدار البروتوكول `pushver`، وزر اختبار اتصال.
+   493→- جهاز جديد يرسل بصماته قبل تسجيله يُقبل أو يُرفض حسب إعداد «قبول الأجهزة تلقائيًا» (الافتراضي: قبول مع تنبيه في لوحة التحكم لتوثيقه).
+   494→- انقطاع أي جهاز يتجاوز 10 دقائق يرفع تنبيهًا برتقاليًا في لوحة التحكم حتى عودته.
+   495→
+   496→## 6) محرك الرواتب (Payroll Engine)
+   497→
+   498→ملف `src/lib/payroll.ts` — محرك حساب شفاف بالكامل يبني رواتب الشهر من الحضور اليومي المعتمد والأنواع والعقود، بنفس فلسفة محرك القيود في PropertyHub: معادلات معلنة، تقريب موحد، وتقرير مصدر لكل رقم في قسيمة الراتب.
+   499→
+   500→### 6.1 مكونات الراتب (SalaryComponent)
+   501→| الحقل | القيم | الشرح |
+   502→|---|---|---|
+   503→| `type` | `earning` / `deduction` | مكوّن دخل (بدل) أو استقطاع |
+   504→| `calculation` | `fixed` / `attendance` / `percent` / `manual` | قيمة ثابتة، أو مشتقة من الحضور، أو نسبة من الأساسي، أو إدخال يدوي لكل موظف |
+   505→| `value` / `percentOfBasic` | رقم | المبلغ الثابت أو النسبة (مثل بدل سكن 30% من الأساسي) |
+   506→| `order` | رقم | ترتيب الظهور في القسيمة |
+   507→
+   508→المكونات الافتراضية المنشأة عند أول تشغيل: الراتب الأساسي (من العقد)، بدل سكن، بدل مواصلات، بدل أخرى، إضافي (attendance)، خصم تأخير (attendance)، خصم غياب (attendance)، خصم إجازة غير مدفوعة (attendance)، سلف أو استقطاعات أخرى (manual).
+   509→
+   510→### 6.2 معادلات الحساب الأساسية (نفذها حرفيًا)
+   511→| البند | المعادلة الافتراضية | ملاحظات |
+   512→|---|---|---|
+   513→| أجر الساعة | `basic ÷ 26 ÷ hoursPerDay` | 26 يوم عمل القاعدة الكويتية — قابل للتعديل من الإعدادات |
+   514→| العمل الإضافي | `أجر الساعة × 1.25` لكل ساعة إضافي | × 1.5 في العطل والراحة الأسبوعية — المضاعفات قابلة للتعديل |
+   515→| خصم التأخير | `أجر الدقيقة × دقائق التأخير` | أجر الدقيقة = أجر الساعة ÷ 60 — أو نسبة من اليوم حسب الإعداد |
+   516→| خصم الغياب | `(basic ÷ 26) × أيام الغياب` | يوم عمل كامل بلا سجلات وبلا إجازة معتمدة |
+   517→| إجازة غير مدفوعة | `(basic ÷ 26) × أيام الإجازة` | لأنواع الإجازات ذات `paid = false` |
+   518→| تأمينات اجتماعية | مواطن: 5.5% موظف + 11.5% جهة عمل — مقيم: 2.5% جهة عمل | نسب قابلة للتعديل؛ نصيب الموظف يُخصم من الصافي |
+   519→| صافي الراتب | الأساسي + المكملات − الاستقطاعات | تقريب ثلاث خانات في كل خطوة: `Math.round(n*1000)/1000` |
+   520→
+   521→### 6.3 دورة حياة فترة الرواتب
+   522→- **draft:** تُنشأ الفترة (مثال: `2026-01`) ويمكن حساب القسائم وإعادة الحساب بلا قيود — إعادة الحساب تحذف القسائم وتعيد بناءها.
+   523→- **computed:** تم الحساب الأولي؛ تظهر القسائم للمراجعة مع تفصيل أيام العمل والغياب والتأخير والإضافي لكل موظف.
+   524→- **approved:** اعتماد المدير أو المحاسب — تُقفل الفترة نهائيًا ولا يتأثر بأي تعديل لاحق على الحضور؛ إعادة الفتح تُسجل في التدقيق وتتطلب مديرًا.
+   525→- **paid:** تسجيل الصرف وتاريخه — مع تصدير ملف بنك (Excel/CSV: الرقم الوظيفي، الاسم، رقم الحساب، الصافي) جاهز للرفع على نظام البنك.
+   526→
+   527→### 6.4 قسيمة الراتب المطبوعة
+   528→- قالب مطبوعة عربي أنيق من `print-docs.tsx` (نفس نظام سندات PropertyHub): بيانات الموظف والفترة، جدول المكملات والاستقطاعات، الصافي، خانات توقيع الموظف والمسؤول والختم.
+   529→- **التفقيط العربي** عبر `lib/tafqit.ts`: «ألف دينار كويتي وخمسمئة فلس فقط لا غير» — يُطبق على الصافي في كل القسائم.
+   530→- تصدير PDF للقسيمة الواحدة أو دفعة كاملة (قسيمة لكل موظف) عبر الطباعة إلى PDF من المتصفح.
+   531→
+   532→## 7) أقسام النظام (17 قسمًا في القائمة الجانبية)
+   533→
+   534→التنقل عبر `Section` state واحدة في مكوّن رئيسي واحد (لا صفحات منفصلة) — عند تغيير القسم تُحمَّل بياناته فقط، نفس نمط PropertyHub. الأقسام الإدارية لا تظهر إلا للمدير، وقسم الرواتب يظهر للمحاسب والمدير.
+   535→
+   536→| # | القسم (المسار) | الوصف الوظيفي |
+   537→|---|---|---|
+   538→| 1 | لوحة التحكم `dashboard` | بطاقات KPI: حاضرون اليوم، متأخرون، غائبون، في إجازة، أجهزة متصلة؛ آخر 10 سجلات بصمة حية مع اسم الموظف وصورته؛ شارت اتجاه الحضور لآخر 30 يومًا |
+   539→| 2 | الموظفون `employees` | جدول وبطاقات بالصور، بحث وفلترة بالقسم/الحالة/النوعية؛ ملف الموظف الكامل بتبويبات: بيانات، عقود، حضور، إجازات، رواتب، ملفات |
+   540→| 3 | الأقسام والمسميات `departments` | شجرة أقسام هرمية + مسميات وظيفية مع عدد الموظفين في كل منها |
+   541→| 4 | العقود `contracts` | أنواع عقود ومدد وبدلات؛ تجديد بسلسلة مرتبطة؛ إنهاء بسبب موثق؛ تنبيه انتهاء قبل 30/60/90 يومًا في لوحة التحكم |
+   542→| 5 | الورديات `shifts` | إنشاء ورديات ثابتة/مرنة/ليلية تعبر منتصف الليل؛ سماحيات وتقريب إضافي؛ توزيع جماعي على موظفين أو قسم كامل بفترة سريان |
+   543→| 6 | سجل البصمة `attendance-logs` | كل السجلات الخام بفلاتر (فترة، موظف، جهاز، مصدر)؛ شاشة «سجلات غير معروفة» لربط الـ pin بموظف |
+   544→| 7 | الحضور اليومي `daily-attendance` | النتيجة المحسوبة لكل موظف/يوم (حالة، دخول، خروج، تأخير، مبكر، إضافي) مع عرض السجلات المصدرية وزر إعادة معالجة فترة |
+   545→| 8 | الإجازات `leaves` | طلبات إجازة بسير موافقات (بانتظار/معتمدة/مرفوضة)؛ أرصدة تلقائية من الحصة السنوية للنوع؛ تأثير فوري على الحضور المحسوب |
+   546→| 9 | العطلات الرسمية `holidays` | عطلات فردية أو نطاقات (عيد الفطر مثلاً) مع تكرار سنوي اختياري — تدخل في أولوية تغطية اليوم |
+   547→| 10 | الأجهزة `devices` | إضافة/تعطيل/توثيق أجهزة ZKTeco؛ الحالة الحية وآخر ظهور وآخر IP؛ إرشادات ضبط ADMS خطوة بخطوة لكل جهاز |
+   548→| 11 | الرواتب `payroll` | فترات الرواتب بمسارها الكامل: إنشاء، حساب، مراجعة قسائم، اعتماد، صرف، تصدير بنك — مع منع أي تعديل بعد الاعتماد |
+   549→| 12 | مكونات الراتب `salary-components` | إدارة المكملات والاستقطاعات وطريقة حساب كل منها وترتيبها في القسيمة |
+   550→| 13 | التقارير `reports` | ستة تقارير: الحضور اليومي، الملخص الشهري، التأخير والخروج المبكر، العمل الإضافي، الغياب، رصيد الإجازات — بفلاتر وتصدير Excel وطباعة |
+   551→| 14 | الاستيراد والتصدير `import` | قوالب Excel جاهزة لكل كيان؛ رفع مع تقرير نجاح/فشل لكل صف؛ تصدير أي قسم بفلاتره الحالية |
+   552→| 15 | سجل التدقيق `audit` (مدير) | كل كتابة بوصفها العربي والمستخدم والتغييرات — بحث وفلترة وحد صفحات |
+   553→| 16 | المستخدمون `users` (مدير) | إنشاء حسابات، أدوار، صلاحيات دقيقة JSON، تفعيل/إيقاف، تصفير كلمة السر |
+   554→| 17 | الإعدادات `settings` | عام (اسم الجهة والشعار)، معادلات وقيم (26 يوم، مضاعفات إضافي، نسب تأمينات)، إعدادات ADMS ومزامنة BioTime، نقاط الاستعادة، مسح البيانات التجريبية للمدير فقط |
+   555→
+   556→## 8) الاستيراد والتصدير Excel (نظام كامل)
+   557→
+   558→- زر **تصدير** في كل قسم ينزّل ملف `.xlsx` ببيانات القسم الحالية مع تطبيق الفلاتر نفسها — ولوحة التقارير تصدّر نتائج أي تقرير.
+   559→- زر **استيراد** يقرأ الملف في المتصفح عبر SheetJS ويرسله إلى نقطة bulk API تنفّذ الإنشاء الجماعي داخل transaction واحدة، مع تقرير نتائج لكل صف (نجح / فشل وسببه بالعربية) يظهر فورًا ويُحفظ في `ImportLog`.
+   560→- قوالب جاهزة للتحميل لكل كيان: الموظفون (مع أعمدة القسم والمسمى بالاسم وإيجادها أو إنشائها تلقائيًا)، الأجهزة، الورديات، العطلات، سجل البصمة، مكونات الراتب.
+   561→- الاستيراد لا يفسد القائم: الصفوف المتطابقة (نفس الكود أو الرقم المدني) تُحدّث لا تُكرر، والصف الفاشل لا يوقف غيره.
+   562→- ملفات الموظفين الضخمة (1000 صف وأكثر) تُعالج على دفعات داخل السيرفر مع شريط تقدم في الواجهة.
+   563→
+   564→## 9) المستندات المطبوعة (نظام print-docs)
+   565→
+   566→نفس مبادئ نظام سندات PropertyHub: قالب موحّد `voucherDocHtml(spec)` يولّد HTML للطباعة بهوية HRHub، مع ترقيم مستندات آلي وتفقيط عربي وتوقيعات. المستندات في النسخة الأولى:
+   567→
+   568→1. قسيمة راتب فردية بدفعة كاملة (قسيمة لكل موظف في الفترة).
+   569→2. شهادة راتب موجهة (إلى من يعنيه / بنك) بتفاصيل مكونات الراتب للفترة أو آخر ثلاث فترات.
+   570→3. خطاب تعريف موظف بتاريخ اليوم ورقم مرجعي فريد.
+   571→4. كشف حضور ورواتب شهري ملخّص بجدول الموظفين والتوقيعات والختم.
+   572→5. إشعار إنهاء أو تجديد عقد ببيانات العقد القديم والجديد.
+   573→
+   574→## 10) الأمان (ملخص تنفيذي)
+   575→
+   576→- كلمات السر scrypt مع salt لكل مستخدم، ومقارنات timing-safe، ولا تخزين نصي صريح لأي سر في أي مكان.
+   577→- جلسات بخمد زمني (12 ساعة) قابلة للإبطال من صفحة المستخدمين؛ تسجيل خروج ينظف الجلسة من القاعدة.
+   578→- تحقق صلاحيات في السيرفر لكل مسار، ورفض مع 403 وسجل تدقيق لكل محاولة كتابة مرفوضة من دور غير مخول.
+   579→- نقاط ADMS `/iclock/*` بلا مصادقة مستخدم بطبيعة البروتوكول، لكنها تتحقق من `SN` المسجل وتُهمل أي جهاز غير معروف عند إيقاف «القبول التلقائي»، مع rate limit على المسار لمنع الإغراق.
+   580→- نقاط استعادة تلقائية بعد كل كتابة من الواجهة (snapshot JSON للأقسام الأساسية) قابلة للاستعادة من قبل المدير — نفس فلسفة PropertyHub.
+   581→- بيانات اتصال BioTime والتخزين السحابي تُخزن مشفرة في الإعدادات ولا تعود للواجهة إلا مخفية.
+   582→
+   583→## 11) نظام الألوان والتصميم (UI/UX)
+   584→
+   585→### 11.1 الهوية البصرية
+   586→- **اللون الرئيسي:** أخضر زمردي `#1F8A70` (تمييز واضح عن البرتقالي في PropertyHub) — للعناوين والأزرار الرئيسية وحالات النجاح والحضور.
+   587→- **دلالات الحالة:** أخضر = حاضر، كهرماني = متأخر أو بانتظار، أحمر = غائب أو فشل، أزرق = إجازة، رمادي = يوم راحة أو عطلة، بنفسجي = عمل إضافي.
+   588→- **الخطوط:** خط النظام الحالي (system-ui stack) واضح بالعربية بأحجام 12–14px للجداول و16px للنصوص، وأرقام لاتينية موحدة `tabular-nums` في كل المبالغ والتقارير.
+   589→
+   590→### 11.2 التخطيط والتجاوب
+   591→- قائمة جانبية ثابتة على الديسكتوب (تبدأ من اليمين RTL) تتحول إلى درج سفلي على الموبايل، مع عنوان القسم الحالي وإجراءاته السريعة أعلى كل شاشة.
+   592→- كل قسم بحالتين: جدول كامل على الديسكتوب، وبطاقات مكدسة على الموبايل — موحد عبر مكوّن `DataTable` مشترك.
+   593→- لوحة التحكم تنتهي بـ «سجل حي» يعرض آخر السجلات الواردة من الأجهزة فور ورودها (polling كل 10 ثوانٍ) لإحساس BioTime الحي.
+   594→- حالات تحميل Skeleton، رسائل sonner بالعربية، ورفع الصور مع ضغط داخل المتصفح قبل الإرسال.
+   595→
+   596→## 12) خريطة نقاط الـ API (كلها تتحقق من المصادقة والصلاحيات)
+   597→
+   598→```http
+   599→POST /api/auth/login | POST /api/auth/logout | GET /api/auth/me | POST /api/auth/password
+   600→GET  /api/setup-needed | POST /api/setup
+   601→
+   602→GET/POST  /api/employees            | PUT/DELETE /api/employees/[id]
+   603→POST      /api/employees/[id]/photo            (upload photo)
+   604→GET/POST  /api/departments         | PUT/DELETE /api/departments/[id]
+   605→GET/POST  /api/positions           | PUT/DELETE /api/positions/[id]
+   606→GET/POST  /api/contracts           | PUT/DELETE /api/contracts/[id]   (+ overlap check)
+   607→GET/POST  /api/shifts              | PUT/DELETE /api/shifts/[id]
+   608→GET/POST  /api/shift-assignments   | DELETE /api/shift-assignments/[id]
+   609→GET/POST  /api/leave-types         | PUT/DELETE /api/leave-types/[id]
+   610→GET/POST  /api/leaves              | PATCH /api/leaves/[id]           (approve/reject)
+   611→GET/POST  /api/holidays            | PUT/DELETE /api/holidays/[id]
+   612→GET/POST  /api/devices             | PUT/DELETE /api/devices/[id]
+   613→POST      /api/devices/[id]/test                (device ping)
+   614→GET/POST  /api/salary-components   | PUT/DELETE /api/salary-components/[id]
+   615→GET/POST  /api/payroll-periods     | PUT/DELETE /api/payroll-periods/[id]
+   616→POST      /api/payroll-periods/[id]/compute     (build / recompute payslips)
+   617→POST      /api/payroll-periods/[id]/approve
+   618→POST      /api/payroll-periods/[id]/pay
+   619→GET       /api/payslips?periodId=&employeeId=
+   620→GET       /api/payslips/[id] | GET /api/payslips/[id]/print   (HTML print doc)
+   621→
+   622→GET/POST  /iclock/cdata?SN=...                  (ADMS listener: handshake,
+   623→                                                keep-alive, ATTLOG, USERINFO)
+   624→GET/POST  /iclock/ping?SN=...
+   625→POST      /api/biotime/sync                     (pull from BioTime server)
+   626→POST      /api/attendance/recompute?from=&to=&employeeId=
+   627→GET       /api/attendance-logs?from=&to=&employeeId=&deviceId=&page=
+   628→GET       /api/daily-attendance?from=&to=&departmentId=&status=
+   629→
+   630→GET       /api/reports/daily | /api/reports/monthly | /api/reports/late
+   631→GET       /api/reports/overtime | /api/reports/absence | /api/reports/leaves
+   632→
+   633→POST      /api/import/excel?entity=             (bulk inside transaction)
+   634→GET       /api/import/template?entity=          (download template)
+   635→GET       /api/export?entity=&from=&to=         (export with current filters)
+   636→
+   637→GET/POST  /api/users | PATCH /api/users/[id]    (role/permissions/password/active)
+   638→GET       /api/audit?limit=100
+   639→GET/POST  /api/restore | POST /api/restore/[id]
+   640→POST      /api/files/upload | GET/DELETE /api/files/[id]
+   641→```
+   642→
+   643→**قواعد عامة لكل المسارات:** أخطاء عربية واضحة بأكواد صحيحة (401 غير مصرح / 403 ليست لديك صلاحية / 400 تحقق من البيانات)، كل كتابة تُسجَّل AuditLog، كل كتابة ناجحة تنشئ نقطة استعادة تلقائية من الواجهة.
+   644→
+   645→## 13) قواعد العمل الجوهرية (Business Rules) — انسخها حرفيًا
+   646→
+   647→1. **العملة دينار كويتي بثلاث خانات عشرية** — كل الحسابات المالية تُقرَّب بـ `Math.round(n*1000)/1000` في كل خطوة لا في النهاية فقط.
+   648→2. **السجلات الخام لا تُعدل** — جدول `AttendanceLog` إضافي فقط (append-only)؛ التصحيح يتم بإعادة معالجة الحالة اليومية، وحذف سجل خام حق للمدير فقط مع تسجيل تدقيق.
+   649→3. **لا تكرار للسجلات أبدًا** — قيد فريد `(sn, pin, punchTime, status)`؛ إعادة إرسال الجهاز أو التقاطع بين مصدرين لا يولد سجلين.
+   650→4. **ربط pin بالموظف بترتيب محدد** — أولًا حقل `pin` ثم `code`؛ غير المطابق يعيش في شاشة «سجلات غير معروفة» حتى يُربط يدويًا.
+   651→5. **أولوية اليوم ثابتة** — Holiday ثم Leave معتمدة ثم Weekend (حسب `workDays` للوردية) ثم يوم عمل عادي؛ لا يتأثر ترتيبها بالإعدادات.
+   652→6. **الحساب اليومي واحد للمعادلة** — `firstIn`/`lastOut`/`workedMinutes` كما في القسم 5.4، وسجل واحد فقط يعني `missed_punch` لا `present`.
+   653→7. **التأخير والخروج المبكر بالدقائق مع السماحية** — لا خصم قبل استنفاد `graceMinutes`، والورديات الليلية تجاوز منتصف الليل تلقائيًا.
+   654→8. **الإضافي ميزة مفعلة** — لا يُحتسب إلا إذا `otEnabled` بالوردية، ويُقرَّب لأقرب `otRoundMinutes`، ومضاعفة 1.25/1.5 من الإعدادات.
+   655→9. **يوم عمل بلا سجلات = absent** — ما لم تغطه عطلة أو إجازة معتمدة أو راحة أسبوعية.
+   656→10. **منع تداخل العقود النشطة** — لا عقد نشط ثانٍ لنفس الموظف يتقاطع زمنيًا مع عقد نشط قائم؛ والتجديد يُسجل بسلسلة `renewalOf` ويبدأ من تاريخ انتهاء سابقه.
+   657→11. **حالة العقد تتحدث تلقائيًا** — `expired` عند مرور `endDate` (أول عملية اليوم)، وتنبيهات الانتهاء 30/60/90 يومًا في لوحة التحكم.
+   658→12. **الإجازة المعتمدة تسري فورًا** — تغطي أيامها في `DailyAttendance` بحالة `leave` وتُحتسب من رصيد النوع؛ رفضها أو إلغاؤها يعيد المعالجة تلقائيًا.
+   659→13. **فترة الرواتب المعتمدة قفل نهائي** — `draft` وحدها تقبل إعادة الحساب؛ أي تعديل حضور بعد اعتماد فترة لا يغير قسائمها، وإعادة الفتح تحتاج مديرًا وتُسجل في التدقيق.
+   660→14. **فشل جزئي لا يوقف الكل** — فشل جهاز في المزامنة أو صف في الاستيراد يُوثق في التقرير ويكمل الباقي.
+   661→15. **كل كتابة تُرصد** — `AuditLog` بوصف عربي تلقائي + نقطة استعادة تلقائية بعد كل عملية كتابة من الواجهة.
+   662→16. **معايير المصادقة مطابقة لـ PropertyHub** — scrypt، جلسات 12 ساعة، rate limiting، وشاشة إعداد أول مرة، دون أي مكتبات خارجية للمصادقة.
+   663→
+   664→## 14) النشر وربط GitHub (Vercel + Prisma Postgres)
+   665→
+   666→- مستودع GitHub جديد مستقل باسم **hrhub** — لا يُستخدم مستودع PropertyHub ولا تُنسخ بياناته أو مفاتيحه، ويُفعّل النشر التلقائي: كل push على main ينشر خلال 2–3 دقائق.
+   667→- قاعدة بيانات **Prisma Postgres** مستضافة على Vercel و`DATABASE_URL` في متغيرات البيئة، مع `BLOB_READ_WRITE_TOKEN` لتخزين R2 إن فعّل.
+   668→
+   669→```json
+   670→// vercel.json
+   671→{
+   672→  "buildCommand": "prisma generate && (prisma db push --accept-data-loss || echo 'WARN: db push skipped — DB unreachable, using existing schema') && next build",
+   673→  "framework": "nextjs"
+   674→}
+   675→```
+   676→
+   677→- البناء المحلي للتحقق قبل الرفع: `DATABASE_URL="postgresql://check:check@localhost:5432/check" npx next build` (فقط لسلامة الكود، بلا اتصال حقيقي).
+   678→- **ملاحظة تشغيلية للأجهزة:** بروتوكول ADMS يعمل عبر HTTP فيصل على Vercel مباشرة (يُضبط الجهاز على دومين النظام والمنفذ 80 والمسار `/iclock/`). وللشبكات الداخلية المقفولة أو إدارة الأوامر العكسية المكثفة، يمكن لاحقًا إضافة خدمة VPS صغيرة دائمة تعمل كوسيط يمرر السجلات إلى نفس نقطة `/iclock/` — دون أي تغيير في قاعدة البيانات.
+   679→- ملفات الهوية: `src/app/icon.svg` + `src/app/apple-icon.svg` (شعار الموظف الأخضر الزمردي) و`public/logo.svg`، والعنوان في layout: «HRHub — إدارة الموارد البشرية والحضور والرواتب».
+   680→
+   681→### 14.1 اختبار القبول النهائي (نفّذها بالترتيب)
+   682→
+   683→1. إنشاء مدير أول ← إضافة قسم ومسمى ← إضافة موظف بصورة ← إضافة جهاز بالـ SN الحقيقي.
+   684→2. ضبط جهاز ZKTeco فعلي على ADMS = دومين النظام ← تظهر حالة online خلال دقيقة ← بصمة موظف ← السجلة تظهر في سجل البصمة والحضور اليومي خلال ثوانٍ.
+   685→3. إنشاء وردية ببداية 08:00 وسماح 10 دقائق ← بصمة دخول 08:25 ← حالة `late` وخصم تأخير صحيح في التقرير.
+   686→4. طلب إجازة ← اعتمادها من HR ← يوم الإجازة يتحول تلقائيًا إلى `leave` في الحضور اليومي.
+   687→5. إنشاء فترة راتب الشهر ← حساب ← قسيمة بصافٍ صحيح وتفقيط عربي ← اعتماد ← محاولة تعديل حضور لا تغيّر القسيمة.
+   688→6. استيراد Excel لـ 50 موظفًا ← تقرير لكل صف ← تصدير تقرير حضور شهري بنجاح.
+   689→7. اختبار سريع للأدوار: مشاهد لا يرى أزرار كتابة ومحاولته الكتابة ترجع 403 وتُسجل في التدقيق ✓
+   690→
+   691→## 15) تعليمات التنفيذ للذكاء الاصطناعي (الترتيب الصحيح)
+   692→
+   693→نفّذ البناء بهذا الترتيب بالضبط، واختبر كل خطوة قبل التالية:
+   694→
+   695→1. **الهيكل:** مشروع جديد Next.js 16 + TypeScript + Tailwind 4 + shadcn/ui كامل + Prisma بالمخطط أعلاه + `db push` — باسم `hrhub` في مستودع مستقل.
+   696→2. **المكتبات الأساسية:** `lib/db.ts` (عميل Prisma وحيد) ← `lib/auth.ts` (scrypt + جلسات + canWrite/canRead + rate limit) ← `lib/audit.ts` (logAudit) ← `lib/calc.ts` (تقريب 3 خانات ومعدلات) ← `lib/tafqit.ts` ← `lib/time.ts` (المنطقة الزمنية Asia/Kuwait وتجاوز منتصف الليل) ← `lib/attendance.ts` (خط المعالجة كاملًا) ← `lib/payroll.ts` (المحرك كاملًا) ← `lib/zk/protocol.ts` (فك ADMS: handshake/keep-alive/ATTLOG CSV وHex) ← `lib/zk/biotime.ts` (عميل REST) ← `lib/storage.ts` ← `lib/excel.ts` ← `lib/contracts.ts` (تحقق التداخل والتجديد).
+   697→3. **المصادقة:** مسارات auth + setup + شاشتا LoginScreen و SetupScreen.
+   698→4. **CRUD الأساسي:** departments ← positions ← employees بكل مساراتها مع رفع الصور وضغط المتصفح.
+   699→5. **العقود** بتحقق التداخل والتجديد والحالة التلقائية والتنبيهات.
+   700→6. **الورديات وتوزيعها** (فردي وجماعي) مع الورديات الليلية.
+   701→7. **مستقبل ADMS** `/iclock/*` كاملًا: handshake، keep-alive، ATTLOG CSV وHex، USERINFO، رفض SN غير المسجل حسب الإعداد، وصفحة الأجهزة بالحالة الحية.
+   702→8. **خط معالجة الحضور:** recompute لليوم والفترة بكل قواعد التغطية والأولوية، وشاشة «سجلات غير معروفة».
+   703→9. **الإجازات والعطلات** بسير الموافقات ودمجهما في المعالج تلقائيًا.
+   704→10. **مزامنة BioTime REST** + الاستيراد والتصدير Excel لكل الأقسام بقوالبها وتقاريرها لكل صف.
+   705→11. **محرك الرواتب:** مكونات ← فترات ← compute/approve/pay ← قسائم مطبوعة بالتفقيط ← تصدير بنك.
+   706→12. **التقارير الستة** بفلاترها وتصديرها + لوحة التحكم بالـ KPIs والسجل الحي.
+   707→13. **الواجهة الرئيسية والأدوار:** القائمة الجانبية اليمينية، درج الموبايل، أقسام admin المخفية والمحمية، سجل التدقيق ونقاط الاستعادة والإعدادات.
+   708→14. **النشر:** vercel.json + GitHub (hrhub) + Prisma Postgres، ثم نفّذ قائمة اختبار القبول في 14.1 كاملة ✓.
+   709→
+   710→---
+   711→
+   712→**خلاصة:** HRHub = بديل عربي متكامل لـ BioTime: أجهزة بصمة ZKTeco تدفع السجلات مباشرة بالـ IP، ومعالجة آلية شفافة للورديات والتأخير والإضافي، وملف موظف كامل بالصور والعقود والإجازات، ورواتب تُبنى من الحضور بمعادلات معلنة بالدينار الكويتي، مع استيراد وتصدير Excel وتقارير شاملة وأدوار وصلاحيات صارمة وسجل تدقيق ونقاط استعادة — بنفس الهيكل التقني ونمط التصميم وجودة التنفيذ المجرّبة في PropertyHub، وبمستودع وقاعدة بيانات مستقلين تمامًا.
+   713→
