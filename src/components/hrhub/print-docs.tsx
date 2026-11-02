@@ -1,0 +1,240 @@
+'use client';
+
+// print-docs — نظام المستندات المطبوعة: قالب موحد voucherDocHtml بهوية HRHub
+// قسيمة راتب، شهادة راتب، خطاب تعريف، كشف شهري، إشعار إنهاء/تجديد عقد
+import { tafqit } from '@/lib/tafqit-client';
+import { fmtKWD, fmtDate } from '@/lib/client';
+
+interface DocSpec {
+  title: string;
+  refNo: string;
+  date: string;
+  body: string; // HTML داخلي
+  signatures?: string[];
+  footer?: string;
+}
+
+function esc(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** القالب الموحد — يفتح نافذة طباعة بهوية HRHub */
+export function voucherDocHtml(spec: DocSpec, companyName: string): string {
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>${esc(spec.title)}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, 'Segoe UI', Tahoma, sans-serif; color: #1a2b26; padding: 24px; background: #fff; }
+  .doc { max-width: 780px; margin: 0 auto; border: 2px solid #1F8A70; border-radius: 12px; overflow: hidden; }
+  .head { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; background: #1F8A70; color: #fff; }
+  .head .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; }
+  .head .logo .mark { width: 40px; height: 40px; background: #fff; color: #1F8A70; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
+  .head .meta { text-align: left; font-size: 12px; line-height: 1.7; }
+  .title { text-align: center; padding: 14px; font-size: 18px; font-weight: 800; color: #1F8A70; border-bottom: 1px dashed #b9d9cf; }
+  .body { padding: 22px 26px; font-size: 14px; line-height: 2; }
+  .body table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; }
+  .body th, .body td { border: 1px solid #cde3dc; padding: 8px 10px; text-align: right; font-size: 13px; }
+  .body th { background: #eef7f4; color: #14523f; font-weight: 700; }
+  .body td.num { font-variant-numeric: tabular-nums; text-align: center; }
+  .body .net { background: #1F8A70; color: #fff; font-weight: 800; }
+  .tafqit { background: #eef7f4; border: 1px dashed #1F8A70; border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-weight: 700; color: #14523f; }
+  .signs { display: flex; justify-content: space-between; gap: 16px; margin-top: 44px; }
+  .sign { flex: 1; text-align: center; font-size: 13px; }
+  .sign .line { margin-top: 34px; border-top: 1.5px solid #666; padding-top: 6px; }
+  .foot { text-align: center; font-size: 11px; color: #6b7f79; padding: 10px; border-top: 1px dashed #b9d9cf; background: #f7fbfa; }
+  @media print { body { padding: 0; } .doc { border: none; border-radius: 0; } }
+</style>
+</head>
+<body>
+  <div class="doc">
+    <div class="head">
+      <div class="logo"><div class="mark">HR</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">HRHub — الموارد البشرية والحضور والرواتب</div></div></div>
+      <div class="meta">رقم المرجع: <b>${esc(spec.refNo)}</b><br>التاريخ: <b>${esc(spec.date)}</b></div>
+    </div>
+    <div class="title">${esc(spec.title)}</div>
+    <div class="body">${spec.body}</div>
+    <div class="signs">
+      ${(spec.signatures || ['الموظف', 'المسؤول المباشر', 'الموارد البشرية']).map((s) => `<div class="sign"><b>${esc(s)}</b><div class="line">الاسم والتوقيع</div></div>`).join('')}
+    </div>
+    <div class="foot">${esc(spec.footer || 'هذا المستند صادر آليًا من نظام HRHub — دولة الكويت')}${spec.footer ? '' : ` · مرجع ${esc(spec.refNo)}`}</div>
+  </div>
+</body>
+</html>`;
+}
+
+export function printHtml(html: string): void {
+  const w = window.open('', '_blank', 'width=900,height=1000');
+  if (!w) {
+    alert('الرجاء السماح بالنوافذ المنبثقة للطباعة');
+    return;
+  }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+// ===== 1. قسيمة راتب =====
+export interface PayslipDocData {
+  employee: { name: string; code: string; department?: { name: string } | null; position?: { name: string } | null; bankAccount?: string | null; nationality?: string | null; civilId?: string | null };
+  period: { name: string; startDate: string; endDate: string };
+  basicSalary: number;
+  items: { name: string; type: string; amount: number; note?: string | null }[];
+  totalEarnings: number;
+  totalDeductions: number;
+  netPay: number;
+  workedDays?: number;
+  absenceDays?: number;
+}
+
+export function payslipDoc(slip: PayslipDocData, companyName: string): string {
+  const earnings = slip.items.filter((i) => i.type === 'earning');
+  const deductions = slip.items.filter((i) => i.type === 'deduction');
+  const maxLen = Math.max(earnings.length, deductions.length, 1);
+  const rows = Array.from({ length: maxLen }).map((_, idx) => {
+    const e = earnings[idx];
+    const d = deductions[idx];
+    return `<tr>
+      <td>${esc(e?.name || '')}</td><td class="num">${e ? fmtKWD(e.amount) : ''}</td>
+      <td>${esc(d?.name || '')}</td><td class="num">${d ? fmtKWD(d.amount) : ''}</td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <table>
+      <tr><th style="width:25%">الموظف</th><td>${esc(slip.employee.name)} (${esc(slip.employee.code)})</td>
+          <th style="width:20%">الفترة</th><td>${esc(slip.period.name)}</td></tr>
+      <tr><th>القسم</th><td>${esc(slip.employee.department?.name || '—')}</td>
+          <th>المسمى</th><td>${esc(slip.employee.position?.name || '—')}</td></tr>
+      <tr><th>الرقم المدني</th><td>${esc(slip.employee.civilId || '—')}</td>
+          <th>الحساب البنكي</th><td>${esc(slip.employee.bankAccount || '—')}</td></tr>
+    </table>
+    <table>
+      <thead><tr><th>المكملات</th><th style="width:18%">مبلغ (د.ك)</th><th>الاستقطاعات</th><th style="width:18%">مبلغ (د.ك)</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr><th>إجمالي المكملات</th><td class="num">${fmtKWD(slip.totalEarnings)}</td>
+            <th>إجمالي الاستقطاعات</th><td class="num">${fmtKWD(slip.totalDeductions)}</td></tr>
+        <tr class="net"><td colspan="2">صافي الراتب المستحق</td><td colspan="2" class="num">${fmtKWD(slip.netPay)} د.ك</td></tr>
+      </tfoot>
+    </table>
+    <div class="tafqit">فقط ${esc(tafqit(slip.netPay))}</div>
+    <p style="font-size:12px;color:#557">
+      أيام العمل ${slip.workedDays ?? 0} — أيام الغياب ${slip.absenceDays ?? 0} ·
+      الراتب الأساسي ${fmtKWD(slip.basicSalary)} د.ك · العملة: دينار كويتي ثلاث خانات عشرية.
+    </p>`;
+
+  return voucherDocHtml({
+    title: 'قسيمة راتب',
+    refNo: `PS-${slip.period.name}-${slip.employee.code}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['الموظف', 'الموارد البشرية', 'الختم'],
+    footer: `قسيمة راتب ${slip.period.name} — سريّة بين الموظف والجهة`,
+  }, companyName);
+}
+
+// ===== 2. شهادة راتب =====
+export function salaryCertificateDoc(
+  employee: { name: string; code: string; department?: { name: string } | null; position?: { name: string } | null; basicSalary: number },
+  to: string,
+  slips: { period: { name: string }; netPay: number }[],
+  companyName: string
+): string {
+  const rows = slips.map((s) => `<tr><td>${esc(s.period.name)}</td><td class="num">${fmtKWD(s.netPay)}</td></tr>`).join('');
+  const body = `
+    <p>إلى: <b>${esc(to || 'من يعنيه')}</b></p>
+    <p>نشهد بأن <b>${esc(employee.name)}</b> (${esc(employee.code)}) يعمل لدى ${esc(companyName)} بصفة
+    <b>${esc(employee.position?.name || 'موظف')}</b> في قسم <b>${esc(employee.department?.name || '—')}</b>،
+    وأن راتبه الأساسي <b>${fmtKWD(employee.basicSalary)} د.ك</b> (فقط ${esc(tafqit(employee.basicSalary))}).</p>
+    ${slips.length ? `<table><thead><tr><th>الفترة</th><th>صافي الراتب (د.ك)</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+    <p>صدرت هذه الشهادة بناءً على طلبه للاستخدام الرسمي.</p>`;
+  return voucherDocHtml({
+    title: 'شهادة راتب',
+    refNo: `SC-${employee.code}-${Date.now().toString().slice(-6)}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['موارد البشرية', 'المدير العام', 'الختم'],
+  }, companyName);
+}
+
+// ===== 3. خطاب تعريف =====
+export function introLetterDoc(
+  employee: { name: string; code: string; department?: { name: string } | null; position?: { name: string } | null; nationality?: string | null; civilId?: string | null },
+  purpose: string,
+  companyName: string
+): string {
+  const body = `
+    <p>إلى من يعنيه،</p>
+    <p>نشهد بأن <b>${esc(employee.name)}</b> — الرقم الوظيفي (${esc(employee.code)}) — يعمل لدى ${esc(companyName)}
+    بصفة <b>${esc(employee.position?.name || 'موظف')}</b> في قسم <b>${esc(employee.department?.name || '—')}</b>${employee.nationality ? `، وجنسية <b>${esc(employee.nationality)}</b>` : ''}.</p>
+    <p>صدر هذا الخطاب بناءً على طلبه بهدف: <b>${esc(purpose || 'معاملات رسمية')}</b>.</p>
+    <p>ونشكر لكم حسن تعاونكم.</p>`;
+  return voucherDocHtml({
+    title: 'خطاب تعريف موظف',
+    refNo: `IL-${employee.code}-${Date.now().toString().slice(-6)}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['موارد البشرية', 'المدير العام', 'الختم'],
+  }, companyName);
+}
+
+// ===== 4. كشف حضور ورواتب شهري =====
+export function monthlyStatementDoc(
+  periodName: string,
+  rows: { name: string; code: string; basicSalary: number; netPay: number; workedDays: number; absenceDays: number }[],
+  companyName: string
+): string {
+  const body = `
+    <table>
+      <thead><tr><th>#</th><th>الموظف</th><th>الرقم</th><th>الأساسي (د.ك)</th><th>أيام العمل</th><th>الغياب</th><th>الصافي (د.ك)</th></tr></thead>
+      <tbody>
+        ${rows.map((r, i) => `<tr><td class="num">${i + 1}</td><td>${esc(r.name)}</td><td class="num">${esc(r.code)}</td>
+          <td class="num">${fmtKWD(r.basicSalary)}</td><td class="num">${r.workedDays}</td><td class="num">${r.absenceDays}</td>
+          <td class="num">${fmtKWD(r.netPay)}</td></tr>`).join('')}
+      </tbody>
+      <tfoot><tr class="net"><td colspan="6">الإجمالي</td><td class="num">${fmtKWD(rows.reduce((s, r) => s + r.netPay, 0))}</td></tr></tfoot>
+    </table>`;
+  return voucherDocHtml({
+    title: `كشف حضور ورواتب — ${periodName}`,
+    refNo: `MS-${periodName}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['المحاسب', 'المدير المالي', 'الختم'],
+  }, companyName);
+}
+
+// ===== 5. إشعار إنهاء/تجديد عقد =====
+export function contractNoticeDoc(
+  employee: { name: string; code: string },
+  oldContract: { contractNo: string; startDate: string; endDate?: string | null; status: string },
+  newContract?: { contractNo: string; startDate: string; endDate?: string | null; basicSalary: number } | null,
+  kind: 'renew' | 'terminate' = 'renew',
+  reason?: string,
+  companyName = 'شركة HRHub'
+): string {
+  const title = kind === 'renew' ? 'إشعار تجديد عقد' : 'إشعار إنهاء عقد';
+  const body = `
+    <p>الموظف: <b>${esc(employee.name)}</b> (${esc(employee.code)})</p>
+    <table>
+      <tr><th>العقد الحالي</th><td>${esc(oldContract.contractNo)}</td><th>من</th><td>${esc(oldContract.startDate)}</td><th>إلى</th><td>${esc(oldContract.endDate || '—')}</td></tr>
+    </table>
+    ${kind === 'renew' && newContract ? `
+      <p>تم <b>تجديد</b> العقد بعقد جديد رقم <b>${esc(newContract.contractNo)}</b> من <b>${esc(newContract.startDate)}</b> إلى <b>${esc(newContract.endDate || 'غير محدد')}</b> براتب أساسي ${fmtKWD(newContract.basicSalary)} د.ك.</p>
+    ` : `
+      <p>تم <b>إنهاء</b> العقد${reason ? ` بسبب: <b>${esc(reason)}</b>` : ''}.</p>
+    `}
+    <p>يرجى مراجعة الموارد البشرية لاستكمال الإجراءات.</p>`;
+  return voucherDocHtml({
+    title,
+    refNo: `CN-${oldContract.contractNo}-${Date.now().toString().slice(-6)}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['الموظف', 'الموارد البشرية', 'الختم'],
+  }, companyName);
+}
