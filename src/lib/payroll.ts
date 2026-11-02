@@ -102,6 +102,9 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       : null;
     const workDaysArr = parseWorkDays(defaultShift?.workDays || '[0,1,2,3,4]');
 
+    // حماية تاريخ التعيين: قبل التعيين لا يُحسب حضورًا ولا غيابًا (الغياب لا يُخصم قبل وقوعه)
+    const hireKey = emp.hireDate ? dateKey(emp.hireDate) : null;
+
     let workedDays = 0;
     let absenceDays = 0;
     let lateMinutes = 0;
@@ -110,6 +113,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     let missedPunchDays = 0;
 
     for (const key of keys) {
+      if (hireKey && key < hireKey) continue; // يوم قبل تاريخ التعيين — مُتجاهل تمامًا
       const d = dailyByKey.get(key);
       const isWorkday = workDaysArr.includes(weekdayIndex(kuwaitMidnight(key)));
       if (d) {

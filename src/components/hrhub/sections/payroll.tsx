@@ -23,6 +23,7 @@ interface PeriodRow extends Record<string, unknown> {
   computedAt?: string | null; approvedAt?: string | null; paidAt?: string | null;
   notes?: string | null; _count?: { payslips: number };
   totalNet: number; totalEarnings: number; totalDeductions: number;
+  activeEmployees?: number;
 }
 
 interface SlipRow extends Record<string, unknown> {
@@ -131,7 +132,14 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
     { key: 'name', header: 'الفترة', render: (r) => <span className="font-bold tabular text-base">{r.name}</span> },
     { key: 'range', header: 'النطاق', render: (r) => <span className="tabular">{fmtDate(r.startDate)} → {fmtDate(r.endDate)}</span>, hideOnMobile: true },
     { key: 'status', header: 'الحالة', render: (r) => <StatusBadge status={r.status} /> },
-    { key: 'count', header: 'القسائم', render: (r) => <span className="tabular">{r._count?.payslips ?? 0}</span> },
+    { key: 'count', header: 'القسائم', render: (r) => (
+      <span className="tabular">
+        {r._count?.payslips ?? 0}
+        {r.status !== 'draft' && typeof r.activeEmployees === 'number' && (r._count?.payslips ?? 0) < r.activeEmployees && (
+          <span className="text-amber-700 text-xs" title="عدد القسائم أقل من الموظفين النشطين — أعد فتح الفترة ثم أعد الحساب"> ⚠️ ناقص</span>
+        )}
+      </span>
+    ) },
     { key: 'net', header: 'الصافي (د.ك)', render: (r) => <span className="tabular font-bold text-emerald-700">{fmtKWD(r.totalNet)}</span> },
     { key: 'paidAt', header: 'تاريخ الصرف', render: (r) => r.paidAt ? fmtDateTime(r.paidAt).slice(0, 10) : '—', hideOnMobile: true },
     {
@@ -152,7 +160,7 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
               <Banknote className="h-3 w-3" /> صرف
             </Button>
           )}
-          {role === 'admin' && ['approved', 'paid'].includes(r.status) && (
+          {role === 'admin' && ['computed', 'approved', 'paid'].includes(r.status) && (
             <Button size="sm" variant="outline" className="h-7 text-xs text-amber-700" disabled={busy} onClick={() => act(r, 'reopen')}>
               <LockOpen className="h-3 w-3" /> إعادة فتح
             </Button>
@@ -227,6 +235,9 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
             </div>
           </CardHeader>
           <CardContent>
+            {['approved', 'paid'].includes(selected.status) && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-2">🔒 الفترة مقفولة نهائيًا — لتعديل الكشوفات: «إعادة فتح» (مدير فقط) ثم «إعادة حساب».</p>
+            )}
             <DataTable columns={slipColumns} rows={slips} emptyText="لا قسائم — احسب الفترة أولًا" maxBodyHeight="50vh" />
           </CardContent>
         </Card>

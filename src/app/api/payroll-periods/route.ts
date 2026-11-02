@@ -19,12 +19,14 @@ export async function GET(req: NextRequest) {
       _sum: { netPay: true, totalEarnings: true, totalDeductions: true },
     });
     const totalsMap = new Map(totals.map((t) => [t.periodId, t]));
+    const activeEmployees = await db.employee.count({ where: { status: { not: 'terminated' } } });
     return ok({
       rows: rows.map((r) => ({
         ...r,
         totalNet: totalsMap.get(r.id)?._sum.netPay || 0,
         totalEarnings: totalsMap.get(r.id)?._sum.totalEarnings || 0,
         totalDeductions: totalsMap.get(r.id)?._sum.totalDeductions || 0,
+        activeEmployees,
       })),
       contractAlerts: await contractAlerts(),
     });

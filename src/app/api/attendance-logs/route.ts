@@ -29,7 +29,11 @@ export async function GET(req: NextRequest) {
       };
     }
     if (employeeId && employeeId !== 'all') where.employeeId = employeeId;
-    if (deviceId && deviceId !== 'all') where.sn = deviceId;
+    if (deviceId && deviceId !== 'all') {
+      // يقبل معرف الجهاز (cuid) أو الرقم التسلسلي SN مباشرة
+      const dev = await db.device.findUnique({ where: { id: deviceId } }).catch(() => null);
+      where.sn = dev ? dev.sn : deviceId;
+    }
     if (source && source !== 'all') where.source = source;
     if (unknown) where.employeeId = null;
 

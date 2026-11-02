@@ -84,7 +84,7 @@ async function findApprovedLeave(employeeId: string, key: string): Promise<{ typ
 export async function resolveShift(employeeId: string, key: string): Promise<{ id: string | null; shift: { id: string; name: string; type: string; startTime: string; endTime: string; crossDay: boolean; graceMinutes: number; earlyGraceMinutes: number; otEnabled: boolean; otRoundMinutes: number; halfDayMinutes: number; workDays: string } | null }> {
   const dayStart = kuwaitMidnight(key);
   const assignments = await db.shiftAssignment.findMany({
-    where: { employeeId, fromDate: { lte: dayStart }, shiftId: { not: undefined } },
+    where: { employeeId, fromDate: { lte: dayStart } },
     orderBy: { fromDate: 'desc' },
     include: { shift: true },
   });

@@ -210,8 +210,8 @@ function EmployeeProfile({ id, open, onClose, canWrite, companyName }: { id: str
                     }} />
                   </label>
                 )}
-                {emp.files.filter((f) => f.mimeType !== 'employee_photo').length === 0 && <p className="text-sm text-muted-foreground">لا توجد ملفات</p>}
-                {emp.files.map((f) => (
+                {emp.files.filter((f) => f.ownerTag !== 'employee_photo').length === 0 && <p className="text-sm text-muted-foreground">لا توجد ملفات</p>}
+                {emp.files.filter((f) => f.ownerTag !== 'employee_photo').map((f) => (
                   <div key={f.id} className="rounded-lg border p-3 flex items-center gap-3 text-sm">
                     <UserRound className="h-4 w-4 text-muted-foreground" />
                     <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="font-medium hover:underline flex-1 truncate">{f.fileName}</a>

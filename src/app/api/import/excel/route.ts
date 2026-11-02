@@ -174,6 +174,9 @@ export async function POST(req: NextRequest) {
     else if (entity === 'attendance-logs') {
       const { parseDeviceTime } = await import('@/lib/zk/protocol');
       const { resolveEmployeeByPin, recomputeRange } = await import('@/lib/attendance');
+      const { dateKey } = await import('@/lib/time');
+      let minKey: string | null = null;
+      let maxKey: string | null = null;
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i]; const rowNo = i + 2;
         try {
@@ -198,13 +201,15 @@ export async function POST(req: NextRequest) {
           });
           results.push({ row: rowNo, ok: true, message: emp ? `سجلة ${emp.id ? 'مربوطة' : ''}` : 'سجلة (pin غير معروف)' });
           success++;
+          const kKey = dateKey(punchTime);
+          if (!minKey || kKey < minKey) minKey = kKey;
+          if (!maxKey || kKey > maxKey) maxKey = kKey;
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'خطأ';
           results.push({ row: rowNo, ok: false, message: msg.includes('Unique') ? 'سجلة مكررة' : msg });
         }
       }
-      const today = dateKeySafe();
-      await recomputeRange({ from: today, to: today }).catch(() => {});
+      if (minKey && maxKey) await recomputeRange({ from: minKey, to: maxKey }).catch(() => {});
     }
     // ===== مكونات الراتب =====
     else if (entity === 'salary-components') {
@@ -248,9 +253,4 @@ export async function POST(req: NextRequest) {
     });
     return ok({ total: rows.length, success, failed, results });
   });
-}
-
-function dateKeySafe(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
 }
