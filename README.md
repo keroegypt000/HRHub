@@ -1,4 +1,4 @@
-# HRHub — نظام إدارة الموارد البشرية المتكامل
+# ADMS FOR HR MANAGMENT (ADMS) — نظام إدارة الموارد البشرية المتكامل
 
 نظام HR متكامل لإدارة الموظفين، الحضور والانصراف بالبصمة، الورديات، الإجازات، والرواتب — مبني على Next.js مع تكامل مباشر مع أجهزة البصمة ZKTeco عبر بروتوكول ADMS.
 
@@ -85,4 +85,4 @@ docs/               # الوثائق والمواصفات الكاملة
 
 ## 📄 الوثائق
 
-المواصفات الكاملة للنظام موجودة في [`docs/HRHub_Master_Prompt.md`](docs/HRHub_Master_Prompt.md).
+المواصفات الكاملة للنظام موجودة في [`docs/ADMS FOR HR MANAGMENT_Master_Prompt.md`](docs/ADMS FOR HR MANAGMENT_Master_Prompt.md).

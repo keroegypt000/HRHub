@@ -259,7 +259,10 @@ export function SettingsSection() {
               <p className="font-medium text-sm">التأمينات الاجتماعية</p>
               <p className="text-xs text-muted-foreground">مواطن: 5.5% موظف + 11.5% جهة عمل — مقيم: 2.5% جهة عمل (قابلة للتعديل)</p>
             </div>
-            <Switch checked={s.socialSecurityEnabled} onCheckedChange={(v) => set('socialSecurityEnabled', v)} />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-xs font-bold ${s.socialSecurityEnabled ? 'text-emerald-700' : 'text-muted-foreground'}`}>{s.socialSecurityEnabled ? 'مفعّل' : 'متوقف'}</span>
+              <Switch checked={s.socialSecurityEnabled} onCheckedChange={(v) => set('socialSecurityEnabled', v)} />
+            </div>
           </div>
           {s.socialSecurityEnabled && (
             <>
@@ -276,11 +279,17 @@ export function SettingsSection() {
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div><p className="font-medium text-sm">استقبال أجهزة ADMS (المسار /iclock/)</p><p className="text-xs text-muted-foreground">اضبط الجهاز: Server IP = دومين النظام، Port = 80، Path = /iclock/</p></div>
-            <Switch checked={s.admsEnabled} onCheckedChange={(v) => set('admsEnabled', v)} />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-xs font-bold ${s.admsEnabled ? 'text-emerald-700' : 'text-muted-foreground'}`}>{s.admsEnabled ? 'مفعّل' : 'متوقف'}</span>
+              <Switch checked={s.admsEnabled} onCheckedChange={(v) => set('admsEnabled', v)} />
+            </div>
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div><p className="font-medium text-sm">قبول الأجهزة الجديدة تلقائيًا</p><p className="text-xs text-muted-foreground">مع تنبيه في لوحة التحكم لتوثيقها</p></div>
-            <Switch checked={s.autoAcceptDevices} onCheckedChange={(v) => set('autoAcceptDevices', v)} />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-xs font-bold ${s.autoAcceptDevices ? 'text-emerald-700' : 'text-muted-foreground'}`}>{s.autoAcceptDevices ? 'مفعّل' : 'متوقف'}</span>
+              <Switch checked={s.autoAcceptDevices} onCheckedChange={(v) => set('autoAcceptDevices', v)} />
+            </div>
           </div>
           <div>
             <Label className="mb-1.5">تنبيه انقطاع الجهاز بعد (دقيقة)</Label>
@@ -294,7 +303,10 @@ export function SettingsSection() {
         <CardContent className="grid sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2 flex items-center justify-between rounded-lg border p-3">
             <p className="font-medium text-sm">تفعيل السحب من خادم BioTime قائم (REST)</p>
-            <Switch checked={s.biotimeEnabled} onCheckedChange={(v) => set('biotimeEnabled', v)} />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-xs font-bold ${s.biotimeEnabled ? 'text-emerald-700' : 'text-muted-foreground'}`}>{s.biotimeEnabled ? 'مفعّل' : 'متوقف'}</span>
+              <Switch checked={s.biotimeEnabled} onCheckedChange={(v) => set('biotimeEnabled', v)} />
+            </div>
           </div>
           {s.biotimeEnabled && (
             <>

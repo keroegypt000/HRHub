@@ -41,7 +41,7 @@ export function ImportExportSection({ canWrite }: { canWrite: boolean }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
-    downloadFile(`/api/import/template?entity=${entity}`, `hrhub-template-${entity}.xlsx`);
+    downloadFile(`/api/import/template?entity=${entity}`, `adms-template-${entity}.xlsx`);
     toast.info('نُزّل القالب — املأ الصفوف ثم ارفعه هنا');
   };
 
@@ -84,7 +84,7 @@ export function ImportExportSection({ canWrite }: { canWrite: boolean }) {
   };
 
   const doExport = (key: string) => {
-    downloadFile(`/api/export?entity=${key}`, `hrhub-${key}.xlsx`);
+    downloadFile(`/api/export?entity=${key}`, `adms-${key}.xlsx`);
   };
 
   return (

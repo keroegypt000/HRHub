@@ -1,9 +1,8 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, handle, HttpError } from '@/lib/api';
-import { exportBuffer } from '@/lib/excel';
+import { exportBuffer, workDaysToText } from '@/lib/excel';
 import { kuwaitMidnight, dateKey, fmtTime, fmtDate } from '@/lib/time';
-import { STATUS_AR } from '@/lib/zk/protocol';
 import { tafqitKWD } from '@/lib/tafqit';
 
 /** تصدير أي قسم Excel بفلاتره الحالية — incl. ملف البنك للرواتب المصروفة */
@@ -30,11 +29,12 @@ export async function GET(req: NextRequest) {
           orderBy: { code: 'asc' },
         });
         rows = emps.map((e) => ({
+          // نفس أسماء أعمدة قالب الاستيراد حرفيًا — الملف المصدر يشتغل استيرادًا مباشرة
           'الرقم الوظيفي': e.code, 'الاسم': e.name, 'الجنس': e.gender || '', 'الجنسية': e.nationality || '',
-          'الرقم المدني': e.civilId || '', 'الهاتف': e.phone || '', 'البريد': e.email || '',
-          'القسم': e.department?.name || '', 'المسمى': e.position?.name || '',
+          'الرقم المدني': e.civilId || '', 'الجواز': e.passportNo || '', 'الهاتف': e.phone || '', 'البريد': e.email || '',
+          'القسم': e.department?.name || '', 'المسمى الوظيفي': e.position?.name || '',
           'تاريخ التعيين': e.hireDate ? fmtDate(e.hireDate) : '', 'الراتب الأساسي': e.basicSalary,
-          'الحساب البنكي': e.bankAccount || '', 'الحالة': e.status, 'PIN': e.pin || '',
+          'الحساب البنكي': e.bankAccount || '', 'الحالة': e.status, 'PIN البصمة': e.pin || e.code,
         }));
         break;
       }
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         const devices = await db.device.findMany({ orderBy: { name: 'asc' } });
         rows = devices.map((d) => ({
           'الرقم التسلسلي': d.sn, 'الاسم': d.name, 'الموديل': d.model || '', 'الموقع': d.location || '',
-          'IP': d.ipAddress || '', 'الحالة': d.status, 'آخر ظهور': d.lastSeenAt ? fmtDateTime(d.lastSeenAt) : '—',
+          'IP': d.ipAddress || '', 'المنفذ': d.port || '', 'الحالة': d.status, 'آخر ظهور': d.lastSeenAt ? fmtDateTime(d.lastSeenAt) : '—',
         }));
         break;
       }
@@ -50,9 +50,9 @@ export async function GET(req: NextRequest) {
         const shifts = await db.shift.findMany({ orderBy: { name: 'asc' } });
         rows = shifts.map((s) => ({
           'الاسم': s.name, 'النوع': s.type, 'بداية': s.startTime, 'نهاية': s.endTime,
-          'تعبر منتصف الليل': s.crossDay ? 'نعم' : 'لا', 'سماحية التأخير': s.graceMinutes,
-          'سماحية المبكر': s.earlyGraceMinutes, 'إضافي': s.otEnabled ? 'نعم' : 'لا',
-          'تقريب الإضافي': s.otRoundMinutes, 'أيام العمل': s.workDays,
+          'تعبر منتصف الليل': s.crossDay ? 'نعم' : 'لا', 'سماحية التأخير (دقيقة)': s.graceMinutes,
+          'سماحية الخروج المبكر': s.earlyGraceMinutes, 'إضافي مفعّل': s.otEnabled ? 'نعم' : 'لا',
+          'تقريب الإضافي': s.otRoundMinutes, 'عتبة نص يوم': s.halfDayMinutes, 'أيام العمل': workDaysToText(s.workDays),
         }));
         break;
       }
@@ -72,10 +72,11 @@ export async function GET(req: NextRequest) {
           take: 20000,
         });
         rows = logs.map((l) => ({
-          'التاريخ': dateKey(l.punchTime), 'الوقت': fmtTime(l.punchTime),
-          'الموظف': l.employee?.name || '', 'الرقم': l.employee?.code || '', 'PIN': l.pin,
-          'الجهاز': l.device?.name || l.sn, 'الحالة': STATUS_AR[l.status] || String(l.status),
-          'المصدر': l.source,
+          // أعمدة الاستيراد نفسها + أعمدة عرض إضافية يتجاهلها الاستيراد
+          'الرقم الوظيفي (PIN)': l.pin, 'الرقم التسلسلي SN': l.sn,
+          'وقت السجلة': `${dateKey(l.punchTime)} ${fmtTime(l.punchTime)}:00`,
+          'الحالة': l.status, 'طريقة التحقق': l.verify,
+          'الموظف': l.employee?.name || '', 'الجهاز': l.device?.name || l.sn, 'المصدر': l.source,
         }));
         break;
       }
@@ -141,8 +142,8 @@ export async function GET(req: NextRequest) {
       case 'holidays': {
         const holidays = await db.holiday.findMany({ orderBy: { date: 'asc' } });
         rows = holidays.map((h) => ({
-          'الاسم': h.name, 'التاريخ': fmtDate(h.date), 'حتى': h.endDate ? fmtDate(h.endDate) : '',
-          'متكرر': h.recurring ? 'نعم' : 'لا',
+          'الاسم': h.name, 'التاريخ': fmtDate(h.date), 'تاريخ النهاية': h.endDate ? fmtDate(h.endDate) : '',
+          'متكرر سنويًا': h.recurring ? 'نعم' : 'لا',
         }));
         break;
       }

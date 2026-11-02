@@ -3,9 +3,9 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "HRHub — إدارة الموارد البشرية والحضور والرواتب",
+  title: "ADMS FOR HR MANAGMENT — الموارد البشرية والحضور والرواتب",
   description:
-    "نظام متكامل لإدارة الموارد البشرية والحضور والرواتب بالدينار الكويتي — بديل عربي لـ BioTime مع دعم أجهزة ZKTeco عبر ADMS",
+    "ADMS FOR HR MANAGMENT — نظام متكامل لإدارة الموارد البشرية والحضور والرواتب بالدينار الكويتي، متوافق مع أجهزة ZKTeco عبر ADMS: بصمة أون لاين ومحلية، ورديات، إجازات، رواتب وتقارير.",
   icons: { icon: "/logo.svg" },
 };
 

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Network, FileSignature, Clock4, Fingerprint, CalendarCheck2,
   Plane, Sparkles, MonitorSmartphone, Wallet, SlidersHorizontal, BarChart3,
-  FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu, UsersRound, RefreshCcw,
+  FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -115,12 +115,12 @@ export function AppShell({
         {/* القائمة الجانبية — ثابتة يمين الديسكتوب */}
         <aside className="hidden lg:flex flex-col w-64 bg-sidebar shrink-0 sticky top-0 h-screen">
           <div className="flex items-center gap-3 p-4 border-b border-white/10">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500 flex items-center justify-center">
-              <UsersRound className="h-6 w-6 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-700 flex items-center justify-center ring-1 ring-white/25 shadow-lg shadow-emerald-950/40">
+              <Fingerprint className="h-6 w-6 text-white" />
             </div>
             <div>
-              <p className="font-extrabold text-white">HRHub</p>
-              <p className="text-[11px] text-sidebar-foreground/60">الموارد البشرية والحضور</p>
+              <p className="font-extrabold text-white leading-tight">ADMS<span className="text-emerald-400">.</span></p>
+              <p className="text-[9px] font-bold tracking-[0.22em] text-sidebar-foreground/70">FOR HR MANAGMENT</p>
             </div>
           </div>
           <NavList me={me} current={section} onNavigate={go} />
@@ -141,10 +141,13 @@ export function AppShell({
                 <SheetTitle className="sr-only">القائمة</SheetTitle>
                 <div className="flex flex-col h-full">
                   <div className="flex items-center gap-3 p-4 border-b border-white/10">
-                    <div className="h-9 w-9 rounded-xl bg-emerald-500 flex items-center justify-center">
-                      <UsersRound className="h-5 w-5 text-white" />
+                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-700 flex items-center justify-center ring-1 ring-white/25">
+                      <Fingerprint className="h-5 w-5 text-white" />
                     </div>
-                    <p className="font-extrabold text-white">HRHub</p>
+                    <div>
+                      <p className="font-extrabold text-white leading-tight">ADMS<span className="text-emerald-400">.</span></p>
+                      <p className="text-[8px] font-bold tracking-[0.22em] text-sidebar-foreground/70">FOR HR MANAGMENT</p>
+                    </div>
                   </div>
                   <NavList me={me} current={section} onNavigate={go} />
                   <SidebarFooter me={me} onLogout={() => { setMobileOpen(false); onLogout(); }} />
@@ -155,15 +158,15 @@ export function AppShell({
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-lg truncate">{currentLabel}</h2>
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={onLogout}>
-              <RefreshCcw className="hidden" /> خروج
+            <Button variant="outline" size="sm" className="gap-1.5 hover:bg-red-50 hover:text-red-700 hover:border-red-200" onClick={onLogout}>
+              <LogOut className="h-4 w-4" /> خروج
             </Button>
           </header>
 
           <main className="flex-1 p-4 pb-16 max-w-full">{children}</main>
 
           <footer className="mt-auto border-t py-3 px-4 text-center text-xs text-muted-foreground bg-background">
-            HRHub — إدارة الموارد البشرية والحضور والرواتب · دولة الكويت · العملة: دينار كويتي (د.ك)
+            ADMS FOR HR MANAGMENT — إدارة الموارد البشرية والحضور والرواتب · دولة الكويت · العملة: دينار كويتي (د.ك)
           </footer>
         </div>
       </div>

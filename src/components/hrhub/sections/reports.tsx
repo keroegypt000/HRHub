@@ -85,7 +85,7 @@ export function ReportsSection() {
     w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير ${REPORTS.find((r) => r.key === type)?.label}</title>
       <style>body{font-family:system-ui,sans-serif;padding:20px}h1{color:#1F8A70;font-size:18px}table{width:100%;border-collapse:collapse;font-size:12px}
       th,td{border:1px solid #cde3dc;padding:6px 8px;text-align:right}th{background:#eef7f4}.meta{color:#666;font-size:12px;margin-bottom:12px}</style></head>
-      <body><h1>HRHub — ${REPORTS.find((r) => r.key === type)?.label}</h1>
+      <body><h1>ADMS FOR HR MANAGMENT — ${REPORTS.find((r) => r.key === type)?.label}</h1>
       <p class="meta">الفترة: ${from} → ${to}${meta ? ` · ${meta}` : ''} · تاريخ الطباعة: ${new Date().toISOString().slice(0, 10)}</p>
       <table><thead><tr>${columns.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((r) => `<tr>${r.map((cell) => `<td>${String(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`);

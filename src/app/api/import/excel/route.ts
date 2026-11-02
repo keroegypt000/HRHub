@@ -3,12 +3,12 @@ import { db } from '@/lib/db';
 import { requireWrite, ok, fail, handle } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
 import { num } from '@/lib/calc';
+import { pick, parseDateSafe, statusFromText, employeeStatusFromText, parseWorkDays } from '@/lib/excel';
 
 interface RowResult { row: number; ok: boolean; message: string }
 
-const str = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
-
-/** استيراد Excel — صفوف JSON مقروءة في المتصفح، تنفيذ جماعي مع تقرير لكل صف */
+/** استيراد Excel — صفوف JSON مقروءة في المتصفح، تنفيذ جماعي مع تقرير لكل صف.
+ *  متسامح مع كل الملفات: قالب النظام، ملف التصدير (بأي إصدار)، أو ملف خارجي بأسماء أعمدة شائعة. */
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const user = await requireWrite(req, 'import');
@@ -32,12 +32,12 @@ export async function POST(req: NextRequest) {
         const r = rows[i];
         const rowNo = i + 2; // +1 للعنوان
         try {
-          const code = str(r['الرقم الوظيفي']);
-          const name = str(r['الاسم']);
+          const code = pick(r, ['الرقم الوظيفي', 'الكود', 'رقم الموظف']);
+          const name = pick(r, ['الاسم', 'اسم الموظف']);
           if (!code || !name) { results.push({ row: rowNo, ok: false, message: 'الرقم الوظيفي والاسم مطلوبان' }); continue; }
           const exists = await db.employee.findUnique({ where: { code } });
-          const deptName = str(r['القسم']);
-          const posName = str(r['المسمى الوظيفي']);
+          const deptName = pick(r, ['القسم', 'الإدارة']);
+          const posName = pick(r, ['المسمى الوظيفي', 'المسمى', 'الوظيفة']);
           let departmentId: string | undefined;
           if (deptName) {
             const found = departments.find((d) => d.name === deptName);
@@ -58,22 +58,22 @@ export async function POST(req: NextRequest) {
               positionId = created.id;
             }
           }
-          const hireDate = str(r['تاريخ التعيين']);
-          const civilId = str(r['الرقم المدني']) || null;
+          const hireDate = parseDateSafe(r['تاريخ التعيين']);
           const data = {
             code, name,
-            gender: str(r['الجنس']) || null,
-            nationality: str(r['الجنسية']) || null,
-            civilId,
-            passportNo: str(r['الجواز']) || null,
-            phone: str(r['الهاتف']) || null,
-            email: str(r['البريد']) || null,
+            gender: pick(r, ['الجنس']) || null,
+            nationality: pick(r, ['الجنسية']) || null,
+            civilId: pick(r, ['الرقم المدني', 'المدني']) || null,
+            passportNo: pick(r, ['الجواز', 'رقم الجواز']) || null,
+            phone: pick(r, ['الهاتف', 'الجوال']) || null,
+            email: pick(r, ['البريد', 'البريد الإلكتروني']) || null,
             departmentId, positionId,
-            hireDate: hireDate ? new Date(`${hireDate}T00:00:00.000+03:00`) : null,
+            hireDate,
             basicSalary: num(r['الراتب الأساسي']),
-            bankAccount: str(r['الحساب البنكي']) || null,
-            status: str(r['الحالة']) || 'active',
-            pin: str(r['PIN البصمة']) || code,
+            bankAccount: pick(r, ['الحساب البنكي', 'رقم الحساب']) || null,
+            status: employeeStatusFromText(r['الحالة']),
+            // PIN اختياري تمامًا: يقبل «PIN البصمة» أو «PIN» أو يرجع للرقم الوظيفي تلقائيًا
+            pin: pick(r, ['PIN البصمة', 'PIN', 'pin']) || code,
           };
           if (exists) {
             await db.employee.update({ where: { code }, data });
@@ -93,14 +93,15 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i]; const rowNo = i + 2;
         try {
-          const sn = str(r['الرقم التسلسلي']);
+          const sn = pick(r, ['الرقم التسلسلي', 'SN', 'الرقم التسلسلي SN']);
           if (!sn) { results.push({ row: rowNo, ok: false, message: 'الرقم التسلسلي مطلوب' }); continue; }
+          const portVal = num(pick(r, ['المنفذ', 'Port']));
           const data = {
-            sn, name: str(r['الاسم']) || sn,
-            model: str(r['الموديل']) || null,
-            location: str(r['الموقع']) || null,
-            ipAddress: str(r['IP']) || null,
-            port: r['المنفذ'] ? Math.round(num(r['المنفذ'])) : null,
+            sn, name: pick(r, ['الاسم']) || sn,
+            model: pick(r, ['الموديل']) || null,
+            location: pick(r, ['الموقع']) || null,
+            ipAddress: pick(r, ['IP', 'الـ IP']) || null,
+            port: portVal > 0 ? Math.round(portVal) : null,
           };
           await db.device.upsert({ where: { sn }, update: data, create: data });
           results.push({ row: rowNo, ok: true, message: `جهاز: ${data.name}` });
@@ -115,22 +116,21 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i]; const rowNo = i + 2;
         try {
-          const name = str(r['الاسم']);
+          const name = pick(r, ['الاسم', 'اسم الوردية']);
           if (!name) { results.push({ row: rowNo, ok: false, message: 'اسم الوردية مطلوب' }); continue; }
-          const startTime = str(r['بداية']) || '08:00';
-          const endTime = str(r['نهاية']) || '17:00';
-          const daysStr = str(r['أيام العمل']) || '0,1,2,3,4';
+          const startTime = pick(r, ['بداية', 'وقت البداية']) || '08:00';
+          const endTime = pick(r, ['نهاية', 'وقت النهاية']) || '17:00';
           const data = {
             name,
-            type: str(r['النوع']) || 'fixed',
+            type: pick(r, ['النوع']) || 'fixed',
             startTime, endTime,
-            crossDay: str(r['تعبر منتصف الليل']) === 'نعم',
-            graceMinutes: Math.round(num(r['سماحية التأخير (دقيقة)']) || 10),
-            earlyGraceMinutes: Math.round(num(r['سماحية الخروج المبكر']) || 10),
-            otEnabled: str(r['إضافي مفعّل']) !== 'لا',
-            otRoundMinutes: Math.round(num(r['تقريب الإضافي']) || 15),
-            halfDayMinutes: Math.round(num(r['عتبة نص يوم']) || 240),
-            workDays: JSON.stringify(daysStr.split(',').map((x) => parseInt(x.trim(), 10)).filter((x) => Number.isFinite(x))),
+            crossDay: pick(r, ['تعبر منتصف الليل']) === 'نعم',
+            graceMinutes: Math.round(num(pick(r, ['سماحية التأخير (دقيقة)', 'سماحية التأخير'])) || 10),
+            earlyGraceMinutes: Math.round(num(pick(r, ['سماحية الخروج المبكر', 'سماحية المبكر'])) || 10),
+            otEnabled: pick(r, ['إضافي مفعّل', 'إضافي']) !== 'لا',
+            otRoundMinutes: Math.round(num(pick(r, ['تقريب الإضافي'])) || 15),
+            halfDayMinutes: Math.round(num(pick(r, ['عتبة نص يوم'])) || 240),
+            workDays: JSON.stringify(parseWorkDays(r['أيام العمل'])),
           };
           const exists = await db.shift.findFirst({ where: { name } });
           if (exists) {
@@ -151,16 +151,16 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i]; const rowNo = i + 2;
         try {
-          const name = str(r['الاسم']);
-          const dateStr = str(r['التاريخ']);
-          if (!name || !dateStr) { results.push({ row: rowNo, ok: false, message: 'الاسم والتاريخ مطلوبان' }); continue; }
-          const endStr = str(r['تاريخ النهاية']);
+          const name = pick(r, ['الاسم', 'اسم العطلة']);
+          const date = parseDateSafe(r['التاريخ']);
+          if (!name || !date) { results.push({ row: rowNo, ok: false, message: 'الاسم والتاريخ مطلوبان' }); continue; }
+          const endDate = parseDateSafe(r['تاريخ النهاية'] ?? r['حتى']);
           await db.holiday.create({
             data: {
               name,
-              date: new Date(`${dateStr}T00:00:00.000+03:00`),
-              endDate: endStr ? new Date(`${endStr}T00:00:00.000+03:00`) : null,
-              recurring: str(r['متكرر سنويًا']) === 'نعم',
+              date,
+              endDate,
+              recurring: pick(r, ['متكرر سنويًا', 'متكرر']) === 'نعم',
             },
           });
           results.push({ row: rowNo, ok: true, message: `عطلة: ${name}` });
@@ -180,11 +180,22 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i]; const rowNo = i + 2;
         try {
-          const pin = str(r['الرقم الوظيفي (PIN)']);
-          const sn = str(r['الرقم التسلسلي SN']) || 'EXCEL-IMPORT';
-          const timeStr = str(r['وقت السجلة']);
-          if (!pin || !timeStr) { results.push({ row: rowNo, ok: false, message: 'PIN ووقت السجلة مطلوبان' }); continue; }
-          const punchTime = parseDeviceTime(timeStr);
+          // PIN: يقبل عمود القالب أو عمود التصدير أو «الرقم»
+          const pin = pick(r, ['الرقم الوظيفي (PIN)', 'PIN', 'pin', 'الرقم']);
+          const sn = pick(r, ['الرقم التسلسلي SN', 'SN', 'الرقم التسلسلي']) || 'EXCEL-IMPORT';
+          // وقت السجلة: عمود واحد أو التاريخ + الوقت منفصلين (كما في ملفات التصدير القديمة)
+          let timeStr = pick(r, ['وقت السجلة', 'وقت البصمة', 'التاريخ والوقت']);
+          if (!timeStr) {
+            const d = pick(r, ['التاريخ']);
+            const t = pick(r, ['الوقت']);
+            if (d && t) timeStr = `${d} ${t.length === 5 ? `${t}:00` : t}`;
+            else if (d) timeStr = `${d} 00:00:00`;
+          }
+          if (!pin || !timeStr) {
+            results.push({ row: rowNo, ok: false, message: 'PIN ووقت السجلة مطلوبان — استخدم ملف التصدير الجديد أو قالب الاستيراد' });
+            continue;
+          }
+          const punchTime = parseDeviceTime(timeStr) ?? parseDateSafe(timeStr.replace(' ', 'T'));
           if (!punchTime) { results.push({ row: rowNo, ok: false, message: `وقت غير صالح: ${timeStr}` }); continue; }
           let device = await db.device.findUnique({ where: { sn } });
           if (!device) {
@@ -194,19 +205,19 @@ export async function POST(req: NextRequest) {
           await db.attendanceLog.create({
             data: {
               sn, pin, employeeId: emp?.id || null, punchTime,
-              status: Math.round(num(r['الحالة'])) || 0,
-              verify: Math.round(num(r['طريقة التحقق'])) || 1,
+              status: statusFromText(r['الحالة']),
+              verify: Math.round(num(pick(r, ['طريقة التحقق']))) || 1,
               source: 'excel',
             },
           });
-          results.push({ row: rowNo, ok: true, message: emp ? `سجلة ${emp.id ? 'مربوطة' : ''}` : 'سجلة (pin غير معروف)' });
+          results.push({ row: rowNo, ok: true, message: emp ? `سجلة مربوطة بالموظف` : 'سجلة (pin غير معروف)' });
           success++;
           const kKey = dateKey(punchTime);
           if (!minKey || kKey < minKey) minKey = kKey;
           if (!maxKey || kKey > maxKey) maxKey = kKey;
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'خطأ';
-          results.push({ row: rowNo, ok: false, message: msg.includes('Unique') ? 'سجلة مكررة' : msg });
+          results.push({ row: rowNo, ok: false, message: msg.includes('Unique') ? 'سجلة مكررة (موجودة مسبقًا)' : msg });
         }
       }
       if (minKey && maxKey) await recomputeRange({ from: minKey, to: maxKey }).catch(() => {});
@@ -216,15 +227,16 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i]; const rowNo = i + 2;
         try {
-          const name = str(r['الاسم']);
-          const code = str(r['الرمز']);
+          const name = pick(r, ['الاسم']);
+          const code = pick(r, ['الرمز', 'الكود']);
           if (!name || !code) { results.push({ row: rowNo, ok: false, message: 'الاسم والرمز مطلوبان' }); continue; }
           const data = {
             name, code,
-            type: str(r['النوع']) || 'earning',
-            calculation: str(r['طريقة الحساب']) || 'fixed',
+            type: pick(r, ['النوع']) || 'earning',
+            calculation: pick(r, ['طريقة الحساب']) || 'fixed',
             value: num(r['القيمة']),
-            percentOfBasic: r['النسبة من الأساسي'] ? num(r['النسبة من الأساسي']) : null,
+            percentOfBasic: r['النسبة من الأساسي'] !== undefined && r['النسبة من الأساسي'] !== null && r['النسبة من الأساسي'] !== ''
+              ? num(r['النسبة من الأساسي']) : null,
             order: Math.round(num(r['الترتيب'])) || 99,
           };
           await db.salaryComponent.upsert({ where: { code }, update: data, create: data });

@@ -1,6 +1,6 @@
 'use client';
 
-// print-docs — نظام المستندات المطبوعة: قالب موحد voucherDocHtml بهوية HRHub
+// print-docs — نظام المستندات المطبوعة: قالب موحد voucherDocHtml بهوية ADMS FOR HR MANAGMENT
 // قسيمة راتب، شهادة راتب، خطاب تعريف، كشف شهري، إشعار إنهاء/تجديد عقد
 import { tafqit } from '@/lib/tafqit-client';
 import { fmtKWD, fmtDate } from '@/lib/client';
@@ -20,7 +20,7 @@ function esc(s: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
-/** القالب الموحد — يفتح نافذة طباعة بهوية HRHub */
+/** القالب الموحد — يفتح نافذة طباعة بهوية ADMS FOR HR MANAGMENT */
 export function voucherDocHtml(spec: DocSpec, companyName: string): string {
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -53,7 +53,7 @@ export function voucherDocHtml(spec: DocSpec, companyName: string): string {
 <body>
   <div class="doc">
     <div class="head">
-      <div class="logo"><div class="mark">HR</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">HRHub — الموارد البشرية والحضور والرواتب</div></div></div>
+      <div class="logo"><div class="mark">AD</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">ADMS FOR HR MANAGMENT — الموارد البشرية والحضور والرواتب</div></div></div>
       <div class="meta">رقم المرجع: <b>${esc(spec.refNo)}</b><br>التاريخ: <b>${esc(spec.date)}</b></div>
     </div>
     <div class="title">${esc(spec.title)}</div>
@@ -61,7 +61,7 @@ export function voucherDocHtml(spec: DocSpec, companyName: string): string {
     <div class="signs">
       ${(spec.signatures || ['الموظف', 'المسؤول المباشر', 'الموارد البشرية']).map((s) => `<div class="sign"><b>${esc(s)}</b><div class="line">الاسم والتوقيع</div></div>`).join('')}
     </div>
-    <div class="foot">${esc(spec.footer || 'هذا المستند صادر آليًا من نظام HRHub — دولة الكويت')}${spec.footer ? '' : ` · مرجع ${esc(spec.refNo)}`}</div>
+    <div class="foot">${esc(spec.footer || 'هذا المستند صادر آليًا من نظام ADMS FOR HR MANAGMENT — دولة الكويت')}${spec.footer ? '' : ` · مرجع ${esc(spec.refNo)}`}</div>
   </div>
 </body>
 </html>`;
@@ -216,7 +216,7 @@ export function contractNoticeDoc(
   newContract?: { contractNo: string; startDate: string; endDate?: string | null; basicSalary: number } | null,
   kind: 'renew' | 'terminate' = 'renew',
   reason?: string,
-  companyName = 'شركة HRHub'
+  companyName = 'شركة ADMS'
 ): string {
   const title = kind === 'renew' ? 'إشعار تجديد عقد' : 'إشعار إنهاء عقد';
   const body = `

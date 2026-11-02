@@ -1,7 +1,82 @@
 // lib/excel.ts — قوالب الاستيراد والتصدير عبر SheetJS على السيرفر
 import * as XLSX from 'xlsx';
+import { STATUS_AR } from '@/lib/zk/protocol';
 
 export type Cell = string | number | boolean | null;
+
+// ===== أدوات تحمّل اختلاف أسماء الأعمدة وصيغ البيانات بين القوالب والتصدير =====
+
+/** يقرأ أول عمود موجود من قائمة مفاتيح مرادفة — بحيث يصلح الاستيراد لأي ملف (قالب أو تصدير) */
+export function pick(r: Record<string, unknown>, keys: string[]): string {
+  for (const k of keys) {
+    const v = r[k];
+    if (v === null || v === undefined) continue;
+    const s = String(v).trim();
+    if (s !== '') return s;
+  }
+  return '';
+}
+
+/** قراءة تاريخ متسامحة: Date أو رقم تسلسلي Excel أو YYYY-MM-DD أو DD/MM/YYYY أو YYYY/MM/DD */
+export function parseDateSafe(v: unknown): Date | null {
+  if (v === null || v === undefined || v === '') return null;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+  if (typeof v === 'number' && Number.isFinite(v) && v > 20000 && v < 80000) {
+    // رقم تسلسلي Excel (نظام 1900): 25569 = 1970-01-01
+    const d = new Date(Math.round((v - 25569) * 86400_000));
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(v).trim();
+  let m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(s);
+  if (m) return new Date(`${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}T00:00:00.000+03:00`);
+  m = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/.exec(s);
+  if (m) return new Date(`${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}T00:00:00.000+03:00`);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** حالة البصمة: تقبل رقمًا أو نصًا عربيًا (دخول/خروج...) وتحوّلها لرقم الجهاز */
+export function statusFromText(v: unknown): number {
+  const s = String(v ?? '').trim();
+  if (/^\d+$/.test(s)) return parseInt(s, 10);
+  const found = Object.entries(STATUS_AR).find(([, ar]) => ar === s);
+  return found ? Number(found[0]) : 0;
+}
+
+/** حالة الموظف: تقبل الإنجليزية والعربية */
+const EMP_STATUS_MAP: Record<string, string> = {
+  active: 'active', 'نشط': 'active', 'على رأس العمل': 'active',
+  suspended: 'suspended', 'موقوف': 'suspended',
+  on_leave: 'on_leave', 'on leave': 'on_leave', 'في إجازة': 'on_leave', 'إجازة': 'on_leave',
+  terminated: 'terminated', 'منتهي': 'terminated', 'منتهي التعاقد': 'terminated', 'مستقيل': 'terminated',
+};
+export function employeeStatusFromText(v: unknown): string {
+  const s = String(v ?? '').trim().toLowerCase();
+  return EMP_STATUS_MAP[s] || EMP_STATUS_MAP[String(v ?? '').trim()] || 'active';
+}
+
+/** أيام العمل: تقبل "0,1,2" أو "[0,1,2]" (JSON كما يصدرها النظام) */
+export function parseWorkDays(v: unknown, fallback = [0, 1, 2, 3, 4]): number[] {
+  const s = String(v ?? '').trim();
+  if (!s) return fallback;
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) {
+        const days = arr.map((x) => parseInt(String(x), 10)).filter(Number.isFinite);
+        if (days.length) return days;
+      }
+    } catch { /* تجاهل واستخدم التقسيم بالنص */ }
+  }
+  const days = s.split(',').map((x) => parseInt(x.trim(), 10)).filter(Number.isFinite);
+  return days.length ? days : fallback;
+}
+
+/** كتابة أيام العمل نصًّا مفهومًا في التصدير: "0,1,2,3,4" */
+export function workDaysToText(v: unknown): string {
+  const days = parseWorkDays(v, []);
+  return days.join(',');
+}
 
 export function sheetToBuffer(rows: Record<string, Cell>[], sheetName = 'Sheet1'): Buffer {
   const ws = XLSX.utils.json_to_sheet(rows);

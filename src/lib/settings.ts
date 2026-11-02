@@ -28,7 +28,7 @@ export interface SystemSettings {
 }
 
 export const DEFAULT_SETTINGS: SystemSettings = {
-  companyName: 'شركة HRHub',
+  companyName: 'شركة ADMS',
   companyLogoFileId: null,
   workDaysPerMonth: 26,
   hoursPerDay: 8,

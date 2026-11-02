@@ -19,7 +19,7 @@ function fmtDateStr(d: Date | string | null): string {
   return dt.toISOString().slice(0, 10);
 }
 
-/** قالب موحد مطبوع بهوية HRHub — نفس نظام print-docs في الواجهة */
+/** قالب موحد مطبوع بهوية ADMS FOR HR MANAGMENT — نفس نظام print-docs في الواجهة */
 function payslipPrintHtml(slip: {
   basicSalary: number; totalEarnings: number; totalDeductions: number; netPay: number;
   workedDays: number; absenceDays: number; lateMinutes: number; otHours: number;
@@ -62,7 +62,7 @@ function payslipPrintHtml(slip: {
 </style></head>
 <body><div class="doc">
   <div class="head">
-    <div class="logo"><div class="mark">HR</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">HRHub — الموارد البشرية والحضور والرواتب</div></div></div>
+    <div class="logo"><div class="mark">AD</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">ADMS FOR HR MANAGMENT — الموارد البشرية والحضور والرواتب</div></div></div>
     <div class="meta">رقم المرجع: <b>PS-${esc(slip.period.name)}-${esc(slip.employee.code)}</b><br>التاريخ: <b>${fmtDateStr(new Date())}</b></div>
   </div>
   <div class="title">قسيمة راتب</div>
@@ -92,7 +92,7 @@ function payslipPrintHtml(slip: {
     <div class="sign"><b>الموارد البشرية</b><div class="line">الاسم والتوقيع</div></div>
     <div class="sign"><b>الختم</b><div class="line">&nbsp;</div></div>
   </div>
-  <div class="foot">قسيمة راتب ${esc(slip.period.name)} — سريّة بين الموظف والجهة · صادر آليًا من نظام HRHub — دولة الكويت</div>
+  <div class="foot">قسيمة راتب ${esc(slip.period.name)} — سريّة بين الموظف والجهة · صادر آليًا من نظام ADMS FOR HR MANAGMENT — دولة الكويت</div>
 </div>
 <script>window.addEventListener('load', () => setTimeout(() => window.print(), 400));</script>
 </body></html>`;
@@ -114,7 +114,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!slip) return fail(404, 'القسيمة غير موجودة');
     const { getSettings } = await import('@/lib/settings');
     const settings = await getSettings();
-    const html = payslipPrintHtml(slip as never, settings.companyName || 'شركة HRHub');
+    const html = payslipPrintHtml(slip as never, settings.companyName || 'شركة ADMS');
     return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   });
 }

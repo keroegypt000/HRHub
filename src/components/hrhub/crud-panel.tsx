@@ -232,9 +232,11 @@ export function CrudPanel<T extends { id: string }>({
                     </SelectContent>
                   </Select>
                 ) : f.type === 'switch' ? (
-                  <div className="flex items-center gap-2 h-9">
+                  <div className="flex items-center justify-between gap-2 h-9 rounded-lg border bg-muted/40 px-3">
+                    <span className={`text-sm font-bold ${form[f.key] ? 'text-emerald-700' : 'text-muted-foreground'}`}>
+                      {form[f.key] ? 'نعم' : 'لا'}
+                    </span>
                     <Switch checked={!!form[f.key]} onCheckedChange={(v) => setVal(f.key, v)} />
-                    <span className="text-sm text-muted-foreground">{form[f.key] ? 'نعم' : 'لا'}</span>
                   </div>
                 ) : f.type === 'textarea' ? (
                   <Textarea
