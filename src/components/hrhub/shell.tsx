@@ -115,12 +115,12 @@ export function AppShell({
         {/* القائمة الجانبية — ثابتة يمين الديسكتوب */}
         <aside className="hidden lg:flex flex-col w-64 bg-sidebar shrink-0 sticky top-0 h-screen">
           <div className="flex items-center gap-3 p-4 border-b border-white/10">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-700 flex items-center justify-center ring-1 ring-white/25 shadow-lg shadow-emerald-950/40">
-              <Fingerprint className="h-6 w-6 text-white" />
+            <div className="h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center ring-1 ring-white/25 shadow-lg shadow-indigo-950/40">
+              <span className="text-lg font-black leading-none text-white">A</span>
             </div>
-            <div>
-              <p className="font-extrabold text-white leading-tight">ADMS<span className="text-emerald-400">.</span></p>
-              <p className="text-[9px] font-bold tracking-[0.22em] text-sidebar-foreground/70">FOR HR MANAGMENT</p>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-extrabold leading-tight tracking-wide text-white">ADMS FOR HR MANAGMENT</p>
+              <p className="truncate text-xs text-sidebar-foreground/60">إدارة الموارد البشرية</p>
             </div>
           </div>
           <NavList me={me} current={section} onNavigate={go} />
@@ -141,12 +141,12 @@ export function AppShell({
                 <SheetTitle className="sr-only">القائمة</SheetTitle>
                 <div className="flex flex-col h-full">
                   <div className="flex items-center gap-3 p-4 border-b border-white/10">
-                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-700 flex items-center justify-center ring-1 ring-white/25">
-                      <Fingerprint className="h-5 w-5 text-white" />
+                    <div className="h-9 w-9 shrink-0 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center ring-1 ring-white/25">
+                      <span className="text-base font-black leading-none text-white">A</span>
                     </div>
-                    <div>
-                      <p className="font-extrabold text-white leading-tight">ADMS<span className="text-emerald-400">.</span></p>
-                      <p className="text-[8px] font-bold tracking-[0.22em] text-sidebar-foreground/70">FOR HR MANAGMENT</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-[12px] font-extrabold leading-tight tracking-wide text-white">ADMS FOR HR MANAGMENT</p>
+                      <p className="truncate text-xs text-sidebar-foreground/60">إدارة الموارد البشرية</p>
                     </div>
                   </div>
                   <NavList me={me} current={section} onNavigate={go} />

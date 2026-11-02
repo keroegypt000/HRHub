@@ -119,13 +119,30 @@
   body {
     @apply bg-background text-foreground;
     font-family: system-ui, -apple-system, 'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Helvetica Neue', Arial, sans-serif;
+    /* انتقالات ناعمة عند تغيّر السمة */
+    transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease;
   }
   table, .tabular {
     font-variant-numeric: tabular-nums;
   }
+
+  /* حلقة تركيز نيلية أنيقة للعناصر الأصلية — مكوّنات shadcn تحافظ على حلقاتها الخاصة عبر الطبقة utilities */
+  :focus-visible {
+    outline: 2px solid oklch(0.585 0.233 277.117 / 0.55);
+    outline-offset: 2px;
+  }
+
+  /* تحديد نص بنيلي خافت */
+  ::selection {
+    background-color: oklch(0.585 0.233 277.117 / 0.16);
+  }
 }
 
-/* شرائط تمرير أنيقة */
+/* شرائط تمرير رفيعة (WebKit + Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.585 0.233 277.117 / 0.35) transparent;
+}
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -134,11 +151,21 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.55 0.11 168 / 0.35);
-  border-radius: 8px;
+  background-color: oklch(0.585 0.233 277.117 / 0.3);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.55 0.11 168 / 0.6);
+  background-color: oklch(0.585 0.233 277.117 / 0.55);
+}
+
+/* لمسات ناعمة على البطاقات: زوايا أوضح وظل خفيف مائل للنيلي */
+[data-slot="card"] {
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow:
+    0 1px 2px oklch(0.2 0.01 165 / 0.05),
+    0 12px 32px -16px oklch(0.585 0.233 277.117 / 0.18);
 }
 
 /* طباعة قسائم الرواتب */

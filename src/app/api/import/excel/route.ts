@@ -17,8 +17,10 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => ({}))) as {
       fileName?: string; rows?: Record<string, unknown>[];
     };
-    const rows = body.rows || [];
-    if (!rows.length) return fail(400, 'الملف لا يحتوي صفوفًا');
+    const rows = (body.rows || []).filter(
+      (r) => Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim() !== '')
+    );
+    if (!rows.length) return fail(400, 'الملف لا يحتوي صفوفًا صالحة');
     if (rows.length > 5000) return fail(400, 'الحد الأقصى 5000 صف في المرة — قسّم الملف');
 
     const results: RowResult[] = [];
@@ -183,9 +185,15 @@ export async function POST(req: NextRequest) {
           // PIN: يقبل عمود القالب أو عمود التصدير أو «الرقم»
           const pin = pick(r, ['الرقم الوظيفي (PIN)', 'PIN', 'pin', 'الرقم']);
           const sn = pick(r, ['الرقم التسلسلي SN', 'SN', 'الرقم التسلسلي']) || 'EXCEL-IMPORT';
-          // وقت السجلة: عمود واحد أو التاريخ + الوقت منفصلين (كما في ملفات التصدير القديمة)
+          // وقت السجلة: عمود واحد (قالب/تصدير) أو التاريخ + الوقت منفصلين
+          // أو التاريخ + «الدخول»/«الخروج» (ملف تصدير الحضور اليومي — round-trip كامل)
           let timeStr = pick(r, ['وقت السجلة', 'وقت البصمة', 'التاريخ والوقت']);
-          if (!timeStr) {
+          const dayStr = !timeStr ? pick(r, ['التاريخ']) : null;
+          const tIn = !timeStr && dayStr ? pick(r, ['الوقت', 'الدخول', 'وقت الدخول']) : null;
+          const tOut = !timeStr && dayStr ? pick(r, ['الخروج', 'وقت الخروج']) : null;
+          if (!timeStr && dayStr && (tIn || tOut)) {
+            timeStr = tIn ? `${dayStr} ${tIn.length === 5 ? `${tIn}:00` : tIn}` : '';
+          } else if (!timeStr) {
             const d = pick(r, ['التاريخ']);
             const t = pick(r, ['الوقت']);
             if (d && t) timeStr = `${d} ${t.length === 5 ? `${t}:00` : t}`;
@@ -195,26 +203,37 @@ export async function POST(req: NextRequest) {
             results.push({ row: rowNo, ok: false, message: 'PIN ووقت السجلة مطلوبان — استخدم ملف التصدير الجديد أو قالب الاستيراد' });
             continue;
           }
-          const punchTime = parseDeviceTime(timeStr) ?? parseDateSafe(timeStr.replace(' ', 'T'));
-          if (!punchTime) { results.push({ row: rowNo, ok: false, message: `وقت غير صالح: ${timeStr}` }); continue; }
+          const firstTime = parseDeviceTime(timeStr) ?? parseDateSafe(timeStr.replace(' ', 'T'));
+          if (!firstTime) { results.push({ row: rowNo, ok: false, message: `وقت غير صالح: ${timeStr}` }); continue; }
           let device = await db.device.findUnique({ where: { sn } });
           if (!device) {
             device = await db.device.create({ data: { sn, name: `استيراد ${sn}` } });
           }
           const emp = await resolveEmployeeByPin(pin);
-          await db.attendanceLog.create({
-            data: {
-              sn, pin, employeeId: emp?.id || null, punchTime,
-              status: statusFromText(r['الحالة']),
-              verify: Math.round(num(pick(r, ['طريقة التحقق']))) || 1,
-              source: 'excel',
-            },
-          });
-          results.push({ row: rowNo, ok: true, message: emp ? `سجلة مربوطة بالموظف` : 'سجلة (pin غير معروف)' });
+          // السجلات الناتجة من الصف: عمود واحد = سجلة واحدة بحالة العمود،
+          // أو سجلتي دخول/خروج من ملف الحضور اليومي المُصدّر
+          const punches: { punchTime: Date; status: number }[] = [{ punchTime: firstTime, status: statusFromText(r['الحالة']) }];
+          if (tIn && tOut) {
+            const outTime = parseDeviceTime(`${dayStr} ${tOut.length === 5 ? `${tOut}:00` : tOut}`) ?? parseDateSafe(`${dayStr}T${tOut.length === 5 ? `${tOut}:00` : tOut}`);
+            if (outTime) punches.push({ punchTime: outTime, status: 1 });
+          }
+          for (const p of punches) {
+            await db.attendanceLog.create({
+              data: {
+                sn, pin, employeeId: emp?.id || null, punchTime: p.punchTime,
+                status: p.status,
+                verify: Math.round(num(pick(r, ['طريقة التحقق']))) || 1,
+                source: 'excel',
+              },
+            });
+          }
+          results.push({ row: rowNo, ok: true, message: emp ? `${punches.length > 1 ? 'سجلتي دخول وخروج' : 'سجلة'} مربوطة بالموظف` : `سجلة (pin غير معروف)` });
           success++;
-          const kKey = dateKey(punchTime);
-          if (!minKey || kKey < minKey) minKey = kKey;
-          if (!maxKey || kKey > maxKey) maxKey = kKey;
+          for (const p of punches) {
+            const kKey = dateKey(p.punchTime);
+            if (!minKey || kKey < minKey) minKey = kKey;
+            if (!maxKey || kKey > maxKey) maxKey = kKey;
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : 'خطأ';
           results.push({ row: rowNo, ok: false, message: msg.includes('Unique') ? 'سجلة مكررة (موجودة مسبقًا)' : msg });

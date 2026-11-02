@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  /* مكتبات سيرفر خارجية: بروتوكول أجهزة ZKTeco المحلية (net/dgram) */
-  serverExternalPackages: ["node-zklib"],
+  // standalone للتشغيل المحلي فقط — على Vercel نستخدم مخرجات Next القياسية
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
+  /* مكتبات سيرفر خارجية: بروتوكول أجهزة ZKTeco المحلية (net/dgram) + Prisma */
+  serverExternalPackages: ["node-zklib", "@prisma/client", "@prisma/extension-accelerate"],
   typescript: {
     ignoreBuildErrors: true,
   },

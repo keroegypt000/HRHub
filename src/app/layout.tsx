@@ -3,16 +3,14 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "ADMS FOR HR MANAGMENT — الموارد البشرية والحضور والرواتب",
-  description:
-    "ADMS FOR HR MANAGMENT — نظام متكامل لإدارة الموارد البشرية والحضور والرواتب بالدينار الكويتي، متوافق مع أجهزة ZKTeco عبر ADMS: بصمة أون لاين ومحلية، ورديات، إجازات، رواتب وتقارير.",
-  icons: { icon: "/logo.svg" },
+  title: "ADMS FOR HR MANAGMENT | إدارة الموارد البشرية",
+  description: "نظام إدارة الموارد البشرية والحضور بالبصمة والرواتب",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1F8A70",
+  themeColor: "#4F46E5",
 };
 
 export default function RootLayout({

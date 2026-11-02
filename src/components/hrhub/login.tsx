@@ -1,5 +1,6 @@
 'use client';
 
+// ADMS FOR HR MANAGMENT — شاشات الدخول والإعداد الأول (تصميم مقسوم: هوية + نموذج)
 import { useState } from 'react';
 import { api, setToken } from '@/lib/client';
 import { Button } from '@/components/ui/button';
@@ -7,48 +8,109 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
-  Loader2, Fingerprint, ShieldCheck, User, LockKeyhole, Eye, EyeOff,
-  LogIn, CalendarCheck2, Banknote, FileBarChart2, MapPin, BadgeCheck,
+  Loader2, Fingerprint, ShieldCheck, User, Lock, Eye, EyeOff,
+  LogIn, CalendarDays, Wallet, Building2, KeyRound,
 } from 'lucide-react';
 
-/** شعار البرنامج — بصمة داخل مربع متدرّج (نفس هوية أيقونة التاب) */
-export function BrandMark({ size = 'md', glow = true }: { size?: 'md' | 'lg' | 'xl'; glow?: boolean }) {
-  const box = size === 'xl' ? 'h-20 w-20 rounded-3xl' : size === 'lg' ? 'h-14 w-14 rounded-2xl' : 'h-11 w-11 rounded-xl';
-  const icon = size === 'xl' ? 'h-11 w-11' : size === 'lg' ? 'h-8 w-8' : 'h-6 w-6';
+/* مربّع العلامة "A" — نفس هوية أيقونة التاب */
+function LogoMark({ size = 44 }: { size?: number }) {
   return (
     <div
-      className={`${box} bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-700 flex items-center justify-center shrink-0 ring-1 ring-white/25 ${
-        glow ? 'shadow-lg shadow-emerald-900/30' : ''
-      }`}
+      className="flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 shadow-lg shadow-indigo-600/30 ring-1 ring-white/40"
+      style={{ width: size, height: size }}
     >
-      <Fingerprint className={`${icon} text-white`} strokeWidth={2} />
-    </div>
-  );
-}
-
-/** كتلة الاسم الرسمية: ADMS FOR HR MANAGMENT */
-export function BrandTitle({ dark = false, compact = false }: { dark?: boolean; compact?: boolean }) {
-  return (
-    <div className="leading-tight">
-      <p className={`${compact ? 'text-xl' : 'text-2xl'} font-black tracking-tight ${dark ? 'text-white' : ''}`}>
-        ADMS
-        <span className="text-emerald-500">.</span>
-      </p>
-      <p
-        className={`text-[10px] font-bold tracking-[0.28em] ${dark ? 'text-emerald-300/90' : 'text-emerald-700/80'}`}
-      >
-        FOR HR MANAGMENT
-      </p>
+      <span className="font-black leading-none text-white" style={{ fontSize: size * 0.5 }}>A</span>
     </div>
   );
 }
 
 const FEATURES = [
-  { icon: Fingerprint, title: 'حضور بالبصمة', desc: 'أجهزة ZKTeco عبر ADMS أون لاين + استيراد محلي وUSB' },
-  { icon: CalendarCheck2, title: 'ورديات وإجازات', desc: 'أتمتة كاملة للورديات والعطلات الرسمية بأيام الكويت' },
-  { icon: Banknote, title: 'رواتب دقيقة', desc: 'الدينار الكويتي بثلاث خانات عشرية وكشوف جاهزة للبنك' },
-  { icon: FileBarChart2, title: 'تقارير لحظية', desc: 'تأخير وغياب وإضافي مع تصدير Excel بضغطة واحدة' },
+  { icon: Fingerprint, text: 'بصمة أون لاين ADMS + محلي TCP' },
+  { icon: Wallet, text: 'رواتب وكشوفات bank-ready' },
+  { icon: CalendarDays, text: 'ورديات وإجازات وعطلات' },
+  { icon: ShieldCheck, text: 'أدوار وصلاحيات وسجل تدقيق' },
 ];
+
+/** لوحة الهوية — أول عنصر في DOM فيظهر يمين الشاشة (RTL)، وعلى الموبايل بانر مختصر أعلى النموذج */
+function BrandPanel() {
+  return (
+    <div className="relative flex flex-col gap-8 overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-6 text-white sm:p-10 lg:min-h-screen lg:p-12 xl:p-16">
+      {/* توهّجات دائرية ناعمة */}
+      <div className="pointer-events-none absolute -top-28 -start-28 h-96 w-96 rounded-full bg-white/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-36 -end-24 h-[26rem] w-[26rem] rounded-full bg-fuchsia-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 start-1/3 h-72 w-72 rounded-full bg-indigo-300/20 blur-3xl" />
+      {/* شبكة خطوط خافتة */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage:
+            'linear-gradient(to left, rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.6) 1px, transparent 1px)',
+          backgroundSize: '44px 44px',
+        }}
+      />
+
+      {/* الشريط المختصر: الشعار + الاسم — يظهر وحده على الموبايل */}
+      <div className="relative flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 shadow-lg ring-1 ring-white/30 backdrop-blur-md">
+          <span className="text-xl font-black leading-none text-white">A</span>
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-extrabold tracking-wide text-white sm:text-base">
+            ADMS FOR HR MANAGMENT
+          </p>
+          <p className="text-[11px] text-indigo-100/80 sm:text-xs">إدارة الموارد البشرية</p>
+        </div>
+      </div>
+
+      {/* المحتوى الكامل — ديسكتوب فقط */}
+      <div className="relative my-auto hidden flex-col justify-center gap-8 lg:flex">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 shadow-2xl shadow-indigo-950/30 ring-1 ring-white/25 backdrop-blur-md">
+          <Fingerprint className="h-12 w-12 text-white" strokeWidth={1.75} />
+        </div>
+
+        <div>
+          <h1 className="text-3xl font-black leading-tight tracking-wide text-white xl:text-4xl">
+            ADMS FOR HR MANAGMENT
+          </h1>
+          <p className="mt-3 text-base text-indigo-100/85 xl:text-lg">
+            نظام إدارة الموارد البشرية والحضور والرواتب
+          </p>
+        </div>
+
+        <ul className="space-y-2.5">
+          {FEATURES.map((f) => (
+            <li
+              key={f.text}
+              className="flex items-center gap-3 rounded-xl bg-white/[0.08] px-4 py-3 ring-1 ring-white/15 backdrop-blur-sm transition-colors hover:bg-white/[0.12]"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/20">
+                <f.icon className="h-4.5 w-4.5 text-white" />
+              </span>
+              <span className="text-sm font-medium text-white/95">{f.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="relative hidden text-xs text-indigo-100/70 lg:block">ZKTeco ADMS Compatible</p>
+    </div>
+  );
+}
+
+/** الهيكل المشترك: لوحة هوية + منطقة النموذج */
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col bg-slate-50 lg:grid lg:grid-cols-2">
+      <BrandPanel />
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-8 lg:p-10">
+        <div className="w-full max-w-md">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+const inputCls =
+  'h-11 rounded-xl bg-slate-50/60 ps-9 focus-visible:border-indigo-500 focus-visible:ring-indigo-500/40';
 
 export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
   const [username, setUsername] = useState('');
@@ -75,142 +137,76 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
   };
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-bl from-emerald-50 via-white to-teal-50">
-      {/* لوحة الهوية — يمين الشاشة على الديسكتوب */}
-      <div className="hidden lg:flex w-[46%] xl:w-[52%] relative overflow-hidden bg-gradient-to-bl from-emerald-800 via-emerald-950 to-teal-950 flex-col justify-between p-10 xl:p-14">
-        {/* زخارف ضوئية */}
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-emerald-400/15 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl" />
-        <div
-          className="absolute inset-0 opacity-[0.05]"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
-            backgroundSize: '28px 28px',
-          }}
-        />
-
-        <div className="relative flex items-center gap-4">
-          <BrandMark size="xl" />
-          <BrandTitle dark />
-        </div>
-
-        <div className="relative">
-          <h2 className="text-3xl xl:text-4xl font-black text-white leading-snug">
-            نظام متكامل لإدارة الموظفين
-            <br />
-            <span className="text-emerald-300">الحضور والرواتب</span>
-          </h2>
-          <p className="mt-3 text-emerald-100/70 text-sm leading-relaxed max-w-md">
-            بديل عربي حديث لأنظمة البصمة — يربط أجهزة ZKTeco مباشرة ويحوّل البصمات إلى حضور ورواتب وتقارير جاهزة.
-          </p>
-
-          <div className="mt-8 grid sm:grid-cols-2 gap-3">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="rounded-xl bg-white/[0.06] border border-white/10 p-4 backdrop-blur-sm hover:bg-white/[0.09] transition-colors"
-              >
-                <f.icon className="h-5 w-5 text-emerald-300 mb-2" />
-                <p className="text-sm font-bold text-white">{f.title}</p>
-                <p className="text-xs text-emerald-100/60 mt-1 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
+    <AuthShell>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-indigo-950/10 sm:p-8">
+        <div className="mb-6 flex items-center gap-3">
+          <LogoMark size={44} />
+          <div>
+            <h1 className="text-lg font-extrabold text-slate-900">تسجيل الدخول</h1>
+            <p className="mt-0.5 text-xs text-slate-500">أدخل بياناتك للوصول إلى لوحة الإدارة</p>
           </div>
         </div>
 
-        <div className="relative flex flex-wrap items-center gap-2 text-xs text-emerald-100/60">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] border border-white/10 px-3 py-1.5">
-            <MapPin className="h-3.5 w-3.5 text-emerald-300" /> دولة الكويت
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] border border-white/10 px-3 py-1.5">
-            <BadgeCheck className="h-3.5 w-3.5 text-emerald-300" /> الدينار الكويتي (د.ك) بثلاث خانات
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] border border-white/10 px-3 py-1.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" /> بياناتك محلية وآمنة
-          </span>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="username">اسم المستخدم</Label>
+            <div className="relative">
+              <User className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="username" value={username} onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin" autoComplete="username" autoFocus required
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password">كلمة السر</Label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="password" type={showPw ? 'text' : 'password'} value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" autoComplete="current-password" required
+                className={`${inputCls} pe-10`}
+              />
+              <button
+                type="button" tabIndex={-1} aria-label={showPw ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'}
+                onClick={() => setShowPw((v) => !v)}
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
+              >
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit" disabled={loading}
+            className="h-11 w-full gap-2 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-base font-bold shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-violet-500 focus-visible:ring-indigo-500/40"
+          >
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+              <>
+                <LogIn className="h-4 w-4" /> تسجيل الدخول
+              </>
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-6 flex items-center justify-center gap-2 border-t border-dashed border-slate-200 pt-4 text-xs text-slate-500">
+          <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+          جلسة مشفرة 12 ساعة — كل عملية تُرصد في سجل التدقيق
         </div>
       </div>
 
-      {/* نموذج الدخول */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
-        <div className="w-full max-w-md">
-          {/* هوية مصغرة للموبايل */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-6">
-            <BrandMark size="lg" />
-            <BrandTitle />
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-2xl shadow-emerald-900/10 border border-emerald-100/80 p-8 space-y-6">
-            <div className="hidden lg:flex items-center gap-3">
-              <BrandMark />
-              <div>
-                <h1 className="text-lg font-extrabold">تسجيل الدخول</h1>
-                <p className="text-xs text-muted-foreground">أدخل بياناتك للوصول إلى لوحة الإدارة</p>
-              </div>
-            </div>
-            <div className="lg:hidden text-center">
-              <h1 className="text-lg font-extrabold">تسجيل الدخول</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">أدخل بياناتك للوصول إلى لوحة الإدارة</p>
-            </div>
-
-            <form onSubmit={submit} className="space-y-4">
-              <div>
-                <Label htmlFor="username" className="mb-1.5 block">اسم المستخدم</Label>
-                <div className="relative">
-                  <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70 pointer-events-none" />
-                  <Input
-                    id="username" value={username} onChange={(e) => setUsername(e.target.value)}
-                    placeholder="admin" autoComplete="username" autoFocus required
-                    className="pr-9 h-11 bg-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="password" className="mb-1.5 block">كلمة السر</Label>
-                <div className="relative">
-                  <LockKeyhole className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70 pointer-events-none" />
-                  <Input
-                    id="password" type={showPw ? 'text' : 'password'} value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" autoComplete="current-password" required
-                    className="pl-10 pr-9 h-11 bg-white"
-                  />
-                  <button
-                    type="button" tabIndex={-1} aria-label="إظهار كلمة السر"
-                    onClick={() => setShowPw((v) => !v)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors"
-                  >
-                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <Button
-                type="submit" className="w-full h-11 text-base font-bold gap-2 bg-emerald-600 hover:bg-emerald-700"
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
-                  <>
-                    <LogIn className="h-4 w-4" /> تسجيل الدخول
-                  </>
-                )}
-              </Button>
-            </form>
-
-            <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center border-t border-dashed pt-4">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              جلسة مشفرة 12 ساعة — كل عملية تُرصد في سجل التدقيق
-            </div>
-          </div>
-
-          <p className="text-center text-[11px] text-muted-foreground/70 mt-5">
-            ADMS FOR HR MANAGMENT · نسخة 1.0 · صُمّم لإدارة الموارد البشرية في دولة الكويت
-          </p>
-        </div>
-      </div>
-    </div>
+      <p className="mt-5 text-center text-[11px] text-slate-400">
+        ADMS FOR HR MANAGMENT · نسخة 1.0 · صُمّم لإدارة الموارد البشرية في دولة الكويت
+      </p>
+    </AuthShell>
   );
 }
+
+const setupInputCls =
+  'h-10 rounded-xl bg-slate-50/60 ps-9 focus-visible:border-indigo-500 focus-visible:ring-indigo-500/40';
 
 export function SetupScreen({ onDone }: { onDone: () => void }) {
   const [form, setForm] = useState({ username: '', name: '', password: '', confirm: '', companyName: '' });
@@ -243,47 +239,96 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-bl from-emerald-50 via-white to-teal-50 p-4">
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <BrandMark size="lg" />
-          <BrandTitle compact />
-        </div>
-        <div className="bg-white rounded-2xl shadow-2xl shadow-emerald-900/10 border border-emerald-100/80 p-8 space-y-6">
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800">
-            شاشة الإعداد الأول — ستنشئ حساب المدير الأول، وسنجهّز تلقائيًا أنواع الإجازات الافتراضية ومكونات الراتب والوردية الافتراضية (08:00–17:00).
+    <AuthShell>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-indigo-950/10 sm:p-8">
+        <div className="mb-5 flex items-center gap-3">
+          <LogoMark size={44} />
+          <div>
+            <h1 className="text-lg font-extrabold text-slate-900">الإعداد الأول</h1>
+            <p className="mt-0.5 text-xs text-slate-500">إنشاء حساب المدير وتهيئة النظام</p>
           </div>
-          <form onSubmit={submit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="mb-1.5 block">اسم المستخدم *</Label>
-                <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required autoFocus />
-              </div>
-              <div>
-                <Label className="mb-1.5 block">اسمك الكامل</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="مدير النظام" />
-              </div>
-            </div>
-            <div>
-              <Label className="mb-1.5 block">اسم الجهة</Label>
-              <Input value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} placeholder="شركة ADMS" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="mb-1.5 block">كلمة السر * (8+)</Label>
-                <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} />
-              </div>
-              <div>
-                <Label className="mb-1.5 block">تأكيد كلمة السر *</Label>
-                <Input type="password" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} required minLength={8} />
-              </div>
-            </div>
-            <Button type="submit" className="w-full h-11 bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'إنشاء النظام'}
-            </Button>
-          </form>
         </div>
+
+        <div className="mb-5 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[13px] leading-relaxed text-indigo-900">
+          شاشة الإعداد الأول — ستنشئ حساب المدير الأول، وسنجهّز تلقائيًا أنواع الإجازات الافتراضية ومكونات الراتب
+          والوردية الافتراضية (08:00–17:00).
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="su-username">اسم المستخدم *</Label>
+              <div className="relative">
+                <User className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="su-username" value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  required autoFocus className={setupInputCls}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="su-name">اسمك الكامل</Label>
+              <div className="relative">
+                <User className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="su-name" value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="مدير النظام" className={setupInputCls}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="su-company">اسم الجهة</Label>
+            <div className="relative">
+              <Building2 className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="su-company" value={form.companyName}
+                onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+                placeholder="شركة ADMS" className={setupInputCls}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="su-password">كلمة السر * (8+)</Label>
+              <div className="relative">
+                <KeyRound className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="su-password" type="password" value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required minLength={8} className={setupInputCls}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="su-confirm">تأكيد كلمة السر *</Label>
+              <div className="relative">
+                <KeyRound className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="su-confirm" type="password" value={form.confirm}
+                  onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+                  required minLength={8} className={setupInputCls}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Button
+            type="submit" disabled={loading}
+            className="h-11 w-full rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-base font-bold shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-violet-500 focus-visible:ring-indigo-500/40"
+          >
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'إنشاء النظام'}
+          </Button>
+        </form>
       </div>
-    </div>
+
+      <p className="mt-5 text-center text-[11px] text-slate-400">
+        ADMS FOR HR MANAGMENT · نظام إدارة الموارد البشرية والحضور بالبصمة والرواتب
+      </p>
+    </AuthShell>
   );
 }

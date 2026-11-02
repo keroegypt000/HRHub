@@ -1,0 +1,384 @@
+// // ADMS FOR HR MANAGMENT — نسخة SQLite للترحيل
+
+// نسخة SQLite — فقط لسكربت ترحيل البيانات القديم (scripts/migrate-sqlite-to-postgres.mjs)
+// لا تستخدمها مع التطبيق. توليد العميل: npx prisma generate --schema prisma/schema-sqlite.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client-sqlite"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("SQLITE_URL")
+}
+
+// ===== المصادقة والنظام =====
+model User {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  name         String
+  passwordHash String
+  salt         String
+  role         String         @default("viewer") // admin|hr|accountant|supervisor|viewer
+  permissions  String?        // JSON صلاحيات دقيقة تتجاوز افتراضي الدور
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     Session[]
+  auditLogs    AuditLog[]
+  restores     RestorePoint[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String   // create|update|delete|login|sync|import|approve|pay
+  entity      String
+  entityId    String?
+  changes     String?  // JSON before/after
+  description String   // وصف عربي تلقائي
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+}
+
+model RestorePoint {
+  id          String   @id @default(cuid())
+  userId      String?
+  description String
+  snapshot    String   // JSON لقطة للأقسام الأساسية
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id])
+}
+
+model FileUpload {
+  id         String    @id @default(cuid())
+  fileName   String
+  mimeType   String
+  size       Int
+  data       Bytes?    // وضع احتياطي داخل القاعدة
+  r2Key      String?   // مفتاح Cloudflare R2 (للاستخدام المستقبلي عند توفر بيانات الاعتماد)
+  ownerTag   String?   // employee_photo|contract_file|leave_attachment
+  employeeId String?
+  createdAt  DateTime  @default(now())
+  createdBy  String?
+  employee   Employee? @relation("EmpFiles", fields: [employeeId], references: [id])
+  empPhoto   Employee? @relation("EmpPhoto")
+}
+
+model ImportLog {
+  id          String   @id @default(cuid())
+  entity      String
+  fileName    String
+  totalRows   Int
+  successRows Int
+  failedRows  Int
+  errors      String?  // JSON أخطاء كل صف
+  createdBy   String?
+  createdAt   DateTime @default(now())
+}
+
+// ===== الهيكل التنظيمي والموظفون والعقود =====
+model Department {
+  id        String       @id @default(cuid())
+  name      String
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  parentId  String?
+  parent    Department?  @relation("DeptTree", fields: [parentId], references: [id])
+  children  Department[] @relation("DeptTree")
+  employees Employee[]
+}
+
+model Position {
+  id        String     @id @default(cuid())
+  name      String
+  notes     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  employees Employee[]
+}
+
+model Employee {
+  id               String            @id @default(cuid())
+  code             String            @unique // الرقم الوظيفي = pin الجهاز افتراضيًا
+  name             String
+  photoId          String?           @unique
+  gender           String?
+  nationality      String?
+  civilId          String?           @unique // الرقم المدني
+  passportNo       String?
+  phone            String?
+  email            String?
+  address          String?
+  birthDate        DateTime?
+  maritalStatus    String?
+  departmentId     String?
+  positionId       String?
+  hireDate         DateTime?
+  basicSalary      Float             @default(0) // د.ك ثلاث خانات عشرية
+  bankAccount      String?
+  status           String            @default("active") // active|suspended|on_leave|terminated
+  pin              String?           // معرف البصمة داخل الأجهزة
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  position         Position?         @relation(fields: [positionId], references: [id])
+  photo            FileUpload?       @relation("EmpPhoto", fields: [photoId], references: [id])
+  contracts        Contract[]
+  attendanceLogs   AttendanceLog[]
+  dailyAttendance  DailyAttendance[]
+  shiftAssignments ShiftAssignment[]
+  leaveRequests    LeaveRequest[]
+  payslips         Payslip[]
+  files            FileUpload[]      @relation("EmpFiles")
+
+  @@index([name])
+  @@index([status])
+}
+
+model Contract {
+  id                 String     @id @default(cuid())
+  employeeId         String
+  contractNo         String     @unique
+  type               String     @default("full_time") // full_time|part_time|temporary|consultant
+  startDate          DateTime
+  endDate            DateTime?
+  durationMonths     Int?
+  basicSalary        Float
+  housingAllowance   Float      @default(0)
+  transportAllowance Float      @default(0)
+  otherAllowance     Float      @default(0)
+  hoursPerDay        Float      @default(8)
+  daysPerWeek        Int        @default(5)
+  status             String     @default("active") // active|expired|terminated|renewed
+  renewalOfId        String?
+  terminatedAt       DateTime?
+  terminationReason  String?
+  notes              String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  employee           Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  renewalOf          Contract?  @relation("Renewals", fields: [renewalOfId], references: [id])
+  renewals           Contract[] @relation("Renewals")
+}
+
+// ===== الأجهزة والبصمة والورديات =====
+model Device {
+  id             String          @id @default(cuid())
+  sn             String          @unique // الرقم التسلسلي للجهاز
+  name           String
+  model          String?
+  location       String?
+  ipAddress      String?
+  port           Int?
+  mode           String          @default("push") // push=ADMS أونلاين | local=محلي سحب عبر منفذ 4370
+  commKey        String?         // مفتاح الاتصال للوضع المحلي (إن عُدّل من الجهاز)
+  lastSeenAt     DateTime?
+  lastIp         String?
+  lastPullAt     DateTime?       // آخر سحب ناجح للسجلات من جهاز محلي
+  status         String          @default("unknown") // online|offline|unknown
+  enabled        Boolean         @default(true)
+  pushVersion    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  attendanceLogs AttendanceLog[]
+}
+
+model AttendanceLog {
+  id         String    @id @default(cuid())
+  sn         String
+  pin        String    // معرف المستخدم داخل الجهاز
+  employeeId String?
+  punchTime  DateTime
+  status     Int       @default(0) // 0 دخول|1 خروج|2 خروج استراحة|3 عودة|4 دخول إضافي|5 خروج إضافي
+  verify     Int       @default(1) // 1 بصمة|3 كلمة سر|4 بطاقة|15 وجه
+  workCode   String?
+  source     String    @default("adms") // adms|biotime|excel|manual
+  createdAt  DateTime  @default(now())
+  device     Device    @relation(fields: [sn], references: [sn], onDelete: Cascade)
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  @@unique([sn, pin, punchTime, status])
+  @@index([punchTime])
+  @@index([employeeId])
+}
+
+model Shift {
+  id                String            @id @default(cuid())
+  name              String
+  type              String            @default("fixed") // fixed|flexible|auto
+  startTime         String            // "08:00"
+  endTime           String            // "17:00"
+  crossDay          Boolean           @default(false) // وردية ليلية تعبر منتصف الليل
+  graceMinutes      Int               @default(10)
+  earlyGraceMinutes Int               @default(10)
+  otEnabled         Boolean           @default(true)
+  otRoundMinutes    Int               @default(15)
+  halfDayMinutes    Int               @default(240)
+  workDays          String            @default("[0,1,2,3,4]") // 0=الأحد
+  active            Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  assignments       ShiftAssignment[]
+  dailyAttendance   DailyAttendance[]
+}
+
+model ShiftAssignment {
+  id         String    @id @default(cuid())
+  employeeId String
+  shiftId    String
+  fromDate   DateTime
+  toDate     DateTime?
+  createdAt  DateTime  @default(now())
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift      Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, fromDate])
+}
+
+model DailyAttendance {
+  id            String    @id @default(cuid())
+  employeeId    String
+  date          DateTime
+  shiftId       String?
+  firstIn       DateTime?
+  lastOut       DateTime?
+  workedMinutes Int       @default(0)
+  lateMinutes   Int       @default(0)
+  earlyMinutes  Int       @default(0)
+  otMinutes     Int       @default(0)
+  status        String    @default("absent") // present|late|half_day|absent|leave|holiday|weekend|missed_punch
+  note          String?
+  processedAt   DateTime  @default(now())
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift         Shift?    @relation(fields: [shiftId], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([date])
+}
+
+// ===== الإجازات والعطلات =====
+model LeaveType {
+  id        String         @id @default(cuid())
+  name      String
+  code      String         @unique
+  paid      Boolean        @default(true)
+  quotaDays Float?
+  color     String?
+  active    Boolean        @default(true)
+  requests  LeaveRequest[]
+}
+
+model LeaveRequest {
+  id          String    @id @default(cuid())
+  employeeId  String
+  leaveTypeId String
+  fromDate    DateTime
+  toDate      DateTime
+  days        Float
+  reason      String?
+  status      String    @default("pending") // pending|approved|rejected|cancelled
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([fromDate])
+}
+
+model Holiday {
+  id        String    @id @default(cuid())
+  name      String
+  date      DateTime
+  endDate   DateTime? // نطاق عطلة (مثل عيد الفطر)
+  recurring Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+// ===== الرواتب =====
+model SalaryComponent {
+  id             String        @id @default(cuid())
+  name           String
+  code           String        @unique
+  type           String        // earning|deduction
+  calculation    String        @default("fixed") // fixed|attendance|percent|manual
+  value          Float         @default(0)
+  percentOfBasic Float?
+  active         Boolean       @default(true)
+  order          Int           @default(0)
+  items          PayslipItem[]
+}
+
+model PayrollPeriod {
+  id         String    @id @default(cuid())
+  name       String    @unique // "2026-01"
+  startDate  DateTime
+  endDate    DateTime
+  status     String    @default("draft") // draft|computed|approved|paid
+  computedAt DateTime?
+  approvedBy String?
+  approvedAt DateTime?
+  paidAt     DateTime?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  payslips   Payslip[]
+}
+
+model Payslip {
+  id               String         @id @default(cuid())
+  periodId         String
+  employeeId       String
+  basicSalary      Float
+  totalEarnings    Float
+  totalDeductions  Float
+  netPay           Float
+  workedDays       Float          @default(0)
+  absenceDays      Float          @default(0)
+  otHours          Float          @default(0)
+  otAmount         Float          @default(0)
+  lateMinutes      Int            @default(0)
+  lateDeduction    Float          @default(0)
+  absenceDeduction Float          @default(0)
+  status           String         @default("draft")
+  notes            String?
+  createdAt        DateTime       @default(now())
+  period           PayrollPeriod  @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  items            PayslipItem[]
+
+  @@unique([periodId, employeeId])
+}
+
+model PayslipItem {
+  id          String           @id @default(cuid())
+  payslipId   String
+  componentId String?
+  name        String
+  type        String           // earning|deduction
+  amount      Float
+  note        String?
+  payslip     Payslip          @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  component   SalaryComponent? @relation(fields: [componentId], references: [id])
+}
+
+// إعدادات النظام (اسم الجهة، المعادلات، ADMS/BioTime) — key/value
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

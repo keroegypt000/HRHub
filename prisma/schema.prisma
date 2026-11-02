@@ -1,12 +1,13 @@
-// HRHub — نظام إدارة الموارد البشرية والحضور والرواتب
-// Prisma Schema (SQLite) — 22 جدولًا
+// ADMS FOR HR MANAGMENT — نظام إدارة الموارد البشرية والحضور والرواتب
+// Prisma Schema (PostgreSQL / Prisma Postgres) — 22 جدولًا
+// للتشغيل المحلي القديم على SQLite استخدم prisma/schema-sqlite.prisma
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
