@@ -148,6 +148,7 @@ model Employee {
   payslips         Payslip[]
   files            FileUpload[]      @relation("EmpFiles")
   passports        Passport[]
+  iqamas           Iqama[]
   settlements      DepartureSettlement[]
 
   @@index([name])
@@ -189,6 +190,24 @@ model Passport {
   nationality String?
   issueDate   DateTime?
   expiryDate  DateTime
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([expiryDate])
+}
+
+model Iqama {
+  id          String    @id @default(cuid())
+  employeeId  String?
+  holderName  String
+  iqamaNo     String
+  nationality String?
+  profession  String?
+  issueDate   DateTime?
+  expiryDate  DateTime
+  sponsor     String?
   notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -432,6 +451,11 @@ model Payslip {
   netPay           Float
   workedDays       Float          @default(0)
   absenceDays      Float          @default(0)
+  paidLeaveDays    Float          @default(0)
+  unpaidLeaveDays  Float          @default(0)
+  holidayDays      Int            @default(0)
+  weekOffDays      Int            @default(0)
+  dayLedger        String?
   otHours          Float          @default(0)
   otAmount         Float          @default(0)
   lateMinutes      Int            @default(0)
@@ -455,6 +479,9 @@ model PayslipItem {
   type        String           // earning|deduction
   amount      Float
   note        String?
+  source      String           @default("auto")
+  editedBy    String?
+  editedAt    DateTime?
   payslip     Payslip          @relation(fields: [payslipId], references: [id], onDelete: Cascade)
   component   SalaryComponent? @relation(fields: [componentId], references: [id])
 }

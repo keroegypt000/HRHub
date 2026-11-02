@@ -123,7 +123,7 @@ export function DashboardSection() {
           icon={BellRing}
           tone={expiry && expiry.summary.expired > 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}
         />
-        <KpiCard title="سجلات حية" value={data.latestLogs.length} sub="آخر السجلات أسفل" icon={Fingerprint} tone="bg-violet-100 text-violet-700" />
+        <KpiCard title="سجلات حية" value={data.latestLogs.length} sub="آخر السجلات أسفل" icon={Fingerprint} tone="bg-teal-100 text-teal-700" />
       </div>
 
       {/* تنبيهات */}

@@ -16,7 +16,7 @@ import {
 function LogoMark({ size = 44 }: { size?: number }) {
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 shadow-lg shadow-indigo-600/30 ring-1 ring-white/40"
+      className="flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 shadow-lg shadow-emerald-600/30 ring-1 ring-white/40"
       style={{ width: size, height: size }}
     >
       <span className="font-black leading-none text-white" style={{ fontSize: size * 0.5 }}>A</span>
@@ -34,11 +34,11 @@ const FEATURES = [
 /** لوحة الهوية — أول عنصر في DOM فيظهر يمين الشاشة (RTL)، وعلى الموبايل بانر مختصر أعلى النموذج */
 function BrandPanel() {
   return (
-    <div className="relative flex flex-col gap-8 overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-6 text-white sm:p-10 lg:min-h-screen lg:p-12 xl:p-16">
+    <div className="relative flex flex-col gap-8 overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-teal-700 p-6 text-white sm:p-10 lg:min-h-screen lg:p-12 xl:p-16">
       {/* توهّجات دائرية ناعمة */}
       <div className="pointer-events-none absolute -top-28 -start-28 h-96 w-96 rounded-full bg-white/15 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-36 -end-24 h-[26rem] w-[26rem] rounded-full bg-fuchsia-300/25 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 start-1/3 h-72 w-72 rounded-full bg-indigo-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-36 -end-24 h-[26rem] w-[26rem] rounded-full bg-emerald-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 start-1/3 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
       {/* شبكة خطوط خافتة */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.08]"
@@ -58,13 +58,13 @@ function BrandPanel() {
           <p className="truncate text-sm font-extrabold tracking-wide text-white sm:text-base">
             ADMS FOR HR MANAGMENT
           </p>
-          <p className="text-[11px] text-indigo-100/80 sm:text-xs">إدارة الموارد البشرية</p>
+          <p className="text-[11px] text-emerald-100/80 sm:text-xs">إدارة الموارد البشرية</p>
         </div>
       </div>
 
       {/* المحتوى الكامل — ديسكتوب فقط */}
       <div className="relative my-auto hidden flex-col justify-center gap-8 lg:flex">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 shadow-2xl shadow-indigo-950/30 ring-1 ring-white/25 backdrop-blur-md">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 shadow-2xl shadow-emerald-950/30 ring-1 ring-white/25 backdrop-blur-md">
           <Fingerprint className="h-12 w-12 text-white" strokeWidth={1.75} />
         </div>
 
@@ -72,7 +72,7 @@ function BrandPanel() {
           <h1 className="text-3xl font-black leading-tight tracking-wide text-white xl:text-4xl">
             ADMS FOR HR MANAGMENT
           </h1>
-          <p className="mt-3 text-base text-indigo-100/85 xl:text-lg">
+          <p className="mt-3 text-base text-emerald-100/85 xl:text-lg">
             نظام إدارة الموارد البشرية والحضور والرواتب
           </p>
         </div>
@@ -92,7 +92,7 @@ function BrandPanel() {
         </ul>
       </div>
 
-      <p className="relative hidden text-xs text-indigo-100/70 lg:block">ZKTeco ADMS Compatible</p>
+      <p className="relative hidden text-xs text-emerald-100/70 lg:block">ZKTeco ADMS Compatible</p>
     </div>
   );
 }
@@ -110,7 +110,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
 }
 
 const inputCls =
-  'h-11 rounded-xl bg-slate-50/60 ps-9 focus-visible:border-indigo-500 focus-visible:ring-indigo-500/40';
+  'h-11 rounded-xl bg-slate-50/60 ps-9 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/40';
 
 export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
   const [username, setUsername] = useState('');
@@ -138,7 +138,7 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
 
   return (
     <AuthShell>
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-indigo-950/10 sm:p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-emerald-950/10 sm:p-8">
         <div className="mb-6 flex items-center gap-3">
           <LogoMark size={44} />
           <div>
@@ -182,7 +182,7 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
 
           <Button
             type="submit" disabled={loading}
-            className="h-11 w-full gap-2 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-base font-bold shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-violet-500 focus-visible:ring-indigo-500/40"
+            className="h-11 w-full gap-2 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 text-base font-bold shadow-lg shadow-emerald-600/30 hover:from-emerald-500 hover:to-teal-500 focus-visible:ring-emerald-500/40"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
               <>
@@ -193,7 +193,7 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
         </form>
 
         <div className="mt-6 flex items-center justify-center gap-2 border-t border-dashed border-slate-200 pt-4 text-xs text-slate-500">
-          <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
           جلسة مشفرة 12 ساعة — كل عملية تُرصد في سجل التدقيق
         </div>
       </div>
@@ -206,7 +206,7 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
 }
 
 const setupInputCls =
-  'h-10 rounded-xl bg-slate-50/60 ps-9 focus-visible:border-indigo-500 focus-visible:ring-indigo-500/40';
+  'h-10 rounded-xl bg-slate-50/60 ps-9 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/40';
 
 export function SetupScreen({ onDone }: { onDone: () => void }) {
   const [form, setForm] = useState({ username: '', name: '', password: '', confirm: '', companyName: '' });
@@ -240,7 +240,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <AuthShell>
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-indigo-950/10 sm:p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-emerald-950/10 sm:p-8">
         <div className="mb-5 flex items-center gap-3">
           <LogoMark size={44} />
           <div>
@@ -249,7 +249,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
           </div>
         </div>
 
-        <div className="mb-5 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[13px] leading-relaxed text-indigo-900">
+        <div className="mb-5 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-[13px] leading-relaxed text-emerald-900">
           شاشة الإعداد الأول — ستنشئ حساب المدير الأول، وسنجهّز تلقائيًا أنواع الإجازات الافتراضية ومكونات الراتب
           والوردية الافتراضية (08:00–17:00).
         </div>
@@ -319,7 +319,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
 
           <Button
             type="submit" disabled={loading}
-            className="h-11 w-full rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-base font-bold shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-violet-500 focus-visible:ring-indigo-500/40"
+            className="h-11 w-full rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 text-base font-bold shadow-lg shadow-emerald-600/30 hover:from-emerald-500 hover:to-teal-500 focus-visible:ring-emerald-500/40"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'إنشاء النظام'}
           </Button>

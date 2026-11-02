@@ -128,20 +128,20 @@
 
   /* حلقة تركيز نيلية أنيقة للعناصر الأصلية — مكوّنات shadcn تحافظ على حلقاتها الخاصة عبر الطبقة utilities */
   :focus-visible {
-    outline: 2px solid oklch(0.585 0.233 277.117 / 0.55);
+    outline: 2px solid oklch(0.585 0.233 163.811 / 0.55);
     outline-offset: 2px;
   }
 
   /* تحديد نص بنيلي خافت */
   ::selection {
-    background-color: oklch(0.585 0.233 277.117 / 0.16);
+    background-color: oklch(0.585 0.233 163.811 / 0.16);
   }
 }
 
 /* شرائط تمرير رفيعة (WebKit + Firefox) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: oklch(0.585 0.233 277.117 / 0.35) transparent;
+  scrollbar-color: oklch(0.585 0.233 163.811 / 0.35) transparent;
 }
 ::-webkit-scrollbar {
   width: 8px;
@@ -151,13 +151,13 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: oklch(0.585 0.233 277.117 / 0.3);
+  background-color: oklch(0.585 0.233 163.811 / 0.3);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: oklch(0.585 0.233 277.117 / 0.55);
+  background-color: oklch(0.585 0.233 163.811 / 0.55);
 }
 
 /* لمسات ناعمة على البطاقات: زوايا أوضح وظل خفيف مائل للنيلي */
@@ -165,7 +165,7 @@
   border-radius: calc(var(--radius) + 4px);
   box-shadow:
     0 1px 2px oklch(0.2 0.01 165 / 0.05),
-    0 12px 32px -16px oklch(0.585 0.233 277.117 / 0.18);
+    0 12px 32px -16px oklch(0.585 0.233 163.811 / 0.18);
 }
 
 /* طباعة قسائم الرواتب */

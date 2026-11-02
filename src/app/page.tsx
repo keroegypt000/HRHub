@@ -10,6 +10,7 @@ import { EmployeesSection } from '@/components/hrhub/sections/employees';
 import { DepartmentsSection, ShiftsSection, HolidaysSection, SalaryComponentsSection } from '@/components/hrhub/sections/simple-crud';
 import { ContractsSection } from '@/components/hrhub/sections/contracts';
 import { AlertsSection } from '@/components/hrhub/sections/alerts';
+import { PassportsSection, IqamasSection } from '@/components/hrhub/sections/documents';
 import { EndOfServiceSection } from '@/components/hrhub/sections/end-of-service';
 import { DepartedSection, DeceasedSection } from '@/components/hrhub/sections/departed';
 import { AttendanceLogsSection, DailyAttendanceSection } from '@/components/hrhub/sections/attendance';
@@ -99,6 +100,8 @@ export default function Page() {
       {section === 'departments' && <DepartmentsSection canWrite={!!can.departments} />}
       {section === 'contracts' && <ContractsSection canWrite={!!can.contracts} companyName={companyName} />}
       {section === 'alerts' && <AlertsSection canWrite={!!can.passports && !!can.vehicles && !!can.companyContracts} />}
+      {section === 'passports' && <PassportsSection canWrite={!!can.passports} />}
+      {section === 'iqamas' && <IqamasSection canWrite={!!can.iqamas} />}
       {section === 'end-of-service' && <EndOfServiceSection canWrite={!!can.settlements} companyName={companyName} />}
       {section === 'departed' && <DepartedSection canWrite={!!can.settlements} companyName={companyName} />}
       {section === 'deceased' && <DeceasedSection canWrite={!!can.settlements} companyName={companyName} />}

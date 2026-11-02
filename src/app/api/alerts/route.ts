@@ -4,7 +4,7 @@ import { requireRead, handle, ok } from '@/lib/api';
 
 export interface ExpiryAlert {
   id: string;
-  kind: 'passport' | 'vehicle_license' | 'vehicle_insurance' | 'vehicle_inspection' | 'company_contract' | 'employee_contract';
+  kind: 'passport' | 'iqama' | 'vehicle_license' | 'vehicle_insurance' | 'vehicle_inspection' | 'company_contract' | 'employee_contract';
   kindAr: string;
   title: string;      // اسم العنصر (اللوحة/الجواز/العقد)
   subtitle: string;   // تفاصيل إضافية
@@ -15,6 +15,7 @@ export interface ExpiryAlert {
 
 const KIND_AR: Record<ExpiryAlert['kind'], string> = {
   passport: 'جواز سفر',
+  iqama: 'إقامة',
   vehicle_license: 'رخصة سير مركبة',
   vehicle_insurance: 'تأمين مركبة',
   vehicle_inspection: 'فحص دوري مركبة',
@@ -51,6 +52,15 @@ export async function GET(req: NextRequest) {
     for (const p of passports) {
       push('passport', p.id, `${p.passportNo} — ${p.holderName}`,
         p.employee ? `${p.employee.name} (${p.employee.code})` : p.nationality || '', p.expiryDate);
+    }
+
+    // الإقامات
+    const iqamas = await db.iqama.findMany({
+      include: { employee: { select: { name: true, code: true } } },
+    });
+    for (const q of iqamas) {
+      push('iqama', q.id, `${q.iqamaNo} — ${q.holderName}`,
+        q.employee ? `${q.employee.name} (${q.employee.code})` : q.nationality || q.sponsor || '', q.expiryDate);
     }
 
     // السيارات: رخصة + تأمين + فحص دوري

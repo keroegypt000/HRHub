@@ -242,7 +242,7 @@ function EditSettlementDialog({ s, onClose, onDone }: { s: SettlementRow; onClos
         </div>
         <div className="rounded-lg border p-3 text-sm flex justify-between items-center bg-muted/30">
           <span className="font-bold">الإجمالي بعد التعديل</span>
-          <span className="tabular font-extrabold text-indigo-700">{fmtKWD(preview.totalDue)} د.ك</span>
+          <span className="tabular font-extrabold text-emerald-700">{fmtKWD(preview.totalDue)} د.ك</span>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
@@ -423,7 +423,7 @@ export function DeceasedSection({ canWrite, companyName }: { canWrite: boolean; 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Kpi title="عدد المتوفين" value={summary.count} icon={Flower2} tone="bg-slate-200 text-slate-700" />
-          <Kpi title="إجمالي المستحقات" value={`${fmtKWD(summary.totalDue)} د.ك`} icon={Wallet} tone="bg-indigo-100 text-indigo-700" />
+          <Kpi title="إجمالي المستحقات" value={`${fmtKWD(summary.totalDue)} د.ك`} icon={Wallet} tone="bg-emerald-100 text-emerald-700" />
           <Kpi title="ما صُرف للورثة" value={`${fmtKWD(summary.paidAmount)} د.ك`} icon={HandCoins} tone="bg-emerald-100 text-emerald-700" />
           <Kpi title="متبقٍ للتسديد" value={`${fmtKWD(summary.remaining)} د.ك`} sub="مطالبة مستحقة" icon={AlertTriangle} tone={summary.remaining > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'} />
         </div>
@@ -465,7 +465,7 @@ export function DepartedSection({ canWrite, companyName }: { canWrite: boolean; 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Kpi title="عدد المنصرفين" value={summary.count} icon={UserMinus} tone="bg-amber-100 text-amber-700" />
-          <Kpi title="إجمالي المستحقات" value={`${fmtKWD(summary.totalDue)} د.ك`} icon={Wallet} tone="bg-indigo-100 text-indigo-700" />
+          <Kpi title="إجمالي المستحقات" value={`${fmtKWD(summary.totalDue)} د.ك`} icon={Wallet} tone="bg-emerald-100 text-emerald-700" />
           <Kpi title="ما صُرف" value={`${fmtKWD(summary.paidAmount)} د.ك`} icon={HandCoins} tone="bg-emerald-100 text-emerald-700" />
           <Kpi title="متبقٍ للتسديد" value={`${fmtKWD(summary.remaining)} د.ك`} sub={`بانتظار: ${summary.pending} · جزئي: ${summary.partial}`} icon={AlertTriangle} tone={summary.remaining > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'} />
         </div>

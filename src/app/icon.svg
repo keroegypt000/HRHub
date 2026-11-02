@@ -2,8 +2,8 @@
   <!-- ADMS FOR HR MANAGMENT — علامة التطبيق: مربع دائري الزوايا بتدرج قطري + حرف A أبيض عريض + قوسا بصمة خافتان -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4F46E5"/>
-      <stop offset="1" stop-color="#7C3AED"/>
+      <stop offset="0" stop-color="#10B981"/>
+      <stop offset="1" stop-color="#047857"/>
     </linearGradient>
   </defs>
 

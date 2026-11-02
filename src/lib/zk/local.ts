@@ -6,9 +6,7 @@ import { createRequire } from 'module';
 
 const requireCjs = createRequire(import.meta.url);
 // مكتبات CJS — نستبعيها من التغليف عبر serverExternalPackages
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const ZKLib = requireCjs('node-zklib') as new (ip: string, port: number, timeout: number, inport: number) => ZkLibInstance;
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { REQUEST_DATA } = requireCjs('node-zklib/constants') as { REQUEST_DATA: { GET_ATTENDANCE_LOGS: Buffer; GET_USERS: Buffer } };
 
 interface ZkLibInstance {

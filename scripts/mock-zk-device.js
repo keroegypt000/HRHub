@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 // mock-zk-device.js — محاكي جهاز ZKTeco محلي ببروتوكول ZK عبر TCP منفذ 4370
 // يرد على: CMD_CONNECT (1000)، CMD_DATA_WRRQ (1503) للسجلات (0x0d) والمستخدمين (0x09)، CMD_EXIT (1001)
 // السجلات بصيغة 40 بايت الموحدة: pin(2-11)، توقيت ZK (27-31)، verify(31)، status(32)

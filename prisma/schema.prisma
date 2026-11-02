@@ -147,6 +147,7 @@ model Employee {
   payslips         Payslip[]
   files            FileUpload[]      @relation("EmpFiles")
   passports        Passport[]
+  iqamas           Iqama[]
   settlements      DepartureSettlement[]
 
   @@index([name])
@@ -188,6 +189,24 @@ model Passport {
   nationality String?
   issueDate   DateTime?
   expiryDate  DateTime
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([expiryDate])
+}
+
+model Iqama {
+  id          String    @id @default(cuid())
+  employeeId  String?
+  holderName  String    // اسم صاحب الإقامة
+  iqamaNo     String    // رقم الإقامة
+  nationality String?
+  profession  String?   // المهنة المكتوبة في الإقامة
+  issueDate   DateTime?
+  expiryDate  DateTime
+  sponsor     String?   // الكفيل
   notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -431,6 +450,11 @@ model Payslip {
   netPay           Float
   workedDays       Float          @default(0)
   absenceDays      Float          @default(0)
+  paidLeaveDays    Float          @default(0)   // أيام إجازات معتمدة مدفوعة
+  unpaidLeaveDays  Float          @default(0)   // أيام إجازات معتمدة غير مدفوعة
+  holidayDays      Int            @default(0)   // أيام عطلات رسمية داخل الفترة
+  weekOffDays      Int            @default(0)   // أيام راحة أسبوعية داخل الفترة
+  dayLedger        String?        // JSON حالة كل يوم: p حاضر a غائب lp إجازة مدفوعة lu غير مدفوعة ho عطلة we راحة m بصمة ناقصة
   otHours          Float          @default(0)
   otAmount         Float          @default(0)
   lateMinutes      Int            @default(0)
@@ -454,6 +478,9 @@ model PayslipItem {
   type        String           // earning|deduction
   amount      Float
   note        String?
+  source      String           @default("auto")  // auto محسوب تلقائيًا | manual بند يدوي — يبقى بعد إعادة الحساب
+  editedBy    String?          // من عدّل البند (للتدقيق)
+  editedAt    DateTime?
   payslip     Payslip          @relation(fields: [payslipId], references: [id], onDelete: Cascade)
   component   SalaryComponent? @relation(fields: [componentId], references: [id])
 }

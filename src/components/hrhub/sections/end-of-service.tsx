@@ -91,12 +91,12 @@ export function EndOfServiceSection({ canWrite, companyName }: { canWrite: boole
       <PageHeader
         title="نهاية الخدمة"
         subtitle={`${data.law} — حساب تلقائي لكل موظف (نصف شهر/سنة لأول 5 سنوات + شهر/سنة بعدها)`}
-        actions={<Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200"><Calculator className="h-3.5 w-3.5 ml-1" /> تحديث تلقائي</Badge>}
+        actions={<Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200"><Calculator className="h-3.5 w-3.5 ml-1" /> تحديث تلقائي</Badge>}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi title="موظفون نشطون" value={t.activeCount} icon={Hourglass} tone="bg-emerald-100 text-emerald-700" />
-        <Kpi title="مكافآت متراكمة (تقديري)" value={`${fmtKWD(t.accruedTotal)} د.ك`} sub="لو انتهت خدمات الجميع اليوم" icon={TrendingUp} tone="bg-indigo-100 text-indigo-700" />
+        <Kpi title="مكافآت متراكمة (تقديري)" value={`${fmtKWD(t.accruedTotal)} د.ك`} sub="لو انتهت خدمات الجميع اليوم" icon={TrendingUp} tone="bg-emerald-100 text-emerald-700" />
         <Kpi title="مستحقات متبقية للسداد" value={`${fmtKWD(t.remainingDuesTotal)} د.ك`} sub="للمنصرفين والمتوفين" icon={UserMinus} tone="bg-amber-100 text-amber-700" />
         <Kpi title="بدون تاريخ تعيين" value={t.noHireDate} sub="أدخل تاريخ التعيين لضبط الحساب" icon={AlertTriangle} tone={t.noHireDate ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'} />
       </div>
@@ -107,7 +107,7 @@ export function EndOfServiceSection({ canWrite, companyName }: { canWrite: boole
           { key: 'hireDate', header: 'التعيين', render: (r) => <span className="tabular">{r.hireDate ? fmtDate(r.hireDate) : '—'}</span> },
           { key: 'years', header: 'سنوات الخدمة', render: (r) => <span className="tabular font-bold">{r.years ? r.years.toFixed(2) : '—'}</span> },
           { key: 'wage', header: 'آخر أجر', render: (r) => <span className="tabular">{fmtKWD(r.lastWage)}</span>, hideOnMobile: true },
-          { key: 'accrued', header: 'المستحق حتى اليوم', render: (r) => <span className="tabular font-bold text-indigo-700">{r.years ? `${fmtKWD(r.eosAccrued)} د.ك` : '—'}</span> },
+          { key: 'accrued', header: 'المستحق حتى اليوم', render: (r) => <span className="tabular font-bold text-emerald-700">{r.years ? `${fmtKWD(r.eosAccrued)} د.ك` : '—'}</span> },
           { key: 'ifResigned', header: 'لو استقال', render: (r) => <span className="tabular text-muted-foreground">{r.years ? `${fmtKWD(r.eosIfResigned)} د.ك` : '—'}</span>, hideOnMobile: true },
           { key: 'state', header: 'الحالة', render: (r) => r.settlement
             ? <Badge variant="outline" className={r.settlement.status === 'paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : r.settlement.status === 'partial' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}>
@@ -195,7 +195,7 @@ export function EndOfServiceSection({ canWrite, companyName }: { canWrite: boole
               ) : (
                 <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
                   <p className="font-bold">تقدير حتى اليوم (لم تُسجّل نهاية خدمة)</p>
-                  <div className="flex justify-between"><span className="text-muted-foreground">بإنهاء الشركة (كاملة)</span><span className="tabular font-bold text-indigo-700">{fmtKWD(detail.eosAccrued)} د.ك</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">بإنهاء الشركة (كاملة)</span><span className="tabular font-bold text-emerald-700">{fmtKWD(detail.eosAccrued)} د.ك</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">لو استقال اليوم (بمعامل المادة 49)</span><span className="tabular">{fmtKWD(detail.eosIfResigned)} د.ك</span></div>
                   <p className="text-[11px] text-muted-foreground">النظام: نصف شهر لكل سنة من أول 5 سنوات + شهر لكل سنة بعدها. الاستقالة: أقل من 3 سنوات لا شيء، 3-5 الثلث، 5-10 النصف، 10+ كاملة.</p>
                 </div>
@@ -312,8 +312,8 @@ function DepartureDialog({ row, onClose, onDone, companyName }: {
         </div>
 
         {/* معاينة الحساب الحية */}
-        <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-4 space-y-1.5 text-sm">
-          <p className="font-bold flex items-center gap-2 mb-1"><Calculator className="h-4 w-4 text-indigo-600" /> معاينة الحساب ({INDEMNITY_LAW})</p>
+        <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/50 p-4 space-y-1.5 text-sm">
+          <p className="font-bold flex items-center gap-2 mb-1"><Calculator className="h-4 w-4 text-emerald-600" /> معاينة الحساب ({INDEMNITY_LAW})</p>
           {!row.hireDate && (
             <p className="text-red-700 text-xs font-bold">لا يوجد تاريخ تعيين — أدخله من صفحة الموظفين أولًا وإلا ستكون المكافأة صفرًا.</p>
           )}
@@ -323,7 +323,7 @@ function DepartureDialog({ row, onClose, onDone, companyName }: {
           <div className="flex justify-between"><span className="text-muted-foreground">{preview.note}</span></div>
           <div className="flex justify-between border-t pt-1.5 mt-1">
             <span className="font-bold">إجمالي المستحقات الصافي</span>
-            <span className="tabular font-extrabold text-indigo-700 text-lg">{fmtKWD(preview.totalDue)} د.ك</span>
+            <span className="tabular font-extrabold text-emerald-700 text-lg">{fmtKWD(preview.totalDue)} د.ك</span>
           </div>
         </div>
 

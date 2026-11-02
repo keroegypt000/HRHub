@@ -191,7 +191,7 @@ export function AttendanceLogsSection({ canWrite, isAdmin }: { canWrite: boolean
               <Download className="h-4 w-4" /> تصدير
             </Button>
             {canWrite && (
-              <Button variant="outline" size="sm" className="text-violet-700 border-violet-300" onClick={() => setUsbOpen(true)}>
+              <Button variant="outline" size="sm" className="text-teal-700 border-teal-300" onClick={() => setUsbOpen(true)}>
                 <Usb className="h-4 w-4" /> استيراد من USB
               </Button>
             )}
@@ -284,10 +284,10 @@ export function AttendanceLogsSection({ canWrite, isAdmin }: { canWrite: boolean
       {/* حوار استيراد ملف USB من الجهاز */}
       <Dialog open={usbOpen} onOpenChange={(o) => { setUsbOpen(o); if (!o) setUsbResult(null); }}>
         <DialogContent dir="rtl" className="max-w-lg">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Usb className="h-4 w-4 text-violet-700" /> استيراد بصمات من فلاشة الجهاز (USB)</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Usb className="h-4 w-4 text-teal-700" /> استيراد بصمات من فلاشة الجهاز (USB)</DialogTitle></DialogHeader>
           {!usbResult ? (
             <div className="space-y-3 py-2 text-sm">
-              <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-1 text-violet-900">
+              <div className="rounded-lg border border-teal-200 bg-teal-50 p-3 space-y-1 text-teal-900">
                 <p className="font-bold">من قائمة الجهاز:</p>
                 <p>1. أدخل فلاشة USB في الجهاز ← USB Manager → Download → Attendance Data.</p>
                 <p>2. أخرج الفلاشة وارفع الملف الناتج هنا (اسمه مثل <span className="font-mono">1_attlog.dat</span> أو <span className="font-mono">ATTLOG.TXT</span>).</p>
@@ -401,7 +401,7 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
     { key: 'out', header: 'خروج', render: (r) => <span className="tabular">{r.lastOut ? fmtTime(r.lastOut) : '—'}</span> },
     { key: 'work', header: 'عمل', render: (r) => <span className="tabular">{fmtMinutes(r.workedMinutes)}</span>, hideOnMobile: true },
     { key: 'late', header: 'تأخير', render: (r) => r.lateMinutes ? <span className="text-amber-700 tabular font-medium">{r.lateMinutes}د</span> : <span className="text-muted-foreground">—</span> },
-    { key: 'ot', header: 'إضافي', render: (r) => r.otMinutes ? <span className="text-violet-700 tabular font-medium">{r.otMinutes}د</span> : <span className="text-muted-foreground">—</span>, hideOnMobile: true },
+    { key: 'ot', header: 'إضافي', render: (r) => r.otMinutes ? <span className="text-teal-700 tabular font-medium">{r.otMinutes}د</span> : <span className="text-muted-foreground">—</span>, hideOnMobile: true },
     {
       key: 'src', header: '',
       render: (r) => (

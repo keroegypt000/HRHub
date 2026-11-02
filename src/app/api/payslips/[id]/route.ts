@@ -3,7 +3,18 @@ import { db } from '@/lib/db';
 import { requireRead, requireWrite, ok, fail, handle } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
 import { round3 } from '@/lib/calc';
+import { recalcPayslipTotals } from '@/lib/payroll';
 import { tafqitKWD } from '@/lib/tafqit';
+
+/** هل الفترة قابلة للتعديل؟ (قبل الاعتماد) */
+async function editableSlip(id: string) {
+  const slip = await db.payslip.findUnique({ where: { id }, include: { period: true } });
+  if (!slip) return { error: fail(404, 'القسيمة غير موجودة') as const };
+  if (slip.period.status === 'approved' || slip.period.status === 'paid') {
+    return { error: fail(400, 'القسيمة في فترة معتمدة/مصروفة — اطلب من المدير «إعادة فتح» الفترة أولًا') as const };
+  }
+  return { slip };
+}
 
 /** قسيمة واحدة مع التفقيط */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -23,7 +34,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   });
 }
 
-/** تعديل بنود يدوية (manual) في فترة draft فقط — مثل السلف */
+/** استبدال كل البنود اليدوية دفعة واحدة (فترة draft/computed فقط) */
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handle(async () => {
     const user = await requireWrite(req, 'payslips');
@@ -31,39 +42,35 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const body = (await req.json().catch(() => ({}))) as {
       manualItems?: { name: string; type: 'earning' | 'deduction'; amount: number; note?: string }[];
     };
-    const slip = await db.payslip.findUnique({ where: { id }, include: { period: true, items: true } });
-    if (!slip) return fail(404, 'القسيمة غير موجودة');
-    if (slip.period.status !== 'draft') {
-      return fail(400, 'لا يمكن تعديل قسيمة في فترة معتمدة أو مصروفة');
-    }
+    const found = await editableSlip(id);
+    if ('error' in found) return found.error;
+    const slip = found.slip;
 
-    // حذف البنود اليدوية القديمة وإضافة الجديدة
-    await db.payslipItem.deleteMany({ where: { payslipId: id, componentId: null, name: { contains: 'يدوي' } } });
+    await db.payslipItem.deleteMany({ where: { payslipId: id, source: 'manual' } });
     for (const item of body.manualItems || []) {
+      if (!item.name?.trim()) continue;
       await db.payslipItem.create({
         data: {
           payslipId: id,
-          name: item.name.includes('يدوي') ? item.name : `${item.name} (يدوي)`,
+          name: item.name.trim(),
           type: item.type,
           amount: round3(item.amount),
           note: item.note || null,
+          source: 'manual',
+          editedBy: user.name,
+          editedAt: new Date(),
         },
       });
     }
 
-    // إعادة الإجماليات
-    const items = await db.payslipItem.findMany({ where: { payslipId: id } });
-    const totalEarnings = round3(items.filter((i) => i.type === 'earning').reduce((s, i) => s + i.amount, 0));
-    const totalDeductions = round3(items.filter((i) => i.type === 'deduction').reduce((s, i) => s + i.amount, 0));
-    const netPay = round3(totalEarnings - totalDeductions);
-    const updated = await db.payslip.update({
+    await recalcPayslipTotals(id);
+    const updated = await db.payslip.findUnique({
       where: { id },
-      data: { totalEarnings, totalDeductions, netPay },
       include: { items: true, employee: true, period: true },
     });
     await logAudit({
       userId: user.id, action: 'update', entity: 'payslip', entityId: id,
-      description: `تعديل بنود يدوية لقسيمة ${updated.employee.name} — الصافي ${netPay.toFixed(3)} د.ك`,
+      description: `تعديل بنود يدوية لقسيمة ${updated?.employee?.name || ''} (${(body.manualItems || []).length} بند)`,
     });
     return ok(updated);
   });

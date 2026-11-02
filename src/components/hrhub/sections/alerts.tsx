@@ -9,7 +9,7 @@ import { CrudPanel, optionLoaders } from '@/components/hrhub/crud-panel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { BellRing, CalendarClock, Car, FileSignature, ShieldAlert, Plane } from 'lucide-react';
+import { BellRing, CalendarClock, Car, FileSignature, ShieldAlert, Plane, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ExpiryAlert {
@@ -68,7 +68,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
     <div className="space-y-4">
       <PageHeader
         title="التنبيهات والنفاذ"
-        subtitle="جوازات السفر ومستندات السيارات وعقود الشركة — تنبيه تلقائي قبل الانتهاء بـ30/60/90 يومًا"
+        subtitle="جوازات السفر والإقامات ومستندات السيارات وعقود الشركة — تنبيه تلقائي قبل الانتهاء بـ30/60/90 يومًا"
         actions={<Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200"><BellRing className="h-3.5 w-3.5 ml-1" /> فحص تلقائي عند كل فتح</Badge>}
       />
 
@@ -110,6 +110,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
       <Tabs defaultValue="passports" dir="rtl">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="passports" className="gap-1.5"><Plane className="h-4 w-4" /> الجوازات</TabsTrigger>
+          <TabsTrigger value="iqamas" className="gap-1.5"><CreditCard className="h-4 w-4" /> الإقامات</TabsTrigger>
           <TabsTrigger value="vehicles" className="gap-1.5"><Car className="h-4 w-4" /> السيارات</TabsTrigger>
           <TabsTrigger value="company-contracts" className="gap-1.5"><FileSignature className="h-4 w-4" /> عقود الشركة</TabsTrigger>
         </TabsList>
@@ -136,6 +137,45 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
               { key: 'employeeId', label: 'موظف مرتبط (اختياري)', type: 'select' },
               { key: 'passportNo', label: 'رقم الجواز', type: 'text', required: true },
               { key: 'nationality', label: 'الجنسية', type: 'text' },
+              { key: 'issueDate', label: 'تاريخ الإصدار', type: 'date' },
+              { key: 'expiryDate', label: 'تاريخ الانتهاء', type: 'date', required: true },
+              { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
+            ]}
+            defaultValues={{}}
+            loadOptions={optionLoaders.employees}
+            rowToForm={(r) => ({
+              ...r,
+              issueDate: r.issueDate ? fmtDate(r.issueDate as string) : '',
+              expiryDate: r.expiryDate ? fmtDate(r.expiryDate as string) : '',
+              employeeId: (r.employee as { id: string } | null | undefined)?.id || '',
+            })}
+          />
+        </TabsContent>
+
+        {/* الإقامات */}
+        <TabsContent value="iqamas">
+          <CrudPanel<Record<string, unknown> & { id: string }>
+            entityPath="/api/iqamas"
+            entityLabel="إقامة"
+            title="الإقامات"
+            subtitle="تنبيه انتهاء إقامات المقيمين — تجديد قبل النفاذ لتفادي الغرامات"
+            canWrite={canWrite}
+            searchPlaceholder="بحث برقم الإقامة أو الاسم أو الكفيل..."
+            columns={[
+              { key: 'holder', header: 'صاحب الإقامة', render: (r) => <span className="font-medium">{String(r.holderName)}</span> },
+              { key: 'iqamaNo', header: 'رقم الإقامة', render: (r) => <span className="font-mono">{String(r.iqamaNo)}</span> },
+              { key: 'employee', header: 'موظف مرتبط', render: (r) => (r.employee as { name: string; code: string } | null) ? `${(r.employee as { name: string; code: string }).name}` : '—', hideOnMobile: true },
+              { key: 'profession', header: 'المهنة', render: (r) => String(r.profession || '—'), hideOnMobile: true },
+              { key: 'expiry', header: 'تاريخ الانتهاء', render: (r) => <span className="tabular">{fmtDate(r.expiryDate as string)}</span> },
+              { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
+            ]}
+            fields={[
+              { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', required: true },
+              { key: 'employeeId', label: 'موظف مرتبط (اختياري)', type: 'select' },
+              { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', required: true },
+              { key: 'nationality', label: 'الجنسية', type: 'text' },
+              { key: 'profession', label: 'المهنة', type: 'text' },
+              { key: 'sponsor', label: 'الكفيل', type: 'text' },
               { key: 'issueDate', label: 'تاريخ الإصدار', type: 'date' },
               { key: 'expiryDate', label: 'تاريخ الانتهاء', type: 'date', required: true },
               { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },

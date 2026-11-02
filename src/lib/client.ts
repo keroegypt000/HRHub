@@ -136,7 +136,7 @@ export const STATUS_COLORS: Record<string, string> = {
   leave: 'bg-blue-100 text-blue-700 border-blue-200',
   holiday: 'bg-gray-100 text-gray-600 border-gray-200',
   weekend: 'bg-gray-100 text-gray-500 border-gray-200',
-  missed_punch: 'bg-purple-100 text-purple-700 border-purple-200',
+  missed_punch: 'bg-orange-100 text-orange-700 border-orange-200',
   pending: 'bg-amber-100 text-amber-800 border-amber-200',
   approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   rejected: 'bg-red-100 text-red-700 border-red-200',
@@ -153,4 +153,15 @@ export const STATUS_COLORS: Record<string, string> = {
   on_leave: 'bg-blue-100 text-blue-700 border-blue-200',
   deceased: 'bg-slate-200 text-slate-700 border-slate-300',
   partial: 'bg-amber-100 text-amber-800 border-amber-200',
+};
+
+/** أكواد حالة اليوم في سجل أيام القسيمة (dayLedger) */
+export const LEDGER_AR: Record<string, string> = {
+  p: 'حاضر', l: 'متأخر', h: 'نص يوم', a: 'غياب',
+  lp: 'إجازة مدفوعة', lu: 'إجازة غير مدفوعة', ho: 'عطلة رسمية', we: 'راحة أسبوعية', m: 'بصمة ناقصة',
+};
+
+export const LEDGER_COLORS: Record<string, string> = {
+  p: 'bg-emerald-500', l: 'bg-amber-500', h: 'bg-amber-300', a: 'bg-red-500',
+  lp: 'bg-sky-500', lu: 'bg-blue-500', ho: 'bg-teal-600', we: 'bg-slate-300', m: 'bg-slate-400',
 };

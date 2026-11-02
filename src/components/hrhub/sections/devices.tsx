@@ -88,7 +88,7 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
         columns={[
           { key: 'name', header: 'الجهاز', render: (r) => <div><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground font-mono">{r.sn}</p></div> },
           { key: 'mode', header: 'النوع', render: (r) => (
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border ${r.mode === 'local' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border ${r.mode === 'local' ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
               {r.mode === 'local' ? 'محلي (سحب 4370)' : 'أونلاين (ADMS Push)'}
             </span>
           ), hideOnMobile: true },
@@ -118,13 +118,13 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
       />
 
       {/* دليل الجهاز المحلي */}
-      <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 text-sm space-y-1.5">
-        <p className="font-bold text-violet-900">🔧 الجهاز المحلي (لا يرسل ADMS) — خطوات التجهيز:</p>
-        <p className="text-violet-800">1. من قائمة الجهاز: Comm → Ethernet — سجّل IP ثابتًا (مثال 192.168.1.201) وتأكد أن المنفذ 4370.</p>
-        <p className="text-violet-800">2. أضف الجهاز هنا باختيار «محلي — سحب من الشبكة» وأدخل نفس الـ IP.</p>
-        <p className="text-violet-800">3. يجب أن يكون السيرفر (أو الـ VPS الوسيط) على نفس الشبكة أو يصل للجهاز عبر Port Forwarding على 4370.</p>
-        <p className="text-violet-800">4. اضغط أيقونة البصمة 🔑 بجانب الجهاز لسحب السجلات فورًا — إعادة السحب لا تكرر السجلات أبدًا.</p>
-        <p className="text-violet-800">5. لو الجهاز في شبكة مقفولة بلا وصول من السيرفر: صدّر منه ملف USB واستورده من قسم «سجل البصمة ← استيراد من USB».</p>
+      <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm space-y-1.5">
+        <p className="font-bold text-teal-900">🔧 الجهاز المحلي (لا يرسل ADMS) — خطوات التجهيز:</p>
+        <p className="text-teal-800">1. من قائمة الجهاز: Comm → Ethernet — سجّل IP ثابتًا (مثال 192.168.1.201) وتأكد أن المنفذ 4370.</p>
+        <p className="text-teal-800">2. أضف الجهاز هنا باختيار «محلي — سحب من الشبكة» وأدخل نفس الـ IP.</p>
+        <p className="text-teal-800">3. يجب أن يكون السيرفر (أو الـ VPS الوسيط) على نفس الشبكة أو يصل للجهاز عبر Port Forwarding على 4370.</p>
+        <p className="text-teal-800">4. اضغط أيقونة البصمة 🔑 بجانب الجهاز لسحب السجلات فورًا — إعادة السحب لا تكرر السجلات أبدًا.</p>
+        <p className="text-teal-800">5. لو الجهاز في شبكة مقفولة بلا وصول من السيرفر: صدّر منه ملف USB واستورده من قسم «سجل البصمة ← استيراد من USB».</p>
       </div>
 
       <Dialog open={!!testResult} onOpenChange={(o) => !o && setTestResult(null)}>
@@ -164,7 +164,7 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
               <div className="rounded-lg border p-2.5"><p className="text-xs text-muted-foreground">أيام أعيد حسابها</p><p className="tabular font-bold">{pullResult?.daysRecomputed ?? 0}</p></div>
             </div>
             {pullResult?.matchedUsers ? (
-              <p className="text-violet-700">🔗 طوبق {pullResult.matchedUsers} مستخدمًا من الجهاز بالاسم وربط تلقائي</p>
+              <p className="text-teal-700">🔗 طوبق {pullResult.matchedUsers} مستخدمًا من الجهاز بالاسم وربط تلقائي</p>
             ) : null}
             <p className="text-xs text-muted-foreground">
               SN الجهاز: {pullResult?.deviceSn} · المدة: {pullResult?.durationMs} مللي ثانية — المصدر موثق «محلي» في سجل البصمة

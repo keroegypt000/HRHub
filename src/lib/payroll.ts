@@ -1,5 +1,6 @@
-// lib/payroll.ts — محرك الرواتب الشفاف: يبني قسائم الشهر من الحضور اليومي المعتمد والعقود
-// معادلات معلنة + تقريب 3 خانات في كل خطوة + مصدر لكل رقم (قواعد العمل 1، 13)
+// lib/payroll.ts — محرك الرواتب الشفاف: يبني قسائم الشهر من الحضور والعقود والإجازات والعطلات
+// معادلات معلنة + تقريب 3 خانات في كل خطوة + مصدر لكل رقم
+// ترتيب حسم حالة اليوم: عطلة رسمية ← راحة أسبوعية (وردية الموظف) ← إجازة معتمدة ← بصمة اليوم ← غياب
 import { db } from '@/lib/db';
 import { round3, hourRate, minuteRate, dayRate, otAmount } from '@/lib/calc';
 import { getSettings } from '@/lib/settings';
@@ -26,15 +27,35 @@ function isCitizen(nationality?: string | null): boolean {
   return n.includes('كويت') || n.includes('kuwait') || n === 'kwt';
 }
 
+/** إعادة حساب إجماليات قسيمة من بنودها — بعد أي تعديل يدوي */
+export async function recalcPayslipTotals(payslipId: string): Promise<void> {
+  const items = await db.payslipItem.findMany({ where: { payslipId } });
+  const totalEarnings = round3(items.filter((i) => i.type === 'earning').reduce((s, i) => s + i.amount, 0));
+  const totalDeductions = round3(items.filter((i) => i.type === 'deduction').reduce((s, i) => s + i.amount, 0));
+  const netPay = round3(totalEarnings - totalDeductions);
+  await db.payslip.update({ where: { id: payslipId }, data: { totalEarnings, totalDeductions, netPay } });
+}
+
+interface ManualItemSnapshot {
+  componentId: string | null;
+  name: string;
+  type: string;
+  amount: number;
+  note: string | null;
+  editedBy: string | null;
+  editedAt: Date | null;
+}
+
 /**
- * حساب فترة رواتب كاملة — يعمل فقط على فترة في حالة draft (قاعدة 13).
- * إعادة الحساب تحذف القسائم وتعيد بناءها.
+ * حساب فترة رواتب كاملة — يعمل على فترة draft أو computed (قبل الاعتماد).
+ * الفترات المعتمدة/المصروفة تتطلب «إعادة فتح» (مدير) ثم إعادة حساب.
+ * البنود اليدوية المضافة من المحاسب تُحفظ وتُعاد بناؤها كما هي.
  */
 export async function computePayrollPeriod(periodId: string): Promise<ComputeResult> {
   const period = await db.payrollPeriod.findUnique({ where: { id: periodId } });
   if (!period) throw new Error('فترة الرواتب غير موجودة');
-  if (period.status !== 'draft') {
-    throw new Error('لا يمكن إعادة حساب فترة معتمدة أو مصروفة — أعد فتحها أولًا (للمدير فقط)');
+  if (period.status === 'approved' || period.status === 'paid') {
+    throw new Error('الفترة معتمدة أو مصروفة — أعد فتحها أولًا (للمدير فقط) ثم أعد الحساب');
   }
 
   const settings = await getSettings();
@@ -60,24 +81,112 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
   if (keys.length === 0) {
     throw new Error('فترة مستقبلية بالكامل — لا يمكن حسابها قبل بدايتها');
   }
+  const rangeStart = kuwaitMidnight(keys[0]);
+  const rangeEnd = kuwaitMidnight(keys[keys.length - 1]);
 
   const employees = await db.employee.findMany({
-    where: { status: { not: 'terminated' } },
+    where: { status: { in: ['active', 'suspended', 'on_leave'] } },
     include: {
-      department: true,
       contracts: { where: { status: 'active' }, orderBy: { startDate: 'desc' } },
     },
   });
+  const empIds = employees.map((e) => e.id);
 
-  // إجازات معتمدة داخل الفترة (لرصيد الإجازة غير المدفوعة)
-  const leaveTypes = await db.leaveType.findMany();
-  const unpaidTypeIds = new Set(leaveTypes.filter((t) => !t.paid).map((t) => t.id));
-  const approvedLeaves = await db.leaveRequest.findMany({
-    where: { status: 'approved', employeeId: { in: employees.map((e) => e.id) } },
+  // إسنادات الورديات خلال الفترة (وردية كل موظف تحدد أيام الراحة الأسبوعية)
+  const assignments = await db.shiftAssignment.findMany({
+    where: { employeeId: { in: empIds }, fromDate: { lte: rangeEnd } },
   });
+  const activeAssignments = assignments.filter(
+    (a) => !a.toDate || dateKey(a.toDate) >= startKey
+  );
+  const shiftIds = [...new Set(activeAssignments.map((a) => a.shiftId))];
+  const shifts = shiftIds.length ? await db.shift.findMany({ where: { id: { in: shiftIds } } }) : [];
+  const shiftById = new Map(shifts.map((s) => [s.id, s]));
+
+  // العطلات الرسمية (شاملة النطاقات والمتكررة سنويًا)
+  const holidays = await db.holiday.findMany();
+  const holidayForKey = (key: string): boolean => {
+    const md = key.slice(5); // MM-DD
+    for (const h of holidays) {
+      const from = dateKey(h.date);
+      const to = h.endDate ? dateKey(h.endDate) : from;
+      if (key >= from && key <= to) return true;
+      if (h.recurring) {
+        const fromMd = from.slice(5);
+        const toMd = to.slice(5);
+        if (fromMd <= toMd ? md >= fromMd && md <= toMd : md >= fromMd || md <= toMd) return true;
+      }
+    }
+    return false;
+  };
+
+  // الإجازات المعتمدة — تحمي اليوم من الغياب (مدفوعة) أو تُخصم (غير مدفوعة)
+  const leaveTypes = await db.leaveType.findMany();
+  const typeById = new Map(leaveTypes.map((t) => [t.id, t]));
+  const approvedLeaves = await db.leaveRequest.findMany({
+    where: { status: 'approved', employeeId: { in: empIds } },
+  });
+  const leavesByEmp = new Map<string, typeof approvedLeaves>();
+  for (const lv of approvedLeaves) {
+    let arr = leavesByEmp.get(lv.employeeId);
+    if (!arr) leavesByEmp.set(lv.employeeId, (arr = []));
+    arr.push(lv);
+  }
+
+  // الحضور اليومي المعالج
+  const daily = await db.dailyAttendance.findMany({
+    where: { employeeId: { in: empIds }, date: { gte: rangeStart, lte: rangeEnd } },
+  });
+  const dailyByEmp = new Map<string, Map<string, (typeof daily)[number]>>();
+  for (const d of daily) {
+    let m = dailyByEmp.get(d.employeeId);
+    if (!m) dailyByEmp.set(d.employeeId, (m = new Map()));
+    m.set(dateKey(d.date), d);
+  }
+
+  // البنود اليدوية السابقة — تُحفظ قبل الحذف وتُعاد بعد البناء (تعديلات المحاسب لا تضيع)
+  const previousManual = await db.payslipItem.findMany({
+    where: { source: 'manual', payslip: { periodId } },
+    include: { payslip: { select: { employeeId: true } } },
+  });
+  const manualByEmp = new Map<string, ManualItemSnapshot[]>();
+  for (const it of previousManual) {
+    let arr = manualByEmp.get(it.payslip.employeeId);
+    if (!arr) manualByEmp.set(it.payslip.employeeId, (arr = []));
+    arr.push({
+      componentId: it.componentId, name: it.name, type: it.type,
+      amount: it.amount, note: it.note, editedBy: it.editedBy, editedAt: it.editedAt,
+    });
+  }
+  /** أسماء البنود اليدوية لكل موظف — البند المحسوب الذي له نسخة يدوية معدّلة يُتخطى (اليدوي يحل محله) */
+  const manualNamesByEmp = new Map<string, Set<string>>();
+  for (const [eid, arr] of manualByEmp) {
+    manualNamesByEmp.set(eid, new Set(arr.map((m) => m.name.trim())));
+  }
 
   // حذف القسائم القديمة وإعادة البناء
   await db.payslip.deleteMany({ where: { periodId } });
+
+  const defaultShift = settings.defaultShiftId
+    ? await db.shift.findUnique({ where: { id: settings.defaultShiftId } })
+    : null;
+  const defaultWorkDays = parseWorkDays(defaultShift?.workDays || '[0,1,2,3,4]');
+
+  /** أيام عمل الموظف في يوم معين حسب وردته الفعلية، وإلا الوردية الافتراضية */
+  const workDaysFor = (empId: string, key: string): number[] => {
+    let found: (typeof activeAssignments)[number] | null = null;
+    for (const a of activeAssignments) {
+      if (a.employeeId !== empId) continue;
+      if (dateKey(a.fromDate) <= key && (!a.toDate || dateKey(a.toDate) >= key)) {
+        if (!found || a.fromDate > found.fromDate) found = a;
+      }
+    }
+    if (found) {
+      const s = shiftById.get(found.shiftId);
+      if (s) return parseWorkDays(s.workDays);
+    }
+    return defaultWorkDays;
+  };
 
   let totalNet = 0;
   let count = 0;
@@ -85,114 +194,120 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
   for (const emp of employees) {
     const contract = emp.contracts[0] || null;
     const basic = round3(contract?.basicSalary ?? emp.basicSalary ?? 0);
-    const hoursPerDay = contract?.hoursPerDay || settings.hoursPerDay || 8;
 
-    // الحضور اليومي للفترة
-    const daily = await db.dailyAttendance.findMany({
-      where: {
-        employeeId: emp.id,
-        date: { gte: kuwaitMidnight(keys[0] || startKey), lte: kuwaitMidnight(keys[keys.length - 1] || endKey) },
-      },
-    });
-    const dailyByKey = new Map(daily.map((d) => [dateKey(d.date), d]));
-
-    // أيام العمل المتوقعة حسب وردية الموظف (افتراضي الإعدادات)
-    const defaultShift = settings.defaultShiftId
-      ? await db.shift.findUnique({ where: { id: settings.defaultShiftId } })
-      : null;
-    const workDaysArr = parseWorkDays(defaultShift?.workDays || '[0,1,2,3,4]');
-
-    // حماية تاريخ التعيين: قبل التعيين لا يُحسب حضورًا ولا غيابًا (الغياب لا يُخصم قبل وقوعه)
+    // حماية تاريخ التعيين وتاريخ ترك العمل: خارج النطاق لا يُحسب حضورًا ولا غيابًا
     const hireKey = emp.hireDate ? dateKey(emp.hireDate) : null;
+    const departKey = emp.departureDate ? dateKey(emp.departureDate) : null;
+
+    const empLeaves = leavesByEmp.get(emp.id) || [];
+    const empDaily = dailyByEmp.get(emp.id) || new Map();
 
     let workedDays = 0;
     let absenceDays = 0;
+    let paidLeaveDays = 0;
+    let unpaidLeaveDays = 0;
+    let holidayDays = 0;
+    let weekOffDays = 0;
+    let missedPunchDays = 0;
     let lateMinutes = 0;
     let weekdayOtMinutes = 0;
     let holidayOtMinutes = 0;
-    let missedPunchDays = 0;
+    const ledger: { d: string; s: string }[] = [];
 
     for (const key of keys) {
-      if (hireKey && key < hireKey) continue; // يوم قبل تاريخ التعيين — مُتجاهل تمامًا
-      const d = dailyByKey.get(key);
-      const isWorkday = workDaysArr.includes(weekdayIndex(kuwaitMidnight(key)));
-      if (d) {
-        switch (d.status) {
-          case 'present':
-          case 'late':
-            workedDays += 1;
-            break;
-          case 'half_day':
-            workedDays += 0.5;
-            absenceDays += 0.5;
-            break;
-          case 'absent':
-            if (isWorkday) absenceDays += 1;
-            break;
-          case 'missed_punch':
-            missedPunchDays += 1;
-            break;
-          case 'holiday':
-          case 'weekend':
-          case 'leave':
-            // الإضافي في عطلة/راحة بمضاعف مختلف
-            if (d.otMinutes > 0) holidayOtMinutes += d.otMinutes;
-            break;
-        }
-        if (d.status === 'late') lateMinutes += d.lateMinutes;
-        if ((d.status === 'present' || d.status === 'late') && d.otMinutes > 0) {
-          weekdayOtMinutes += d.otMinutes;
-        }
-      } else if (isWorkday) {
-        absenceDays += 1;
-      }
-    }
+      if (hireKey && key < hireKey) continue; // يوم قبل التعيين — مُتجاهل تمامًا
+      if (departKey && key > departKey) continue; // يوم بعد ترك العمل/الوفاة — مُتجاهل تمامًا
 
-    // أيام الإجازة غير المدفوعة المعتمدة داخل الفترة
-    let unpaidLeaveDays = 0;
-    for (const lv of approvedLeaves) {
-      if (!unpaidTypeIds.has(lv.leaveTypeId)) continue;
-      const fromKey = dateKey(lv.fromDate);
-      const toKey = dateKey(lv.toDate);
-      for (const key of keys) {
-        if (key >= fromKey && key <= toKey) unpaidLeaveDays += 1;
+      const row = empDaily.get(key);
+      const isWorkday = workDaysFor(emp.id, key).includes(weekdayIndex(kuwaitMidnight(key)));
+      let code = 'a';
+
+      if (holidayForKey(key)) {
+        // 1) عطلة رسمية — مدفوعة بلا خصم
+        code = 'ho';
+        holidayDays += 1;
+        if (row && row.otMinutes > 0) holidayOtMinutes += row.otMinutes;
+      } else if (!isWorkday) {
+        // 2) راحة أسبوعية حسب وردية الموظف — مدفوعة بلا خصم
+        code = 'we';
+        weekOffDays += 1;
+        if (row && row.otMinutes > 0) holidayOtMinutes += row.otMinutes;
+      } else {
+        // 3) إجازة معتمدة تغطي اليوم
+        const lv = empLeaves.find((l) => dateKey(l.fromDate) <= key && key <= dateKey(l.toDate));
+        if (lv) {
+          const t = typeById.get(lv.leaveTypeId);
+          const paid = t ? t.paid : true;
+          if (paid) { code = 'lp'; paidLeaveDays += 1; }
+          else { code = 'lu'; unpaidLeaveDays += 1; }
+          if (row && row.otMinutes > 0) holidayOtMinutes += row.otMinutes;
+        } else if (row) {
+          // 4) حالة يوم الحضور اليومي
+          switch (row.status) {
+            case 'present': code = 'p'; workedDays += 1; break;
+            case 'late': code = 'l'; workedDays += 1; lateMinutes += row.lateMinutes; break;
+            case 'half_day': code = 'h'; workedDays += 0.5; absenceDays += 0.5; break;
+            case 'absent': code = 'a'; absenceDays += 1; break;
+            case 'leave': code = 'lp'; paidLeaveDays += 1; break; // معلم إجازة في الحضور
+            case 'holiday': code = 'ho'; holidayDays += 1; break;
+            case 'weekend': code = 'we'; weekOffDays += 1; break;
+            default: code = 'm'; missedPunchDays += 1; break; // missed_punch بلا خصم
+          }
+          if ((row.status === 'present' || row.status === 'late') && row.otMinutes > 0) {
+            weekdayOtMinutes += row.otMinutes;
+          }
+        } else {
+          // 5) يوم عمل بلا بصمة ولا إجازة → غياب
+          code = 'a';
+          absenceDays += 1;
+        }
       }
+      ledger.push({ d: key.slice(8), s: code });
     }
 
     // ===== المكملات =====
-    const items: { componentId?: string; name: string; type: 'earning' | 'deduction'; amount: number; note?: string }[] = [];
+    const items: {
+      componentId?: string | null; name: string; type: 'earning' | 'deduction';
+      amount: number; note?: string; source?: 'manual'; editedBy?: string | null; editedAt?: Date | null;
+    }[] = [];
+
+    // أي بند محسوب له نسخة يدوية معدلة (نفس الاسم) يُتخطى — النسخة اليدوية تحل محله
+    const manualNames = manualNamesByEmp.get(emp.id) || new Set<string>();
+    const pushAuto = (item: { name: string; type: 'earning' | 'deduction'; amount: number; note?: string; componentId?: string | null }) => {
+      if (manualNames.has(item.name.trim())) return;
+      items.push(item);
+    };
 
     // الراتب الأساسي (من العقد أو ملف الموظف)
-    items.push({ name: 'الراتب الأساسي', type: 'earning', amount: basic, note: contract ? `عقد ${contract.contractNo}` : 'من ملف الموظف' });
+    pushAuto({ name: 'الراتب الأساسي', type: 'earning', amount: basic, note: contract ? `عقد ${contract.contractNo}` : 'من ملف الموظف' });
 
-    // بدلات العقد (سكن/مواصلات/أخرى) كنسب أو قيم ثابتة من مكونات أو من العقد
+    // بدلات العقد (سكن/مواصلات/أخرى)
     const contractAllowances: [string, number][] = [
       ['بدل سكن', round3(contract?.housingAllowance || 0)],
       ['بدل مواصلات', round3(contract?.transportAllowance || 0)],
       ['بدل أخرى', round3(contract?.otherAllowance || 0)],
     ];
     for (const [name, amount] of contractAllowances) {
-      if (amount > 0) items.push({ name, type: 'earning', amount, note: 'من العقد' });
+      if (amount > 0) pushAuto({ name, type: 'earning', amount, note: 'من العقد' });
     }
 
     // مكونات إضافية من جدول المكونات
     for (const comp of components) {
-      if (comp.calculation === 'attendance') continue; // الإضافي والخصومات تُحسب أدناه
+      if (comp.calculation === 'attendance') continue;
       if (comp.type === 'earning' && comp.calculation === 'fixed') {
-        // الأساسي يأتي من العقد/الملف دائمًا؛ بدلات النظام الثابتة تُستثنى فقط إذا العقد وفرها
         if (comp.code === 'BASIC') continue;
         if (comp.code === 'HOUSING' && (contract?.housingAllowance || 0) > 0) continue;
         if (comp.code === 'TRANSPORT' && (contract?.transportAllowance || 0) > 0) continue;
         if (comp.code === 'OTHER' && (contract?.otherAllowance || 0) > 0) continue;
         if (comp.value <= 0) continue;
-        items.push({ componentId: comp.id, name: comp.name, type: 'earning', amount: round3(comp.value) });
+        pushAuto({ componentId: comp.id, name: comp.name, type: 'earning', amount: round3(comp.value) });
       } else if (comp.type === 'earning' && comp.calculation === 'percent') {
         if (comp.code === 'BASIC') continue;
         if (comp.code === 'HOUSING' && (contract?.housingAllowance || 0) > 0) continue;
         if (comp.code === 'TRANSPORT' && (contract?.transportAllowance || 0) > 0) continue;
         if (comp.code === 'OTHER' && (contract?.otherAllowance || 0) > 0) continue;
         if (!(comp.percentOfBasic)) continue;
-        items.push({
+        pushAuto({
           componentId: comp.id, name: comp.name, type: 'earning',
           amount: round3(((comp.percentOfBasic || 0) / 100) * basic),
           note: `${comp.percentOfBasic}% من الأساسي`,
@@ -205,7 +320,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     const otVal = otAmount(basic, weekdayOtMinutes, holidayOtMinutes, rates);
     const otComp = components.find((c) => c.code === 'OT' && c.type === 'earning');
     if (otVal > 0) {
-      items.push({
+      pushAuto({
         componentId: otComp?.id,
         name: 'بدل العمل الإضافي',
         type: 'earning',
@@ -222,7 +337,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     const lateComp = components.find((c) => c.code === 'LATE' && c.type === 'deduction');
     const lateDeduction = rates.lateDeductionMode === 'minute' ? round3(mr * lateMinutes) : 0;
     if (lateDeduction > 0) {
-      items.push({
+      pushAuto({
         componentId: lateComp?.id, name: 'خصم التأخير', type: 'deduction', amount: lateDeduction,
         note: `${lateMinutes} دقيقة × ${mr.toFixed(3)} أجر الدقيقة`,
       });
@@ -232,50 +347,52 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     const absComp = components.find((c) => c.code === 'ABSENCE' && c.type === 'deduction');
     const absenceDeduction = round3(dr * absenceDays);
     if (absenceDeduction > 0) {
-      items.push({
+      pushAuto({
         componentId: absComp?.id, name: 'خصم الغياب', type: 'deduction', amount: absenceDeduction,
-        note: `${absenceDays} يوم × ${dr.toFixed(3)} أجر اليوم`,
+        note: `${absenceDays} يوم × ${dr.toFixed(3)} أجر اليوم (الأساسي ÷ ${rates.workDaysPerMonth})`,
       });
     }
 
-    // خصم الإجازة غير المدفوعة
+    // خصم الإجازة غير المدفوعة المعتمدة
     const ulComp = components.find((c) => c.code === 'UNPAID' && c.type === 'deduction');
     const unpaidDeduction = round3(dr * unpaidLeaveDays);
     if (unpaidDeduction > 0) {
-      items.push({
+      pushAuto({
         componentId: ulComp?.id, name: 'خصم إجازة غير مدفوعة', type: 'deduction', amount: unpaidDeduction,
         note: `${unpaidLeaveDays} يوم × ${dr.toFixed(3)}`,
       });
     }
 
-    // التأمينات الاجتماعية (نصيب الموظف يُخصم من الصافي)
+    // التأمينات الاجتماعية (نصيب الموظف)
     const citizen = isCitizen(emp.nationality);
     if (settings.socialSecurityEnabled) {
       const sscComp = components.find((c) => c.code === 'SSC' && c.type === 'deduction');
-      const employeeShare = citizen
-        ? round3(((settings.sscEmployeeCitizen || 0) / 100) * basic)
-        : 0;
+      const employeeShare = citizen ? round3(((settings.sscEmployeeCitizen || 0) / 100) * basic) : 0;
       if (employeeShare > 0) {
-        items.push({
+        pushAuto({
           componentId: sscComp?.id, name: 'التأمينات الاجتماعية (نصيب الموظف)', type: 'deduction',
           amount: employeeShare, note: `${settings.sscEmployeeCitizen}% مواطن — جهة العمل ${settings.sscEmployerCitizen}%`,
         });
       }
       if (!citizen && settings.sscEmployerExpatriate > 0) {
-        // نصيب جهة العمل للمقيم لا يُخصم من الموظف — يُثبت للتوثيق فقط
-        items.push({
+        pushAuto({
           name: 'تأمينات جهة العمل (مقيم — على الجهة)', type: 'earning', amount: 0,
           note: `${settings.sscEmployerExpatriate}% على جهة العمل لا يخصم من الموظف`,
         });
       }
     }
 
-    // سلف أو استقطاعات أخرى يدوية
+    // سلف أو استقطاعات أخرى ثابتة من جدول المكونات
     for (const comp of components) {
       if (comp.type === 'deduction' && comp.calculation === 'fixed' && comp.value > 0) {
         if (['LATE', 'ABSENCE', 'UNPAID', 'SSC'].includes(comp.code)) continue;
-        items.push({ componentId: comp.id, name: comp.name, type: 'deduction', amount: round3(comp.value) });
+        pushAuto({ componentId: comp.id, name: comp.name, type: 'deduction', amount: round3(comp.value) });
       }
+    }
+
+    // استرجاع البنود اليدوية المحفوظة (تعديلات المحاسب تبقى بعد إعادة الحساب)
+    for (const m of manualByEmp.get(emp.id) || []) {
+      items.push({ ...m, source: 'manual' });
     }
 
     // الإجماليات بتقريب موحد
@@ -286,6 +403,9 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
 
     const notes: string[] = [];
     if (missedPunchDays > 0) notes.push(`${missedPunchDays} يوم بصمة ناقصة (missed_punch) بلا خصم — راجعه`);
+    if (departKey && departKey >= keys[0] && departKey <= keys[keys.length - 1]) {
+      notes.push('حُسبت قسيمة منتصف الشهر حتى تاريخ ترك العمل');
+    }
 
     const payslip = await db.payslip.create({
       data: {
@@ -297,6 +417,11 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
         netPay,
         workedDays,
         absenceDays,
+        paidLeaveDays,
+        unpaidLeaveDays,
+        holidayDays,
+        weekOffDays,
+        dayLedger: JSON.stringify(ledger),
         otHours: round3((weekdayOtMinutes + holidayOtMinutes) / 60),
         otAmount: otVal,
         lateMinutes,
@@ -307,16 +432,19 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       },
     });
 
-    for (const item of items) {
-      await db.payslipItem.create({
-        data: {
+    if (items.length) {
+      await db.payslipItem.createMany({
+        data: items.map((i) => ({
           payslipId: payslip.id,
-          componentId: item.componentId || null,
-          name: item.name,
-          type: item.type,
-          amount: item.amount,
-          note: item.note || null,
-        },
+          componentId: i.componentId ?? null,
+          name: i.name,
+          type: i.type,
+          amount: i.amount,
+          note: i.note || null,
+          source: i.source || 'auto',
+          editedBy: i.editedBy ?? null,
+          editedAt: i.editedAt ?? null,
+        })),
       });
     }
     count++;
