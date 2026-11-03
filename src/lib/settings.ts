@@ -28,6 +28,14 @@ export interface SystemSettings {
   vacationAnnualQuota: number; // حصة الإجازة السنوية المتراكمة (30 يوم افتراضيًا)
   eosResignTiers: string; // JSON نسب فترة الخدمة للاستقالة
   eosBasisDefault: string; // أساس مكافأة نهاية الخدمة الافتراضي: basic|full_wage
+  emailEnabled: boolean; // إرسال إشعارات الموافقات بالبريد
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean; // SSL مباشر (465) — وإلا STARTTLS
+  smtpUser: string;
+  smtpPasswordEnc: string | null; // مشفرة ولا تعود للواجهة
+  smtpFrom: string; // اسم وعنوان المرسل
+  appUrl: string; // رابط النظام في الإيميلات
 }
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -54,10 +62,21 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   vacationAnnualQuota: 30,
   eosResignTiers: '',
   eosBasisDefault: 'basic',
+  emailEnabled: false,
+  smtpHost: '',
+  smtpPort: 587,
+  smtpSecure: false,
+  smtpUser: '',
+  smtpPasswordEnc: null,
+  smtpFrom: '',
+  appUrl: '',
 };
 
 /** مفتاح تشفير ثابت للجلسة — يُولَّد مرة ويُحفظ بجانب قاعدة البيانات */
 function cryptoKey(): Buffer {
+  // على السحابة (Vercel) نظام الملفات مؤقت — المفتاح يجب أن يأتي من متغير بيئة ثابت
+  // وإلا يتولد مفتاح جديد مع كل تشغيل فتتعذر قراءة كلمات السر المحفوظة (BioTime/SMTP)
+  if (process.env.APP_SECRET) return crypto.createHash('sha256').update(process.env.APP_SECRET).digest();
   const dir = path.dirname(process.env.DATABASE_URL?.replace('file:', '') || './db/custom.db');
   const keyFile = path.join(dir, '.secret.key');
   try {
@@ -128,6 +147,14 @@ export async function getSettings(): Promise<SystemSettings> {
   s.vacationAnnualQuota = numv('vacationAnnualQuota', 30);
   s.eosResignTiers = map.get('eosResignTiers') || '';
   s.eosBasisDefault = map.get('eosBasisDefault') === 'full_wage' ? 'full_wage' : 'basic';
+  s.emailEnabled = bool('emailEnabled');
+  s.smtpHost = map.get('smtpHost') || '';
+  s.smtpPort = numv('smtpPort', 587);
+  s.smtpSecure = bool('smtpSecure');
+  s.smtpUser = map.get('smtpUser') || '';
+  s.smtpPasswordEnc = map.get('smtpPasswordEnc') || null;
+  s.smtpFrom = map.get('smtpFrom') || '';
+  s.appUrl = map.get('appUrl') || '';
   settingsCache = { value: s, at: Date.now() };
   return s;
 }

@@ -254,7 +254,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
         const wdNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
         const out: (string | number)[][] = [];
-        const stats = { dutyMin: 0, workedMin: 0, otNormal: 0, otWeekend: 0, otHoliday: 0, lateM: 0, earlyM: 0, absH: 0, leaveH: 0, presentDays: 0 };
+        const stats = { dutyMin: 0, workedMin: 0, regularMin: 0, otNormal: 0, otWeekend: 0, otHoliday: 0, lateM: 0, earlyM: 0, absH: 0, leaveH: 0, presentDays: 0 };
         const cur = new Date(kuwaitMidnight(startKey));
         while (dateKey(cur) <= endKey) {
           const key = dateKey(cur);
@@ -262,11 +262,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           const shift = shiftFor(key);
           const wdays = effectiveWorkDays(empOffDays, shift?.workDays);
           const isWorkday = wdays.includes(weekdayIndex(cur));
-          const dutyMin = shift ? Math.max(0, (new Date(`2000-01-01T${shift.endTime}:00`).getTime() - new Date(`2000-01-01T${shift.startTime}:00`).getTime()) / 60000) : 480;
+          // مدة الدوام: المرن = ساعات اليوم من الإعدادات (مثل BioTime 00:00-23:59 = 8 ساعات)، والثابت = نهاية − بداية
+          const dutyMin = shift?.type === 'flexible' ? Math.round(settings.hoursPerDay * 60)
+            : shift ? Math.max(0, (new Date(`2000-01-01T${shift.endTime}:00`).getTime() - new Date(`2000-01-01T${shift.startTime}:00`).getTime()) / 60000) : 480;
           const lv = leaveForKey(key);
 
           let status = '—', exception = '';
-          let totalHours = 0, workedHours = 0, lateM = 0, earlyM = 0, absH = 0, leaveH = 0, otN = 0, otW = 0, otH = 0;
+          let totalHours = 0, workedHours = 0, lateM = 0, earlyM = 0, absH = 0, leaveH = 0, otN = 0, otW = 0, otH = 0, regularM = 0;
 
           if (isHoliday(key)) {
             status = 'عطلة رسمية';
@@ -282,6 +284,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
             workedHours = r.workedMinutes;
             lateM = r.lateMinutes; earlyM = r.earlyMinutes;
             if (r.otMinutes > 0) otN = r.otMinutes;
+            regularM = Math.min(r.workedMinutes, dutyMin); // الساعات العادية = العمل بحد أقصى مدة الدوام (Regular في BioTime)
             switch (r.status) {
               case 'present': status = 'حاضر'; stats.presentDays++; break;
               case 'late': status = 'متأخر'; stats.presentDays++; break;
@@ -296,6 +299,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
 
           stats.dutyMin += isWorkday && !isHoliday(key) ? dutyMin : 0;
           stats.workedMin += workedHours;
+          stats.regularMin += regularM;
           stats.otNormal += otN; stats.otWeekend += otW; stats.otHoliday += otH;
           stats.lateM += lateM; stats.earlyM += earlyM;
           stats.absH += absH; stats.leaveH += leaveH;
@@ -303,9 +307,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           out.push([
             key, wdNames[weekdayIndex(cur)], shift ? `${shift.startTime} - ${shift.endTime}` : '—',
             fmtTime(r?.firstIn || null), fmtTime(r?.lastOut || null),
-            hm(dutyMin), hm(totalHours), hm(workedHours),
+            hm(dutyMin), hm(totalHours), hm(workedHours), regularM ? (regularM / 60).toFixed(1) : '—',
             lateM || '—', earlyM || '—', absH ? hm(absH) : '—',
-            otN ? hm(otN) : '—', otW ? (otW / 60).toFixed(2) : '—', otH ? (otH / 60).toFixed(2) : '—',
+            otN ? hm(otN) : '—', (otN + otW + otH) ? hm(otN + otW + otH) : '—', otW ? (otW / 60).toFixed(2) : '—', otH ? (otH / 60).toFixed(2) : '—',
             leaveH ? hm(leaveH) : '—', status, exception,
           ]);
           cur.setDate(cur.getDate() + 1);
@@ -317,10 +321,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
             department: emp.department?.name || '—', position: emp.position?.name || '—',
           },
           period: `${startKey} → ${endKey}`,
-          columns: ['التاريخ', 'اليوم', 'الوردية', 'الدخول', 'الخروج', 'ساعات الوردية', 'إجمالي الساعات', 'ساعات العمل', 'تأخير (د)', 'خروج مبكر (د)', 'غياب', 'إضافي عادي', 'إضافي راحة (س)', 'إضافي عطلة (س)', 'إجازة', 'الحالة', 'استثناء'],
+          columns: ['التاريخ', 'اليوم', 'الوردية', 'الدخول', 'الخروج', 'ساعات الوردية', 'إجمالي الساعات', 'ساعات العمل', 'عادي Regular (س)', 'تأخير (د)', 'خروج مبكر / عجز (د)', 'غياب', 'إضافي عادي', 'إجمالي الإضافي', 'إضافي راحة (س)', 'إضافي عطلة (س)', 'إجازة', 'الحالة', 'استثناء'],
           rows: out,
           statistics: {
-            dutyHours: hm(stats.dutyMin), workedHours: hm(stats.workedMin),
+            dutyHours: hm(stats.dutyMin), workedHours: hm(stats.workedMin), regularHours: (stats.regularMin / 60).toFixed(1),
+            otTotal: hm(stats.otNormal + stats.otWeekend + stats.otHoliday),
             otNormal: hm(stats.otNormal), otWeekend: (stats.otWeekend / 60).toFixed(2), otHoliday: (stats.otHoliday / 60).toFixed(2),
             lateMinutes: stats.lateM, earlyMinutes: stats.earlyM,
             absenceHours: hm(stats.absH), leaveHours: hm(stats.leaveH), presentDays: stats.presentDays,

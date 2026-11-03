@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const admin = await requireWrite(req, 'users');
     const { id } = await ctx.params;
     const body = (await req.json().catch(() => ({}))) as {
-      name?: string; role?: string; permissions?: string | null; active?: boolean; password?: string;
+      name?: string; role?: string; permissions?: string | null; active?: boolean; password?: string; email?: string | null;
     };
     const target = await db.user.findUnique({ where: { id } });
     if (!target) return fail(404, 'المستخدم غير موجود');
@@ -26,6 +26,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     const data: Record<string, unknown> = {};
     if (body.name !== undefined) data.name = body.name.trim();
+    if (body.email !== undefined) data.email = body.email?.trim() || null;
     if (body.role !== undefined) data.role = body.role;
     if (body.permissions !== undefined) data.permissions = body.permissions;
     if (body.active !== undefined) data.active = body.active;

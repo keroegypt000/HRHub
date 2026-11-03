@@ -49,6 +49,7 @@ export interface AuthUser {
   role: string;
   permissions: Record<string, boolean> | null;
   active: boolean;
+  employeeId: string | null; // حساب بوابة الموظف
 }
 
 export async function getSessionUser(req: NextRequest): Promise<AuthUser | null> {
@@ -82,6 +83,7 @@ export async function getSessionUser(req: NextRequest): Promise<AuthUser | null>
     role: session.user.role,
     permissions,
     active: session.user.active,
+    employeeId: session.user.employeeId,
   };
 }
 
@@ -96,6 +98,7 @@ export const ROLES: Record<string, string> = {
   accountant: 'محاسب',
   supervisor: 'مشرف',
   viewer: 'مشاهد',
+  employee: 'موظف (بوابة الموظف)',
 };
 
 /** كيانات القراءة المحمية للمدير فقط */
@@ -114,6 +117,7 @@ const WRITE_MATRIX: Record<string, Set<string>> = {
   accountant: new Set(['payroll-periods', 'salary-components', 'payslips', 'export', 'import', 'settlements', 'loans']),
   supervisor: new Set(['leaves']), // طلبات إجازة لفريقه فقط
   viewer: new Set([]),
+  employee: new Set([]), // بوابة الموظف تستخدم مسارات /api/ess فقط
 };
 
 const READ_MATRIX: Record<string, Set<string>> = {
@@ -134,6 +138,7 @@ const READ_MATRIX: Record<string, Set<string>> = {
     'passports', 'iqamas', 'vehicles', 'company-contracts', 'alerts', 'end-of-service', 'settlements',
     'requests', 'loans',
   ]),
+  employee: new Set([]),
 };
 
 function roleCan(matrix: Record<string, Set<string>>, role: string, entity: string): boolean {

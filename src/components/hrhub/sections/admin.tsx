@@ -98,7 +98,7 @@ export function AuditSection() {
 // المستخدمون
 // ============================================================
 interface UserRow extends Record<string, unknown> {
-  id: string; username: string; name: string; role: string; active: boolean;
+  id: string; username: string; name: string; role: string; active: boolean; email?: string | null;
   permissions?: string | null; createdAt: string; _count?: { sessions: number };
 }
 
@@ -121,6 +121,7 @@ export function UsersSection() {
       fields={[
         { key: 'username', label: 'اسم المستخدم', type: 'text', required: true },
         { key: 'name', label: 'الاسم الكامل', type: 'text' },
+        { key: 'email', label: 'البريد الإلكتروني', type: 'text', hint: 'تصله إشعارات الطلبات التي تنتظر موافقته' },
         { key: 'password', label: 'كلمة السر', type: 'text', hint: 'للإنشاء إلزامية (6+) — للتعديل اتركها فارغة لعدم التغيير' },
         { key: 'role', label: 'الدور', type: 'select', options: [
           { value: 'admin', label: 'مدير النظام' }, { value: 'hr', label: 'موارد بشرية' },
@@ -130,7 +131,7 @@ export function UsersSection() {
         { key: 'active', label: 'الحساب نشط', type: 'switch' },
       ]}
       defaultValues={{ role: 'viewer', active: true }}
-      rowToForm={(r) => ({ username: r.username, name: r.name, role: r.role, permissions: r.permissions || '', active: r.active, password: '' })}
+      rowToForm={(r) => ({ username: r.username, name: r.name, email: r.email || '', role: r.role, permissions: r.permissions || '', active: r.active, password: '' })}
     />
   );
 }
@@ -147,6 +148,8 @@ interface SettingsData {
   biotimeAutoSyncMinutes: number; deviceOfflineAlertMinutes: number;
   vacationAnnualQuota: number; eosResignTiers: string; eosBasisDefault: string;
   hasBiotimePassword?: boolean;
+  emailEnabled: boolean; smtpHost: string; smtpPort: number; smtpSecure: boolean;
+  smtpUser: string; smtpFrom: string; appUrl: string; hasSmtpPassword?: boolean;
 }
 
 interface RestoreRow { id: string; description: string; createdAt: string; user?: { name: string } | null }
@@ -155,6 +158,8 @@ export function SettingsSection() {
   const [s, setS] = useState<SettingsData | null>(null);
   const [shifts, setShifts] = useState<{ value: string; label: string }[]>([]);
   const [biotimePassword, setBiotimePassword] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [testTo, setTestTo] = useState('');
   const [restores, setRestores] = useState<RestoreRow[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -174,13 +179,25 @@ export function SettingsSection() {
     try {
       const payload: Record<string, unknown> = { ...s };
       if (biotimePassword) payload.biotimePassword = biotimePassword;
+      if (smtpPassword) payload.smtpPassword = smtpPassword;
       await api('/api/settings', { method: 'PUT', body: JSON.stringify(payload) });
       toast.success('حُفظت الإعدادات');
       setBiotimePassword('');
+      setSmtpPassword('');
+      load().catch(() => {});
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'فشل الحفظ');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const testEmail = async () => {
+    try {
+      await api('/api/settings/test-email', { method: 'POST', body: JSON.stringify({ to: testTo }) });
+      toast.success(`أُرسلت رسالة تجربة إلى ${testTo}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'فشل الإرسال');
     }
   };
 
@@ -301,6 +318,36 @@ export function SettingsSection() {
               value={s.eosResignTiers || ''} onChange={(e) => set('eosResignTiers', e.target.value)} />
             <p className="text-[11px] text-muted-foreground mt-1">اتركه فارغًا للقانون الكويتي المادة 51 (أقل من 3 سنوات: 0% · 3-5: النصف · 5-10: الثلثان · 10+: كاملة) — مطابق لعينة التسوية.</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">البريد الإلكتروني (إشعارات الموافقات)</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div><p className="font-medium text-sm">إرسال إشعارات الطلبات بالبريد</p><p className="text-xs text-muted-foreground">لصاحب المستوى عند وصول الطلب إليه، وللموظف وإيميل الإشعار عند القرار النهائي</p></div>
+            <Switch checked={s.emailEnabled} onCheckedChange={(v) => set('emailEnabled', v)} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div><Label className="mb-1.5">خادم SMTP</Label><Input dir="ltr" placeholder="smtp.office365.com" value={s.smtpHost} onChange={(e) => set('smtpHost', e.target.value)} /></div>
+            <div><Label className="mb-1.5">المنفذ</Label><Input type="number" dir="ltr" value={s.smtpPort} onChange={(e) => set('smtpPort', parseInt(e.target.value, 10) || 587)} /></div>
+            <div><Label className="mb-1.5">اسم المستخدم</Label><Input dir="ltr" value={s.smtpUser} onChange={(e) => set('smtpUser', e.target.value)} /></div>
+            <div>
+              <Label className="mb-1.5">كلمة السر {s.hasSmtpPassword && '(محفوظة مشفرة)'}</Label>
+              <Input type="password" dir="ltr" placeholder="اتركها فارغة للإبقاء" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} />
+            </div>
+            <div><Label className="mb-1.5">المرسل (From)</Label><Input dir="ltr" placeholder='HR <hr@company.com>' value={s.smtpFrom} onChange={(e) => set('smtpFrom', e.target.value)} /></div>
+            <div><Label className="mb-1.5">رابط النظام (يظهر زرًا في الرسالة)</Label><Input dir="ltr" placeholder="https://hr.company.com" value={s.appUrl} onChange={(e) => set('appUrl', e.target.value)} /></div>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <p className="text-sm">اتصال SSL مباشر (منفذ 465) — اتركه مغلقًا مع 587</p>
+            <Switch checked={s.smtpSecure} onCheckedChange={(v) => set('smtpSecure', v)} />
+          </div>
+          <div className="flex gap-2">
+            <Input dir="ltr" placeholder="you@company.com" value={testTo} onChange={(e) => setTestTo(e.target.value)} />
+            <Button variant="outline" onClick={testEmail} disabled={!testTo}>إرسال تجربة</Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">احفظ الإعدادات أولًا ثم أرسل التجربة. بريد المعتمدين يُضبط من «المستخدمون»، وبريد الموظف من ملفه.</p>
         </CardContent>
       </Card>
 

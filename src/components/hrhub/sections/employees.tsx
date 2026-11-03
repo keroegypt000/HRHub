@@ -99,6 +99,7 @@ function EmployeeProfile({ id, open, onClose, canWrite, companyName }: { id: str
               <TabsTrigger value="leaves">الإجازات ({emp.leaveRequests.length})</TabsTrigger>
               <TabsTrigger value="payslips">الرواتب ({emp.payslips.length})</TabsTrigger>
               <TabsTrigger value="files">الملفات ({emp.files.length})</TabsTrigger>
+              {canWrite && <TabsTrigger value="ess">بوابة الموظف</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="info" className="pt-3">
@@ -194,6 +195,12 @@ function EmployeeProfile({ id, open, onClose, canWrite, companyName }: { id: str
                 </div>
               ))}
             </TabsContent>
+
+            {canWrite && (
+              <TabsContent value="ess" className="pt-3">
+                <EssAccountPanel employeeId={id} defaultUsername={emp.code} defaultEmail={emp.email || ''} />
+              </TabsContent>
+            )}
 
             <TabsContent value="files" className="pt-3">
               <div className="space-y-2">
@@ -358,5 +365,77 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
         <EmployeeProfile id={profileId} open={!!profileId} onClose={() => setProfileId(null)} canWrite={canWrite} companyName={companyName} />
       )}
     </>
+  );
+}
+
+/** حساب بوابة الموظف: إنشاء/إعادة تعيين كلمة السر/إيقاف — كلمة السر المولدة تظهر مرة واحدة */
+function EssAccountPanel({ employeeId, defaultUsername, defaultEmail }: { employeeId: string; defaultUsername: string; defaultEmail: string }) {
+  const [account, setAccount] = useState<{ username: string; email: string | null; active: boolean } | null | undefined>(undefined);
+  const [form, setForm] = useState({ username: defaultUsername, email: defaultEmail });
+  const [issued, setIssued] = useState<{ username: string; password: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const d = await api<{ account: { username: string; email: string | null; active: boolean } | null }>(`/api/employees/${employeeId}/account`);
+      setAccount(d.account);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'فشل التحميل');
+      setAccount(null);
+    }
+  }, [employeeId]);
+  useEffect(() => { load(); }, [load]);
+
+  const issue = async () => {
+    setBusy(true);
+    try {
+      const d = await api<{ username: string; password: string }>(`/api/employees/${employeeId}/account`, {
+        method: 'POST', body: JSON.stringify({ username: form.username, email: form.email }),
+      });
+      setIssued(d);
+      load();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'فشل العملية'); } finally { setBusy(false); }
+  };
+
+  const disable = async () => {
+    setBusy(true);
+    try {
+      await api(`/api/employees/${employeeId}/account`, { method: 'DELETE' });
+      toast.success('أُوقف الحساب');
+      load();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'فشل الإيقاف'); } finally { setBusy(false); }
+  };
+
+  if (account === undefined) return <p className="text-sm text-muted-foreground">جارٍ التحميل...</p>;
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-muted-foreground">يدخل الموظف من نفس رابط النظام (ويمكن تثبيته على الموبايل) ليرى رصيد إجازاته وقسائمه وحضوره ويقدّم طلباته.</p>
+      {account ? (
+        <div className="rounded-lg border p-3 space-y-1">
+          <p>اسم المستخدم: <b className="font-mono">{account.username}</b></p>
+          <p>الحالة: {account.active ? <span className="text-emerald-700">نشط</span> : <span className="text-red-700">موقوف</span>}</p>
+          {account.email && <p>البريد: {account.email}</p>}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label className="mb-1.5 block">اسم المستخدم</Label><Input dir="ltr" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></div>
+          <div><Label className="mb-1.5 block">البريد (للإشعارات)</Label><Input dir="ltr" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+        </div>
+      )}
+      {issued && (
+        <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3">
+          <p className="font-bold">سلّم هذه البيانات للموظف — لن تظهر كلمة السر مرة أخرى:</p>
+          <p className="font-mono mt-1">المستخدم: {issued.username}</p>
+          <p className="font-mono">كلمة السر: {issued.password}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">يستطيع الموظف تغييرها من «حسابي» داخل البوابة.</p>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Button onClick={issue} disabled={busy} className="bg-emerald-600 hover:bg-emerald-700">
+          {account ? (account.active ? 'إعادة تعيين كلمة السر' : 'تفعيل وإعادة تعيين كلمة السر') : 'إنشاء حساب'}
+        </Button>
+        {account?.active && <Button variant="outline" className="text-red-700" onClick={disable} disabled={busy}>إيقاف الحساب</Button>}
+      </div>
+    </div>
   );
 }
