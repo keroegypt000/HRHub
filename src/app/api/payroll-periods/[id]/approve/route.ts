@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireWrite, ok, fail, handle } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
+import { dateKey } from '@/lib/time';
 
 /** اعتماد الفترة: computed → approved — قفل نهائي (قاعدة 13) */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const period = await db.payrollPeriod.findUnique({ where: { id } });
     if (!period) return fail(404, 'الفترة غير موجودة');
     if (period.status !== 'computed') return fail(400, 'اعتمد فترة محسوبة فقط — احسبها أولًا');
+    if (dateKey(period.endDate) > dateKey()) {
+      return fail(400, `الفترة لم تنتهِ بعد — الحساب الحالي جزئي حتى اليوم، ويمكن اعتمادها بعد ${dateKey(period.endDate)}`);
+    }
 
     const slips = await db.payslip.count({ where: { periodId: id } });
     if (slips === 0) return fail(400, 'لا توجد قسائم في الفترة — احسبها أولًا');

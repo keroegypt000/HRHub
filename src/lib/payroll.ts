@@ -68,10 +68,8 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
   const startKey = dateKey(period.startDate);
   const endKey = dateKey(period.endDate);
   const todayKey = dateKey();
-  // لا تُحسب رواتب فترة لم تنتهِ — الأيام القادمة لم تحدث بعد فيأخذ الجميع رواتب كاملة بالخطأ
-  if (endKey > todayKey) {
-    throw new Error(`الفترة لم تنتهِ بعد — تُحسب رواتب ${period.name} بعد آخر يوم فيها (${endKey})`);
-  }
+  // فترة جارية (لم تنتهِ): تُحسب حتى اليوم فقط — الأيام القادمة لم تُستحق بعد (والاعتماد ممنوع حتى نهايتها)
+  const isRunning = endKey > todayKey;
   // الأيام قبل تاريخ بدء احتساب الحضور لا تُحسب غيابًا (قبل تشغيل البصمة)
   const attendanceStartKey = settings.attendanceStartDate || '';
   const allKeys = monthDayKeys(period.name);
@@ -307,11 +305,13 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     // أيام عمل الموظف في الشهر كله، ومنها داخل فترة عمله (التعيين ← ترك العمل)
     let monthWorkDays = 0;
     let employedWorkDays = 0;
+    let futureWorkDays = 0;
     for (const key of periodKeys) {
       if (!workDaysFor(emp, key).includes(weekdayIndex(kuwaitMidnight(key)))) continue;
       monthWorkDays++;
       if (hireKey && key < hireKey) continue;
       if (departKey && key > departKey) continue;
+      if (key > todayKey) { futureWorkDays++; continue; } // لم يأتِ بعد
       employedWorkDays++;
     }
     const pay = attendancePay({ monthlyFixed, monthWorkDays, employedWorkDays, absentDays: absenceDays, unpaidLeaveDays });
@@ -336,8 +336,8 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     // أيام قبل التعيين / بعد ترك العمل (المعيَّن في منتصف الشهر يأخذ نصيب أيامه فقط)
     if (pay.notEmployedDeduction > 0) {
       pushAuto({
-        name: 'أيام خارج فترة العمل', type: 'deduction', amount: pay.notEmployedDeduction,
-        note: `${pay.notEmployedDays} من ${monthWorkDays} يوم عمل بالشهر — ${hireKey && hireKey > startKey ? `التعيين ${hireKey}` : ''}${departKey && departKey < endKey ? ` ترك العمل ${departKey}` : ''}`.trim(),
+        name: futureWorkDays > 0 ? 'أيام لم تُستحق بعد / خارج فترة العمل' : 'أيام خارج فترة العمل', type: 'deduction', amount: pay.notEmployedDeduction,
+        note: `${pay.notEmployedDays} من ${monthWorkDays} يوم عمل بالشهر${futureWorkDays ? ` — منها ${futureWorkDays} يوم لم يأتِ بعد (حساب حتى ${todayKey})` : ''}${hireKey && hireKey > startKey ? ` — التعيين ${hireKey}` : ''}${departKey && departKey < endKey ? ` — ترك العمل ${departKey}` : ''}`,
       });
     }
 
@@ -425,6 +425,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     totalNet = round3(totalNet + netPay);
 
     const notes: string[] = [];
+    if (isRunning) notes.push(`حساب جزئي حتى ${todayKey} — الفترة لم تنتهِ ولا يمكن اعتمادها قبل ${endKey}`);
     if (!emp.otEligible && computedOt > 0) {
       notes.push(`إضافي غير مصروف: ${((weekdayOtMinutes + holidayOtMinutes) / 60).toFixed(1)} ساعة = ${computedOt.toFixed(3)} د.ك — فعّل «يستحق الإضافي» في ملف الموظف لصرفه`);
     }
