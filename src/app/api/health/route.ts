@@ -1,8 +1,34 @@
 import { db } from '@/lib/db';
 import { ok, handle } from '@/lib/api';
+import { NextRequest } from 'next/server';
 
-/** فحص صحة النظام: الاتصال بقاعدة البيانات + وجود كل الجداول + سلامة العلاقات (بدون بيانات حساسة) */
-export async function GET() {
+/**
+ * فحص صحة النظام.
+ * ?quick=1 → استعلام واحد فقط (SELECT 1) لفحص الوصول للقاعدة — مثالي للزر في شاشة الدخول
+ *            لأنه لا يستهلك حصة العمليات ولا يعلّق عند توقّف القاعدة.
+ * بدون quick → فحص شامل: كل الجداول + سلامة العلاقات (27+ استعلام — استخدمه يدويًا فقط).
+ */
+export async function GET(req: NextRequest) {
+  const quick = new URL(req.url).searchParams.get('quick') === '1';
+
+  if (quick) {
+    try {
+      await db.$queryRaw`SELECT 1`;
+      return ok({ status: 'healthy', connected: true, quick: true, checkedAt: new Date().toISOString() });
+    } catch (err) {
+      const e = err as { code?: string; message?: string };
+      // 200 عمدًا حتى يقرأ الواجهة النتيجة بسهولة — الحكم على connected
+      return ok({
+        status: 'unreachable',
+        connected: false,
+        quick: true,
+        code: e?.code || null,
+        error: (e?.message || 'خطأ غير معروف').replace(/\s+/g, ' ').slice(0, 300),
+        checkedAt: new Date().toISOString(),
+      });
+    }
+  }
+
   return handle(async () => {
     const url = process.env.DATABASE_URL || '';
     const mode = url.startsWith('prisma+')

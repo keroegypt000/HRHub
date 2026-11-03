@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
   Loader2, Fingerprint, ShieldCheck, User, Lock, Eye, EyeOff,
-  LogIn, CalendarDays, Wallet, Building2, KeyRound,
+  LogIn, CalendarDays, Wallet, Building2, KeyRound, Database, RefreshCw,
 } from 'lucide-react';
 
 /* مربّع العلامة "A" — نفس هوية أيقونة التاب */
@@ -112,11 +112,31 @@ function AuthShell({ children }: { children: React.ReactNode }) {
 const inputCls =
   'h-11 rounded-xl bg-slate-50/60 ps-9 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/40';
 
+/** هل الرسالة تشير إلى توقّف/فقدان الاتصال بقاعدة البيانات؟ */
+function isDbError(m: string): boolean {
+  return /قاعدة البيانات|P1001|P1000|P6\d{3}|P2024|db\.prisma\.io|Can't reach|Connection terminated/i.test(m);
+}
+
 export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dbAlert, setDbAlert] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [dbOk, setDbOk] = useState<boolean | null>(null);
+
+  const checkDb = async () => {
+    setChecking(true);
+    try {
+      const h = await api<{ connected: boolean }>('/api/health?quick=1');
+      setDbOk(!!h.connected);
+    } catch {
+      setDbOk(false);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +150,9 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
       toast.success('مرحبًا بك 👋');
       onLogin(data.user);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'فشل تسجيل الدخول');
+      const m = err instanceof Error ? err.message : 'فشل تسجيل الدخول';
+      setDbAlert(isDbError(m) ? m : null);
+      toast.error(m);
     } finally {
       setLoading(false);
     }
@@ -191,6 +213,40 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
             )}
           </Button>
         </form>
+
+        {dbAlert && (
+          <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-[13px] leading-relaxed text-amber-900">
+            <div className="mb-1.5 flex items-center gap-2 font-extrabold">
+              <Database className="h-4 w-4 shrink-0 text-amber-600" />
+              قاعدة البيانات غير متاحة الآن
+            </div>
+            <p className="text-amber-800">{dbAlert.slice(0, 220)}</p>
+            <ol className="mt-2 list-decimal space-y-1 ps-5 text-amber-900">
+              <li>افتح <b>console.prisma.io</b> ← مشروعك ← اضغط <b>Restore access for 24 hours</b> (مجاني)</li>
+              <li>أو رقّ إلى خطة <b>Starter</b> لاستعادة فورية وحصة أكبر</li>
+              <li>أو أنشئ قاعدة جديدة وحدّث <b>DATABASE_URL</b> في Vercel ثم Redeploy</li>
+            </ol>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button" onClick={checkDb} disabled={checking}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-400 bg-white px-3 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
+              >
+                {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                فحص حالة قاعدة البيانات
+              </button>
+              {dbOk === true && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                  ✅ القاعدة متصلة الآن — سجّل دخولك من جديد
+                </span>
+              )}
+              {dbOk === false && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-800">
+                  ❌ ما زالت غير متاحة — نفّذ خطوة الاستعادة أعلاه ثم أعد الفحص
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 flex items-center justify-center gap-2 border-t border-dashed border-slate-200 pt-4 text-xs text-slate-500">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
