@@ -112,9 +112,9 @@ export function EmployeePage({ id, open, onClose, canWrite, companyName, account
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl w-[96vw] max-h-[94vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="max-w-6xl max-h-[94vh] overflow-y-auto overflow-x-hidden" dir="rtl">
         {!data || !e ? <p className="py-16 text-center text-muted-foreground">جارٍ التحميل...</p> : (
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             {/* الرأس */}
             <DialogHeader>
               <DialogTitle asChild>
