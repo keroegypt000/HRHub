@@ -57,6 +57,11 @@ bash scripts/acceptance-test.sh
 node scripts/mock-zk-device.js
 ```
 
+## ☁️ النشر المجاني (Render + Neon)
+
+الإعداد جاهز في `render.yaml` — الخطوات كاملة في [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
+متغيرات البيئة المطلوبة: `DATABASE_URL` (Postgres) و `APP_SECRET` (مفتاح تشفير ثابت).
+
 ## 🖐️ ربط جهاز البصمة (ZKTeco / ADMS)
 
 1. من إعدادات الجهاز: **Menu → Comm → Cloud Server (ADMS)**

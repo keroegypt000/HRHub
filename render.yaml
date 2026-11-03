@@ -1,0 +1,29 @@
+# Render Blueprint — نشر HRHub مجانًا على Render مع قاعدة Neon Postgres
+# الدليل الكامل: docs/DEPLOY_RENDER.md
+services:
+  - type: web
+    name: hrhub
+    runtime: node
+    plan: free
+    region: frankfurt # الأقرب للكويت بين مناطق Render
+    branch: main
+    # البناء: تثبيت → توليد Prisma + إنشاء/تحديث الجداول في Neon → بناء Next (standalone)
+    # ثم نسخ الملفات الثابتة بجانب server.js كما تتطلب مخرجات standalone
+    buildCommand: >-
+      npm ci &&
+      npm run build &&
+      cp -r .next/static .next/standalone/.next/static &&
+      cp -r public .next/standalone/public
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /api/health?quick=1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=460 # الخطة المجانية 512MB
+      - key: DATABASE_URL
+        sync: false # يُطلب عند الإنشاء: رابط Neon (Direct connection)
+      - key: APP_SECRET
+        generateValue: true # مفتاح تشفير ثابت لكلمات السر المحفوظة (BioTime/SMTP)
