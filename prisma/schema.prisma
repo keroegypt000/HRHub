@@ -19,7 +19,7 @@ model User {
   passwordHash String
   salt         String
   role         String         @default("viewer") // admin|hr|accountant|supervisor|viewer
-  permissions  String?        // JSON صلاحيات دقيقة تتجاوز افتراضي الدور
+  permissions  String? // JSON صلاحيات دقيقة تتجاوز افتراضي الدور
   active       Boolean        @default(true)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -40,11 +40,11 @@ model Session {
 model AuditLog {
   id          String   @id @default(cuid())
   userId      String?
-  action      String   // create|update|delete|login|sync|import|approve|pay
+  action      String // create|update|delete|login|sync|import|approve|pay
   entity      String
   entityId    String?
-  changes     String?  // JSON before/after
-  description String   // وصف عربي تلقائي
+  changes     String? // JSON before/after
+  description String // وصف عربي تلقائي
   createdAt   DateTime @default(now())
   user        User?    @relation(fields: [userId], references: [id])
 
@@ -55,7 +55,7 @@ model RestorePoint {
   id          String   @id @default(cuid())
   userId      String?
   description String
-  snapshot    String   // JSON لقطة للأقسام الأساسية
+  snapshot    String // JSON لقطة للأقسام الأساسية
   createdAt   DateTime @default(now())
   user        User?    @relation(fields: [userId], references: [id])
 }
@@ -65,9 +65,9 @@ model FileUpload {
   fileName   String
   mimeType   String
   size       Int
-  data       Bytes?    // وضع احتياطي داخل القاعدة
-  r2Key      String?   // مفتاح Cloudflare R2 (للاستخدام المستقبلي عند توفر بيانات الاعتماد)
-  ownerTag   String?   // employee_photo|contract_file|leave_attachment
+  data       Bytes? // وضع احتياطي داخل القاعدة
+  r2Key      String? // مفتاح Cloudflare R2 (للاستخدام المستقبلي عند توفر بيانات الاعتماد)
+  ownerTag   String? // employee_photo|contract_file|leave_attachment
   employeeId String?
   createdAt  DateTime  @default(now())
   createdBy  String?
@@ -82,7 +82,7 @@ model ImportLog {
   totalRows   Int
   successRows Int
   failedRows  Int
-  errors      String?  // JSON أخطاء كل صف
+  errors      String? // JSON أخطاء كل صف
   createdBy   String?
   createdAt   DateTime @default(now())
 }
@@ -110,13 +110,13 @@ model Position {
 }
 
 model Employee {
-  id               String            @id @default(cuid())
-  code             String            @unique // الرقم الوظيفي = pin الجهاز افتراضيًا
+  id               String                @id @default(cuid())
+  code             String                @unique // الرقم الوظيفي = pin الجهاز افتراضيًا
   name             String
-  photoId          String?           @unique
+  photoId          String?               @unique
   gender           String?
   nationality      String?
-  civilId          String?           @unique // الرقم المدني
+  civilId          String?               @unique // الرقم المدني
   passportNo       String?
   phone            String?
   email            String?
@@ -126,29 +126,34 @@ model Employee {
   departmentId     String?
   positionId       String?
   hireDate         DateTime?
-  basicSalary      Float             @default(0) // د.ك ثلاث خانات عشرية
+  basicSalary      Float                 @default(0) // د.ك ثلاث خانات عشرية
   bankAccount      String?
-  status           String            @default("active") // active|suspended|on_leave|terminated|deceased
-  departureDate    DateTime?         // تاريخ ترك العمل / الوفاة
-  departureReason  String?           // resigned|terminated|retired|deceased|contract_end
-  deathDate        DateTime?         // تاريخ الوفاة (صفحة المتوفين)
-  pin              String?           // معرف البصمة داخل الأجهزة
+  status           String                @default("active") // active|suspended|on_leave|terminated|deceased
+  departureDate    DateTime? // تاريخ ترك العمل / الوفاة
+  departureReason  String? // resigned|terminated|retired|deceased|contract_end
+  deathDate        DateTime? // تاريخ الوفاة (صفحة المتوفين)
+  pin              String? // معرف البصمة داخل الأجهزة
+  managerId        String? // المدير المباشر
   notes            String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  department       Department?       @relation(fields: [departmentId], references: [id])
-  position         Position?         @relation(fields: [positionId], references: [id])
-  photo            FileUpload?       @relation("EmpPhoto", fields: [photoId], references: [id])
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  department       Department?           @relation(fields: [departmentId], references: [id])
+  position         Position?             @relation(fields: [positionId], references: [id])
+  photo            FileUpload?           @relation("EmpPhoto", fields: [photoId], references: [id])
+  manager          Employee?             @relation("MgrTree", fields: [managerId], references: [id])
+  directReports    Employee[]            @relation("MgrTree")
   contracts        Contract[]
   attendanceLogs   AttendanceLog[]
   dailyAttendance  DailyAttendance[]
   shiftAssignments ShiftAssignment[]
   leaveRequests    LeaveRequest[]
   payslips         Payslip[]
-  files            FileUpload[]      @relation("EmpFiles")
+  files            FileUpload[]          @relation("EmpFiles")
   passports        Passport[]
   iqamas           Iqama[]
   settlements      DepartureSettlement[]
+  loans            Loan[]
+  requests         EmployeeRequest[]
 
   @@index([name])
   @@index([status])
@@ -184,7 +189,7 @@ model Contract {
 model Passport {
   id          String    @id @default(cuid())
   employeeId  String?
-  holderName  String    // اسم صاحب الجواز
+  holderName  String // اسم صاحب الجواز
   passportNo  String
   nationality String?
   issueDate   DateTime?
@@ -200,13 +205,13 @@ model Passport {
 model Iqama {
   id          String    @id @default(cuid())
   employeeId  String?
-  holderName  String    // اسم صاحب الإقامة
-  iqamaNo     String    // رقم الإقامة
+  holderName  String // اسم صاحب الإقامة
+  iqamaNo     String // رقم الإقامة
   nationality String?
-  profession  String?   // المهنة المكتوبة في الإقامة
+  profession  String? // المهنة المكتوبة في الإقامة
   issueDate   DateTime?
   expiryDate  DateTime
-  sponsor     String?   // الكفيل
+  sponsor     String? // الكفيل
   notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -218,11 +223,11 @@ model Iqama {
 model Vehicle {
   id               String    @id @default(cuid())
   plateNo          String    @unique
-  make             String?   // الماركة
-  model            String?   // الموديل
+  make             String? // الماركة
+  model            String? // الموديل
   year             Int?
   color            String?
-  driverName       String?   // السائق المسؤول
+  driverName       String? // السائق المسؤول
   licenseExpiry    DateTime? // رخصة السير
   insuranceExpiry  DateTime? // وثيقة التأمين
   inspectionExpiry DateTime? // الفحص الدوري
@@ -235,11 +240,11 @@ model Vehicle {
 
 model CompanyContract {
   id           String    @id @default(cuid())
-  name         String    // اسم/وصف العقد
-  counterparty String?   // الطرف الآخر
+  name         String // اسم/وصف العقد
+  counterparty String? // الطرف الآخر
   contractNo   String?
-  type         String?   // توريد|خدمات|إيجار|صيانة...
-  value        Float?    // قيمة العقد
+  type         String? // توريد|خدمات|إيجار|صيانة...
+  value        Float? // قيمة العقد
   startDate    DateTime?
   endDate      DateTime
   renewal      Boolean   @default(true) // قابل للتجديد
@@ -252,28 +257,99 @@ model CompanyContract {
 }
 
 // تسوية نهاية الخدمة والمستحقات — واحدة لكل موظف عند ترك العمل أو الوفاة
+// نموذج مطابق لتقارير MenaITech: كشف مرتب + تعويض إجازات + مكافأة بشرائح + مستحقات أخرى
 model DepartureSettlement {
-  id             String    @id @default(cuid())
-  employeeId     String    @unique
-  departureDate  DateTime
-  reason         String    // resigned|terminated|retired|deceased|contract_end
-  hireDate       DateTime?
-  lastWage       Float     @default(0)   // آخر أجر شهري (أساسي + بدلات منتظمة)
-  yearsServed    Float     @default(0)
-  indemnityFull  Float     @default(0)   // المكافأة كاملة قبل معامل السبب
-  reasonFactor   Float     @default(1)   // معامل القانون حسب السبب
-  eosAmount      Float     @default(0)   // مكافأة نهاية الخدمة المستحقة
-  leaveAllowance Float     @default(0)   // بدل الإجازات غير المستخدمة
-  otherDues      Float     @default(0)   // مستحقات أخرى
-  deductions     Float     @default(0)   // استقطاعات/قروض
-  totalDue       Float     @default(0)
-  paidAmount     Float     @default(0)
-  status         String    @default("pending") // pending|partial|paid
-  paidAt         DateTime?
-  notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  employeeId      String    @unique
+  departureDate   DateTime
+  reason          String // resigned|terminated|retired|deceased|contract_end
+  hireDate        DateTime?
+  lastWage        Float     @default(0) // آخر أجر شهري (أساسي + بدلات منتظمة)
+  yearsServed     Float     @default(0)
+  indemnityFull   Float     @default(0) // المكافأة كاملة قبل معامل السبب
+  reasonFactor    Float     @default(1) // معامل القانون حسب السبب (نسبة فترة الخدمة للاستقالة)
+  eosAmount       Float     @default(0) // مكافأة نهاية الخدمة المستحقة
+  leaveAllowance  Float     @default(0) // بدل الإجازات غير المستخدمة (قيمة)
+  vacationDays    Float     @default(0) // أيام الإجازات غير المستخدمة (تعويض الإجازات)
+  otherDues       Float     @default(0) // مستحقات أخرى
+  deductions      Float     @default(0) // استقطاعات
+  totalDue        Float     @default(0)
+  paidAmount      Float     @default(0)
+  status          String    @default("pending") // pending|partial|paid
+  paidAt          DateTime?
+  notes           String?
+  // ===== تفصيل راتب المكافأة (STB Salary Breakdown) =====
+  stbHousing      Float     @default(0) // بدل سكن
+  stbSocial       Float     @default(0) // بدل اجتماعي
+  stbProvident    Float     @default(0) // صندوق ائتمان/معاش
+  stbInsurance    Float     @default(0) // تأمين
+  // ===== كشف المرتب داخل التسوية =====
+  daysPaid        Float     @default(0) // أيام مدفوعة (شهر التسوية حتى تاريخها)
+  worthSalary     Float     @default(0) // قيمة راتب الفترة (Worth Salary)
+  loanDeduction   Float     @default(0) // أقساط قروض غير مسددة
+  // ===== تفاصيل الحساب المخزنة =====
+  slices          String? // JSON شرائح المكافأة: from|to|workingDays|stbDays|percent|amount
+  otherDuesDetail String? // JSON مستحقات أخرى مفصلة (أثاث/فرق رواتب/...)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// ===== السلف والقروض — تُخصم أقساطها من الرواتب وتظهر في التسوية =====
+model Loan {
+  id                String   @id @default(cuid())
+  employeeId        String
+  name              String // وصف السلفة/القرض
+  totalAmount       Float
+  installmentsCount Int
+  monthlyDeduction  Float
+  startDate         DateTime // بداية الخصم
+  paidInstallments  Int      @default(0)
+  paidAmount        Float    @default(0)
+  status            String   @default("active") // active|completed|cancelled
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, status])
+}
+
+// ===== إعدادات سلسلة الموافقات — لكل وحدة × نوع طلب حتى 4 مستويات =====
+model WorkflowConfig {
+  id           String   @id @default(cuid())
+  unitKey      String   @default("ALL") // معرف الوحدة: اسم القسم أو ALL لكل الوحدات
+  departmentId String? // ربط اختياري بقسم من الشجرة
+  requestType  String // vacation|loan|salary_certificate|salary_continuity|uniform|it_device|stationary|business_card|equipment
+  level1UserId String?
+  level2UserId String?
+  level3UserId String?
+  level4UserId String?
+  notifyEmail  String? // إيميل مستلم إشعار الاعتماد/الرفض
+  updatedAt    DateTime @updatedAt
+
+  @@unique([unitKey, requestType])
+}
+
+// ===== طلبات الموظفين العامة (إجازة/سلفة/شهادات/بذلة/أجهزة/أدوات...) بسلسلة موافقات =====
+model EmployeeRequest {
+  id          String    @id @default(cuid())
+  employeeId  String
+  type        String // vacation|loan|salary_certificate|salary_continuity|uniform|it_device|stationary|business_card|equipment
+  unitKey     String? // وحدة الموظف وقت الطلب (اسم القسم)
+  payload     String? // JSON حسب النوع: أيام/مبلغ/وصف/غرض...
+  status      String    @default("pending") // pending|approved|rejected|cancelled
+  steps       String // JSON سلسلة الموافقات: [{userId, name, status, comment, at}]
+  currentStep Int       @default(0) // مؤشر المستوى الحالي (0-بقيد الانتظار على الأول)
+  decidedAt   DateTime?
+  loanId      String? // لو طلب سلفة اعتُمد → يُنشأ قرض مرتبط
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([employeeId])
 }
 
 // ===== الأجهزة والبصمة والورديات =====
@@ -286,10 +362,10 @@ model Device {
   ipAddress      String?
   port           Int?
   mode           String          @default("push") // push=ADMS أونلاين | local=محلي سحب عبر منفذ 4370
-  commKey        String?         // مفتاح الاتصال للوضع المحلي (إن عُدّل من الجهاز)
+  commKey        String? // مفتاح الاتصال للوضع المحلي (إن عُدّل من الجهاز)
   lastSeenAt     DateTime?
   lastIp         String?
-  lastPullAt     DateTime?       // آخر سحب ناجح للسجلات من جهاز محلي
+  lastPullAt     DateTime? // آخر سحب ناجح للسجلات من جهاز محلي
   status         String          @default("unknown") // online|offline|unknown
   enabled        Boolean         @default(true)
   pushVersion    String?
@@ -301,7 +377,7 @@ model Device {
 model AttendanceLog {
   id         String    @id @default(cuid())
   sn         String
-  pin        String    // معرف المستخدم داخل الجهاز
+  pin        String // معرف المستخدم داخل الجهاز
   employeeId String?
   punchTime  DateTime
   status     Int       @default(0) // 0 دخول|1 خروج|2 خروج استراحة|3 عودة|4 دخول إضافي|5 خروج إضافي
@@ -321,8 +397,8 @@ model Shift {
   id                String            @id @default(cuid())
   name              String
   type              String            @default("fixed") // fixed|flexible|auto
-  startTime         String            // "08:00"
-  endTime           String            // "17:00"
+  startTime         String // "08:00"
+  endTime           String // "17:00"
   crossDay          Boolean           @default(false) // وردية ليلية تعبر منتصف الليل
   graceMinutes      Int               @default(10)
   earlyGraceMinutes Int               @default(10)
@@ -416,7 +492,7 @@ model SalaryComponent {
   id             String        @id @default(cuid())
   name           String
   code           String        @unique
-  type           String        // earning|deduction
+  type           String // earning|deduction
   calculation    String        @default("fixed") // fixed|attendance|percent|manual
   value          Float         @default(0)
   percentOfBasic Float?
@@ -441,30 +517,30 @@ model PayrollPeriod {
 }
 
 model Payslip {
-  id               String         @id @default(cuid())
+  id               String        @id @default(cuid())
   periodId         String
   employeeId       String
   basicSalary      Float
   totalEarnings    Float
   totalDeductions  Float
   netPay           Float
-  workedDays       Float          @default(0)
-  absenceDays      Float          @default(0)
-  paidLeaveDays    Float          @default(0)   // أيام إجازات معتمدة مدفوعة
-  unpaidLeaveDays  Float          @default(0)   // أيام إجازات معتمدة غير مدفوعة
-  holidayDays      Int            @default(0)   // أيام عطلات رسمية داخل الفترة
-  weekOffDays      Int            @default(0)   // أيام راحة أسبوعية داخل الفترة
-  dayLedger        String?        // JSON حالة كل يوم: p حاضر a غائب lp إجازة مدفوعة lu غير مدفوعة ho عطلة we راحة m بصمة ناقصة
-  otHours          Float          @default(0)
-  otAmount         Float          @default(0)
-  lateMinutes      Int            @default(0)
-  lateDeduction    Float          @default(0)
-  absenceDeduction Float          @default(0)
-  status           String         @default("draft")
+  workedDays       Float         @default(0)
+  absenceDays      Float         @default(0)
+  paidLeaveDays    Float         @default(0) // أيام إجازات معتمدة مدفوعة
+  unpaidLeaveDays  Float         @default(0) // أيام إجازات معتمدة غير مدفوعة
+  holidayDays      Int           @default(0) // أيام عطلات رسمية داخل الفترة
+  weekOffDays      Int           @default(0) // أيام راحة أسبوعية داخل الفترة
+  dayLedger        String? // JSON حالة كل يوم: p حاضر a غائب lp إجازة مدفوعة lu غير مدفوعة ho عطلة we راحة m بصمة ناقصة
+  otHours          Float         @default(0)
+  otAmount         Float         @default(0)
+  lateMinutes      Int           @default(0)
+  lateDeduction    Float         @default(0)
+  absenceDeduction Float         @default(0)
+  status           String        @default("draft")
   notes            String?
-  createdAt        DateTime       @default(now())
-  period           PayrollPeriod  @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt        DateTime      @default(now())
+  period           PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  employee         Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   items            PayslipItem[]
 
   @@unique([periodId, employeeId])
@@ -475,11 +551,11 @@ model PayslipItem {
   payslipId   String
   componentId String?
   name        String
-  type        String           // earning|deduction
+  type        String // earning|deduction
   amount      Float
   note        String?
-  source      String           @default("auto")  // auto محسوب تلقائيًا | manual بند يدوي — يبقى بعد إعادة الحساب
-  editedBy    String?          // من عدّل البند (للتدقيق)
+  source      String           @default("auto") // auto محسوب تلقائيًا | manual بند يدوي — يبقى بعد إعادة الحساب
+  editedBy    String? // من عدّل البند (للتدقيق)
   editedAt    DateTime?
   payslip     Payslip          @relation(fields: [payslipId], references: [id], onDelete: Cascade)
   component   SalaryComponent? @relation(fields: [componentId], references: [id])

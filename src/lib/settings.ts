@@ -25,6 +25,8 @@ export interface SystemSettings {
   biotimePasswordEnc: string | null; // مشفرة ولا تعود للواجهة إلا مخفية
   biotimeAutoSyncMinutes: number; // 0 = معطلة
   deviceOfflineAlertMinutes: number; // 10
+  vacationAnnualQuota: number; // حصة الإجازة السنوية المتراكمة (30 يوم افتراضيًا)
+  eosResignTiers: string; // JSON نسب فترة الخدمة للاستقالة
 }
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -48,6 +50,8 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   biotimePasswordEnc: null,
   biotimeAutoSyncMinutes: 0,
   deviceOfflineAlertMinutes: 10,
+  vacationAnnualQuota: 30,
+  eosResignTiers: '',
 };
 
 /** مفتاح تشفير ثابت للجلسة — يُولَّد مرة ويُحفظ بجانب قاعدة البيانات */
@@ -119,6 +123,8 @@ export async function getSettings(): Promise<SystemSettings> {
   s.biotimePasswordEnc = map.get('biotimePasswordEnc') || null;
   s.biotimeAutoSyncMinutes = numv('biotimeAutoSyncMinutes', 0);
   s.deviceOfflineAlertMinutes = numv('deviceOfflineAlertMinutes', 10);
+  s.vacationAnnualQuota = numv('vacationAnnualQuota', 30);
+  s.eosResignTiers = map.get('eosResignTiers') || '';
   settingsCache = { value: s, at: Date.now() };
   return s;
 }

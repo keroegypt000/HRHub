@@ -12,9 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Check, X, Download } from 'lucide-react';
+import { Plus, Check, X, Download, Printer } from 'lucide-react';
 import { downloadFile } from '@/lib/client';
 import { optionLoaders } from '@/components/hrhub/crud-panel';
+import { vacationSettlementDoc, printHtml } from '@/components/hrhub/print-docs';
 
 interface LeaveRow extends Record<string, unknown> {
   id: string;
@@ -76,6 +77,43 @@ export function LeavesSection({ canWrite, canApprove }: { canWrite: boolean; can
 
   const daysUsed = (row: LeaveRow) => usage[`${row.employee?.id}:${row.leaveType?.id}`] || 0;
 
+  /** طباعة تسوية الإجازة المقدمة — للإجازات المعتمدة المدفوعة */
+  const printVacationSettlement = async (row: LeaveRow) => {
+    try {
+      const d = await api<Record<string, unknown>>(`/api/leaves/${row.id}/settlement`);
+      const emp = d.employee as Record<string, unknown>;
+      const bd = d.breakdown as { rows: { month: string; workingDays: number; workingAmount: number; vacationDays: number; vacationAmount: number }[]; workingAmountTotal: number; vacationAmountTotal: number; advanceTotal: number };
+      const leave = d.leave as { fromDate: string; toDate: string; days: number; reason: string | null; typeName: string };
+      printHtml(vacationSettlementDoc({
+        employee: {
+          name: String(emp.name), code: String(emp.code),
+          department: (emp.department as string | null) || null,
+          position: (emp.position as string | null) || null,
+          nationality: (emp.nationality as string | null) || null,
+          civilId: (emp.civilId as string | null) || null,
+          bankAccount: (emp.bankAccount as string | null) || null,
+        },
+        hireDate: fmtDate(emp.hireDate as string),
+        basicSalary: Number(d.basicSalary) || 0,
+        totalSalary: Number(d.basicSalary) || 0,
+        leave: {
+          from: fmtDate(leave.fromDate), to: fmtDate(leave.toDate),
+          days: Number(leave.days) || 0, typeName: String(leave.typeName),
+        },
+        balanceBefore: Number(d.balanceBefore) || 0,
+        balanceAfter: Number(d.balanceAfter) || 0,
+        annualQuota: Number(d.annualQuota) || 30,
+        rows: bd.rows,
+        workingAmountTotal: bd.workingAmountTotal,
+        vacationAmountTotal: bd.vacationAmountTotal,
+        advanceTotal: bd.advanceTotal,
+        notes: leave.reason,
+      }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'فشل جلب بيانات التسوية');
+    }
+  };
+
   const columns: Column<LeaveRow>[] = [
     { key: 'emp', header: 'الموظف', render: (r) => <div><p className="font-medium">{r.employee?.name}</p><p className="text-xs text-muted-foreground">{r.employee?.department?.name}</p></div> },
     { key: 'type', header: 'النوع', render: (r) => (
@@ -100,7 +138,15 @@ export function LeavesSection({ canWrite, canApprove }: { canWrite: boolean; can
             <X className="h-3.5 w-3.5" /> رفض
           </Button>
         </div>
-      ) : <span className="text-xs text-muted-foreground">تمت المراجعة</span>,
+      ) : (
+        <div className="flex gap-1">
+          {r.status === 'approved' && r.leaveType?.paid && (
+            <Button size="sm" variant="outline" className="h-7" onClick={() => printVacationSettlement(r)}>
+              <Printer className="h-3.5 w-3.5" /> تسوية المقدّم
+            </Button>
+          )}
+        </div>
+      ),
     } as Column<LeaveRow>] : []),
   ];
 

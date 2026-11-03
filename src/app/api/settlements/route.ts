@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { requireRead, requireWrite, handle, ok, HttpError } from '@/lib/api';
 import { crudList, CrudConfig } from '@/lib/crud';
 import { calcEos, DEPARTURE_REASONS } from '@/lib/indemnity';
+import { buildSettlementDetail } from '@/lib/settlement';
 import { logAudit } from '@/lib/audit';
 import { createRestorePoint } from '@/lib/restores';
 
@@ -85,6 +86,18 @@ export async function POST(req: NextRequest) {
       deductions: Number(body.deductions) || 0,
     });
 
+    // التفاصيل الكاملة (شرائح بالأيام + تعويض إجازات تلقائي + قروض + كشف المرتب)
+    const detail = await buildSettlementDetail({
+      employeeId,
+      hireDate: body.hireDate ? new Date(String(body.hireDate)) : emp.hireDate,
+      departureDate,
+      reason,
+      lastWage,
+      leaveAllowance: body.leaveAllowance,
+      otherDues: body.otherDues,
+      deductions: body.deductions,
+    });
+
     const deathDate = reason === 'deceased' && body.deathDate
       ? new Date(String(body.deathDate)) : (reason === 'deceased' ? departureDate : null);
 
@@ -93,10 +106,16 @@ export async function POST(req: NextRequest) {
         data: {
           employeeId, departureDate, reason,
           hireDate: emp.hireDate, lastWage,
-          yearsServed: calc.years, indemnityFull: calc.indemnityFull,
-          reasonFactor: calc.factor, eosAmount: calc.eosAmount,
-          leaveAllowance: calc.leaveAllowance, otherDues: calc.otherDues,
-          deductions: calc.deductions, totalDue: calc.totalDue,
+          yearsServed: detail.yearsServed, indemnityFull: detail.indemnityFull,
+          reasonFactor: detail.servicePercent / 100, eosAmount: Math.round(detail.indemnityFull * (detail.servicePercent / 100) * 1000) / 1000,
+          leaveAllowance: detail.leaveAllowance, otherDues: detail.otherDues,
+          deductions: detail.deductions, totalDue: detail.totalDue,
+          vacationDays: detail.vacationDays,
+          stbHousing: detail.stbHousing, stbSocial: detail.stbSocial,
+          stbProvident: detail.stbProvident, stbInsurance: detail.stbInsurance,
+          daysPaid: detail.daysPaid, worthSalary: detail.worthSalary,
+          loanDeduction: detail.loanDeduction,
+          slices: JSON.stringify(detail.slices),
           paidAmount: Number(body.paidAmount) || 0,
           status: 'pending', notes: body.notes ? String(body.notes) : null,
         },

@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Users, Network, FileSignature, Clock4, Fingerprint, CalendarCheck2,
   Plane, Sparkles, MonitorSmartphone, Wallet, SlidersHorizontal, BarChart3,
   FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu, ChevronDown,
-  BellRing, Hourglass, Flower2, UserMinus, CreditCard,
+  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -64,6 +64,14 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'leaves', label: 'الإجازات', icon: Plane },
       { key: 'holidays', label: 'العطلات الرسمية', icon: Sparkles },
       { key: 'devices', label: 'الأجهزة', icon: MonitorSmartphone },
+    ],
+  },
+  {
+    key: 'requests',
+    label: 'الطلبات والموافقات',
+    icon: ClipboardList,
+    items: [
+      { key: 'requests', label: 'الطلبات والموافقات', icon: ClipboardList },
     ],
   },
   {

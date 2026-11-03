@@ -20,6 +20,7 @@ import { PayrollSection } from '@/components/hrhub/sections/payroll';
 import { ReportsSection } from '@/components/hrhub/sections/reports';
 import { ImportExportSection } from '@/components/hrhub/sections/import-export';
 import { AuditSection, UsersSection, SettingsSection } from '@/components/hrhub/sections/admin';
+import { RequestsSection } from '@/components/hrhub/sections/requests';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type Screen = 'loading' | 'setup' | 'login' | 'app';
@@ -109,6 +110,7 @@ export default function Page() {
       {section === 'attendance-logs' && <AttendanceLogsSection canWrite={!!can.attendanceLogs} isAdmin={me.role === 'admin'} />}
       {section === 'daily-attendance' && <DailyAttendanceSection canWrite={!!can.dailyAttendance} />}
       {section === 'leaves' && <LeavesSection canWrite={!!can.leaves} canApprove={!!can.leaveApprove || me.role === 'admin'} />}
+      {section === 'requests' && <RequestsSection canWrite={!!can.requests} meId={me.id} role={me.role} companyName={companyName} />}
       {section === 'holidays' && <HolidaysSection canWrite={!!can.holidays} />}
       {section === 'devices' && <DevicesSection canWrite={!!can.devices} />}
       {section === 'payroll' && <PayrollSection canWrite={!!can.payroll} role={me.role} companyName={companyName} />}

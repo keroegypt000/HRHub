@@ -50,6 +50,140 @@ export function reasonFactor(reason: string, years: number): number {
   return 1;
 }
 
+// ===== شرائح المكافأة بالأيام (مطابقة لنماذج التسويات) =====
+// المكافأة تُحسب على أساس الأيام: (الراتب × أيام الفترة ÷ 365) × نسبة الشريحة
+// الشريحة 1 (أول 5 سنوات): 15/26 لكل يوم = 57.692% — الشريحة 2 (ما بعد 5 سنوات): 26/26 = 100%
+export const SLICE1_PERCENT = 15 / 26; // 57.692%
+export const SLICE2_PERCENT = 1; // 26/26
+const FIVE_YEARS_DAYS = 5 * 365;
+
+export function daysBetween(from: Date | string, to: Date | string): number {
+  const f = new Date(from).getTime();
+  const t = new Date(to).getTime();
+  if (!Number.isFinite(f) || !Number.isFinite(t) || t < f) return 0;
+  return Math.round((t - f) / (24 * 3600_000)) + 1; // عدّ شامل للطرفين — مطابق لنماذج التسويات (1355 يوم للعينة)
+}
+
+export function addDays(from: Date | string, days: number): Date {
+  return new Date(new Date(from).getTime() + days * 24 * 3600_000);
+}
+
+export interface IndemnitySlice {
+  from: string; // YYYY-MM-DD
+  to: string;
+  slice: number; // رقم الشريحة
+  workingDays: number;
+  stbDays: number; // أيام المكافأة (= أيام العمل هنا)
+  percent: number; // نسبة الشريحة (0.576923 أو 1)
+  amount: number; // (الراتب × الأيام ÷ 365) × النسبة
+}
+
+/**
+ * شرائح حساب المكافأة بالأيام — بنفس أسلوب تقارير نهاية الخدمة:
+ * سنوات كاملة أولًا (365 يوم) بعامل 15/26 ضمن أول 5 سنوات، ثم الكسر،
+ * وما بعد 5 سنوات بعامل كامل (شهر لكل سنة).
+ * المجموع يطابق indemnityFull مع دقة أعلى (حساب بالأيام لا بالسنوات العشرية).
+ */
+export function indemnitySlices(lastWage: number, hireDate: Date | string, endDate: Date | string): IndemnitySlice[] {
+  const wage = Number(lastWage) || 0;
+  const total = daysBetween(hireDate, endDate);
+  if (!wage || wage <= 0 || total <= 0) return [];
+
+  const amount = (days: number, pct: number) => Math.round(((wage * days) / 365) * pct * 1000) / 1000;
+  const slices: IndemnitySlice[] = [];
+  let sliceNo = 1;
+
+  if (total <= FIVE_YEARS_DAYS) {
+    // سنوات كاملة (كل 365 يوم) ثم الكسر — كلها بعامل 15/26
+    const fullYears = Math.floor(total / 365);
+    const fullDays = fullYears * 365;
+    const fracDays = total - fullDays;
+    if (fullDays > 0) {
+      slices.push({
+        from: keyOf(hireDate), to: keyOf(addDays(hireDate, fullDays - 1)),
+        slice: sliceNo++, workingDays: fullDays, stbDays: fullDays,
+        percent: SLICE1_PERCENT, amount: amount(fullDays, SLICE1_PERCENT),
+      });
+    }
+    if (fracDays > 0) {
+      slices.push({
+        from: keyOf(addDays(hireDate, fullDays)), to: keyOf(endDate),
+        slice: sliceNo++, workingDays: fracDays, stbDays: fracDays,
+        percent: SLICE1_PERCENT, amount: amount(fracDays, SLICE1_PERCENT),
+      });
+    }
+  } else {
+    // أول 5 سنوات بعامل 15/26 ثم الباقي بعامل كامل (شهر لكل سنة)
+    slices.push({
+      from: keyOf(hireDate), to: keyOf(addDays(hireDate, FIVE_YEARS_DAYS - 1)),
+      slice: sliceNo++, workingDays: FIVE_YEARS_DAYS, stbDays: FIVE_YEARS_DAYS,
+      percent: SLICE1_PERCENT, amount: amount(FIVE_YEARS_DAYS, SLICE1_PERCENT),
+    });
+    const rest = total - FIVE_YEARS_DAYS;
+    const fullYears = Math.floor(rest / 365);
+    const fullDays = fullYears * 365;
+    const fracDays = rest - fullDays;
+    if (fullDays > 0) {
+      slices.push({
+        from: keyOf(addDays(hireDate, FIVE_YEARS_DAYS)), to: keyOf(addDays(hireDate, FIVE_YEARS_DAYS + fullDays - 1)),
+        slice: sliceNo++, workingDays: fullDays, stbDays: fullDays,
+        percent: SLICE2_PERCENT, amount: amount(fullDays, SLICE2_PERCENT),
+      });
+    }
+    if (fracDays > 0) {
+      slices.push({
+        from: keyOf(addDays(hireDate, FIVE_YEARS_DAYS + fullDays)), to: keyOf(endDate),
+        slice: sliceNo++, workingDays: fracDays, stbDays: fracDays,
+        percent: SLICE2_PERCENT, amount: amount(fracDays, SLICE2_PERCENT),
+      });
+    }
+  }
+  return slices;
+}
+
+function keyOf(d: Date | string): string {
+  const dt = new Date(d);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** مجموع الشرائح — المكافأة الكاملة بالأيام (أدق من حساب السنوات العشرية) */
+export function indemnityFullByDays(lastWage: number, hireDate: Date | string, endDate: Date | string): number {
+  return Math.round(indemnitySlices(lastWage, hireDate, endDate).reduce((s, x) => s + x.amount, 0) * 1000) / 1000;
+}
+
+/**
+ * نسب فترة الخدمة للاستقالة — قابلة للضبط من الإعدادات (نموذج المني تك: Service Period Percent).
+ * الافتراضي قانون العمل الكويتي المادة 49. كل صف: {minYears, percent}
+ */
+export const DEFAULT_RESIGN_TIERS = [
+  { minYears: 10, percent: 100 },
+  { minYears: 5, percent: 50 },
+  { minYears: 3, percent: 33.333 },
+  { minYears: 0, percent: 0 },
+];
+
+export function parseResignTiers(json: string | null | undefined): { minYears: number; percent: number }[] {
+  if (!json) return DEFAULT_RESIGN_TIERS;
+  try {
+    const arr = JSON.parse(json);
+    if (Array.isArray(arr) && arr.length && arr.every((x: { minYears?: unknown; percent?: unknown }) =>
+      typeof x?.minYears === 'number' && typeof x?.percent === 'number')) {
+      return [...arr].sort((a, b) => b.minYears - a.minYears);
+    }
+  } catch {}
+  return DEFAULT_RESIGN_TIERS;
+}
+
+/** نسبة فترة الخدمة من جداول قابلة للضبط (للاستقالة) — أكبر حد يحققه عدد السنوات */
+export function servicePeriodPercent(reason: string, years: number, tiers: { minYears: number; percent: number }[] = DEFAULT_RESIGN_TIERS): number {
+  if (reason !== 'resigned') return 100;
+  const sorted = [...tiers].sort((a, b) => b.minYears - a.minYears);
+  for (const t of sorted) {
+    if (years >= t.minYears) return t.percent;
+  }
+  return 0;
+}
+
 export interface EosCalcInput {
   hireDate: Date | string | null | undefined;
   endDate: Date | string;              // تاريخ النهاية (اليوم للموظف النشط)

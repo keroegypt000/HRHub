@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Hourglass, Printer, UserMinus, Calculator, TrendingUp, AlertTriangle } from 'lucide-react';
 import { calcEos, DEPARTURE_REASONS, reasonLabel, INDEMNITY_LAW } from '@/lib/indemnity';
-import { indemnityDoc, printHtml } from '@/components/hrhub/print-docs';
+import { indemnityDoc, finalSettlementDoc, printHtml } from '@/components/hrhub/print-docs';
 import { cn } from '@/lib/utils';
 
 interface Row {
@@ -177,20 +177,61 @@ export function EndOfServiceSection({ canWrite, companyName }: { canWrite: boole
                       <span className="tabular font-extrabold text-red-700">{fmtKWD(detail.settlement.remaining)} د.ك</span>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    printHtml(indemnityDoc({
-                      employee: { name: detail.name, code: detail.code, department: detail.department ? { name: detail.department } : null },
-                      reasonAr: reasonLabel(detail.settlement!.reason),
-                      departureDate: fmtDate(detail.departureDate),
-                      hireDate: detail.hireDate ? fmtDate(detail.hireDate) : '—',
-                      yearsServed: detail.settlement!.yearsServed, lastWage: detail.settlement!.lastWage,
-                      indemnityFull: detail.settlement!.indemnityFull, factor: detail.settlement!.reasonFactor,
-                      eosAmount: detail.settlement!.eosAmount, leaveAllowance: detail.settlement!.leaveAllowance,
-                      otherDues: detail.settlement!.otherDues, deductions: detail.settlement!.deductions,
-                      totalDue: detail.settlement!.totalDue, paidAmount: detail.settlement!.paidAmount,
-                      law: INDEMNITY_LAW,
-                    }, companyName));
-                  }}><Printer className="h-4 w-4" /> طباعة كشف المستحقات</Button>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      printHtml(indemnityDoc({
+                        employee: { name: detail.name, code: detail.code, department: detail.department ? { name: detail.department } : null },
+                        reasonAr: reasonLabel(detail.settlement!.reason),
+                        departureDate: fmtDate(detail.departureDate),
+                        hireDate: detail.hireDate ? fmtDate(detail.hireDate) : '—',
+                        yearsServed: detail.settlement!.yearsServed, lastWage: detail.settlement!.lastWage,
+                        indemnityFull: detail.settlement!.indemnityFull, factor: detail.settlement!.reasonFactor,
+                        eosAmount: detail.settlement!.eosAmount, leaveAllowance: detail.settlement!.leaveAllowance,
+                        otherDues: detail.settlement!.otherDues, deductions: detail.settlement!.deductions,
+                        totalDue: detail.settlement!.totalDue, paidAmount: detail.settlement!.paidAmount,
+                        law: INDEMNITY_LAW,
+                      }, companyName));
+                    }}><Printer className="h-4 w-4" /> طباعة كشف المستحقات</Button>
+                    <Button size="sm" onClick={async () => {
+                      try {
+                        const st = await api<Record<string, unknown>>(`/api/settlements/${detail.settlement!.id}`);
+                        const emp = st.employee as Record<string, unknown>;
+                        printHtml(finalSettlementDoc({
+                          employee: {
+                            name: String(emp.name), code: String(emp.code),
+                            department: (emp.department as { name?: string } | null)?.name || null,
+                            position: (emp.position as { name?: string } | null)?.name || null,
+                            nationality: (emp.nationality as string | null) || null,
+                            bankAccount: (emp.bankAccount as string | null) || null,
+                            manager: (emp.manager as { name?: string } | null)?.name || null,
+                          },
+                          hireDate: fmtDate(st.hireDate as string),
+                          departureDate: fmtDate(st.departureDate as string),
+                          reasonAr: reasonLabel(String(st.reason)),
+                          basicSalary: Number(st.lastWage) - Number(st.stbHousing) - Number(st.stbSocial) || Number(st.lastWage),
+                          stbSalary: Number(st.lastWage),
+                          daysPaid: Number(st.daysPaid) || 0,
+                          worthSalary: Number(st.worthSalary) || 0,
+                          slices: JSON.parse(String(st.slices || '[]')) as { from: string; to: string; slice: number; workingDays: number; stbDays: number; percent: number; amount: number }[],
+                          servicePercent: (Number(st.reasonFactor) || 0) * 100,
+                          eosAmount: Number(st.eosAmount) || 0,
+                          stbBreakdown: {
+                            housing: Number(st.stbHousing) || 0, social: Number(st.stbSocial) || 0,
+                            provident: Number(st.stbProvident) || 0, insurance: Number(st.stbInsurance) || 0,
+                          },
+                          vacationDays: Number(st.vacationDays) || 0,
+                          vacationAmount: Number(st.leaveAllowance) || 0,
+                          loanDeduction: Number(st.loanDeduction) || 0,
+                          otherDues: Number(st.otherDues) || 0,
+                          deductions: Number(st.deductions) || 0,
+                          totalDue: Number(st.totalDue) || 0,
+                          paidAmount: Number(st.paidAmount) || 0,
+                        }, companyName));
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : 'فشل جلب بيانات التسوية');
+                      }
+                    }}><Printer className="h-4 w-4" /> طباعة التسوية الكاملة</Button>
+                  </div>
                 </>
               ) : (
                 <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
@@ -296,14 +337,16 @@ function DepartureDialog({ row, onClose, onDone, companyName }: {
           <div>
             <Label className="mb-1.5 block">بدل الإجازات غير المستخدمة (د.ك)</Label>
             <Input type="number" step="any" value={form.leaveAllowance} onChange={(e) => setForm({ ...form, leaveAllowance: e.target.value })} />
+            <p className="text-[11px] text-muted-foreground mt-1">اتركه 0 ليُحسب تلقائيًا من رصيد الإجازات × قيمة اليوم</p>
           </div>
           <div>
             <Label className="mb-1.5 block">مستحقات أخرى (د.ك)</Label>
             <Input type="number" step="any" value={form.otherDues} onChange={(e) => setForm({ ...form, otherDues: e.target.value })} />
           </div>
           <div>
-            <Label className="mb-1.5 block">استقطاعات / قروض (د.ك)</Label>
+            <Label className="mb-1.5 block">استقطاعات (د.ك)</Label>
             <Input type="number" step="any" value={form.deductions} onChange={(e) => setForm({ ...form, deductions: e.target.value })} />
+            <p className="text-[11px] text-muted-foreground mt-1">أقساط القروض غير المسددة تُحسب تلقائيًا داخل التسوية</p>
           </div>
           <div className="col-span-2">
             <Label className="mb-1.5 block">ملاحظات</Label>

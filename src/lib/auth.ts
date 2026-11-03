@@ -109,8 +109,9 @@ const WRITE_MATRIX: Record<string, Set<string>> = {
     'leave-types', 'leaves', 'leave-approve', 'holidays', 'devices', 'files',
     'attendance-logs', 'daily-attendance', 'import', 'employees-photo',
     'passports', 'iqamas', 'vehicles', 'company-contracts',
+    'requests', 'workflow', 'loans',
   ]),
-  accountant: new Set(['payroll-periods', 'salary-components', 'payslips', 'export', 'import', 'settlements']),
+  accountant: new Set(['payroll-periods', 'salary-components', 'payslips', 'export', 'import', 'settlements', 'loans']),
   supervisor: new Set(['leaves']), // طلبات إجازة لفريقه فقط
   viewer: new Set([]),
 };
@@ -124,12 +125,14 @@ const READ_MATRIX: Record<string, Set<string>> = {
     'leave-types', 'leaves', 'holidays', 'devices', 'attendance-logs', 'daily-attendance',
     'reports', 'export', 'dashboard', 'files',
     'passports', 'iqamas', 'vehicles', 'company-contracts', 'alerts', 'end-of-service', 'settlements',
+    'requests', 'loans',
   ]),
   viewer: new Set([
     'employees', 'departments', 'positions', 'contracts', 'shifts', 'shift-assignments',
     'leave-types', 'leaves', 'holidays', 'devices', 'attendance-logs', 'daily-attendance',
     'payroll-periods', 'payslips', 'salary-components', 'reports', 'export', 'dashboard', 'files',
     'passports', 'iqamas', 'vehicles', 'company-contracts', 'alerts', 'end-of-service', 'settlements',
+    'requests', 'loans',
   ]),
 };
 

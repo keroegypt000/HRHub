@@ -390,6 +390,21 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       }
     }
 
+    // أقساط السلف والقروض النشطة — تُخصم تلقائيًا في الشهور التي تبدأ فيها أو بعدها
+    const empLoans = await db.loan.findMany({ where: { employeeId: emp.id, status: 'active' } });
+    for (const loan of empLoans) {
+      if (dateKey(loan.startDate) > endKey) continue; // لم يبدأ الخصم بعد
+      const remaining = round3(loan.totalAmount - loan.paidAmount);
+      if (remaining <= 0) continue;
+      const amount = round3(Math.min(loan.monthlyDeduction, remaining));
+      pushAuto({
+        name: `قسط سلفة: ${loan.name}`,
+        type: 'deduction',
+        amount,
+        note: `القسط ${loan.paidInstallments + 1} من ${loan.installmentsCount} — متبقٍ ${remaining.toFixed(3)} د.ك`,
+      });
+    }
+
     // استرجاع البنود اليدوية المحفوظة (تعديلات المحاسب تبقى بعد إعادة الحساب)
     for (const m of manualByEmp.get(emp.id) || []) {
       items.push({ ...m, source: 'manual' });

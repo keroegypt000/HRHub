@@ -1,6 +1,6 @@
 'use client';
 
-// التقارير الستة: حضور يومي، ملخص شهري، تأخير/مبكر، إضافي، غياب، رصيد إجازات
+// التقارير السبعة: حضور يومي، ملخص شهري، تأخير/مبكر، إضافي، غياب، رصيد إجازات، كشف الوقت الشهري
 import { useCallback, useEffect, useState } from 'react';
 import { api, downloadFile } from '@/lib/client';
 import { DataTable, Column } from '@/components/hrhub/data-table';
@@ -20,6 +20,7 @@ const REPORTS = [
   { key: 'overtime', label: 'العمل الإضافي', desc: 'ساعات الإضافي وقيمتها المقترحة ×1.25' },
   { key: 'absence', label: 'الغياب', desc: 'أيام الغياب والبصمة الناقصة' },
   { key: 'leaves', label: 'رصيد الإجازات', desc: 'الأرصدة المستهلكة لكل نوع' },
+  { key: 'time-card', label: 'كشف الوقت الشهري', desc: 'يوم-باليوم لموظف مع الإحصائيات (Total Time Card)' },
 ] as const;
 
 type ReportKey = (typeof REPORTS)[number]['key'];
@@ -30,28 +31,35 @@ export function ReportsSection() {
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [departmentId, setDepartmentId] = useState('all');
   const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
+  const [employeeId, setEmployeeId] = useState('all');
+  const [employees, setEmployees] = useState<{ value: string; label: string }[]>([]);
+  const [statistics, setStatistics] = useState<Record<string, string | number> | null>(null);
   const [columns, setColumns] = useState<{ key: string; header: string }[]>([]);
   const [rows, setRows] = useState<(string | number)[][]>([]);
   const [meta, setMeta] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { optionLoaders.departments().then((o) => setDepartments(o.departmentId || [])); }, []);
+  useEffect(() => { optionLoaders.employees().then((o) => setEmployees(o.employeeId || [])); }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setStatistics(null);
     try {
       const params = new URLSearchParams({ from, to });
       if (departmentId !== 'all') params.set('departmentId', departmentId);
-      const data = await api<{ columns: string[]; rows: (string | number)[][]; period?: string }>(`/api/reports/${type}?${params}`);
+      if (type === 'time-card' && employeeId !== 'all') params.set('employeeId', employeeId);
+      const data = await api<{ columns: string[]; rows: (string | number)[][]; period?: string; statistics?: Record<string, string | number> }>(`/api/reports/${type}?${params}`);
       setColumns(data.columns.map((c, i) => ({ key: String(i), header: c })));
       setRows(data.rows);
       setMeta(data.period || null);
+      setStatistics(data.statistics || null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'فشل التقرير');
     } finally {
       setLoading(false);
     }
-  }, [type, from, to, departmentId]);
+  }, [type, from, to, departmentId, employeeId]);
 
   useEffect(() => { load(); }, [load]);  
 
@@ -130,8 +138,33 @@ export function ReportsSection() {
             {departments.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        {type === 'time-card' && (
+          <Select value={employeeId} onValueChange={setEmployeeId} dir="rtl">
+            <SelectTrigger className="w-56"><SelectValue placeholder="اختر الموظف" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" disabled>اختر الموظف</SelectItem>
+              {employees.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         {meta && <span className="text-xs text-muted-foreground self-center">{meta}</span>}
       </div>
+
+      {type === 'time-card' && statistics && (
+        <Card className="mb-4 border-emerald-200 bg-emerald-50/40">
+          <CardContent className="p-4">
+            <p className="text-sm font-bold text-emerald-800 mb-2">إحصائيات الفترة</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+              {([['ساعات الوردية', statistics.dutyHours], ['ساعات العمل', statistics.workedHours],
+                ['إضافي عادي', statistics.otNormal], ['إضافي راحة (س)', statistics.otWeekend], ['إضافي عطلة (س)', statistics.otHoliday],
+                ['تأخير (دقيقة)', statistics.lateMinutes], ['خروج مبكر (دقيقة)', statistics.earlyMinutes],
+                ['غياب (ساعة)', statistics.absenceHours], ['إجازة (ساعة)', statistics.leaveHours], ['أيام حضور', statistics.presentDays]] as [string, string | number][]).map(([k, v]) => (
+                <div key={k}><p className="text-xs text-muted-foreground">{k}</p><p className="font-bold tabular">{v}</p></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-0"><CardTitle className="text-sm text-muted-foreground">{columns.length} عمود · {rows.length} صف</CardTitle></CardHeader>

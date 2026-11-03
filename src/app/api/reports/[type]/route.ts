@@ -189,6 +189,146 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
         });
       }
 
+      // ===== 7. كشف الوقت الشهري التفصيلي (Total Time Card) — موظف واحد يوم-باليوم =====
+      case 'time-card': {
+        if (!employeeId || employeeId === 'all') throw new HttpError(400, 'اختر الموظف لكشف الوقت التفصيلي');
+        const startKey = from || dateKey(kuwaitMidnight(dateKey().slice(0, 7) + '-01'));
+        const endKey = to || dateKey(new Date(new Date(kuwaitMidnight(startKey)).getFullYear(), new Date(kuwaitMidnight(startKey)).getMonth() + 1, 0));
+        const emp = await db.employee.findUnique({
+          where: { id: employeeId },
+          include: { department: { select: { name: true } }, position: { select: { name: true } } },
+        });
+        if (!emp) throw new HttpError(404, 'الموظف غير موجود');
+
+        const rows = await db.dailyAttendance.findMany({
+          where: { employeeId, date: { gte: kuwaitMidnight(startKey), lte: kuwaitMidnight(endKey) } },
+          include: { shift: true },
+          orderBy: { date: 'asc' },
+        });
+        const byKey = new Map(rows.map((r) => [dateKey(r.date), r]));
+
+        // الإجازات المعتمدة داخل النطاق (بالساعات لليوم = ساعات الوردية)
+        const leaves = await db.leaveRequest.findMany({
+          where: {
+            employeeId, status: 'approved',
+            fromDate: { lte: kuwaitMidnight(endKey) }, toDate: { gte: kuwaitMidnight(startKey) },
+          },
+          include: { leaveType: true },
+        });
+        const leaveForKey = (key: string) => leaves.find((l) => dateKey(l.fromDate) <= key && key <= dateKey(l.toDate));
+
+        // العطلات الرسمية
+        const holidays = await db.holiday.findMany();
+        const isHoliday = (key: string): boolean => {
+          const md = key.slice(5);
+          for (const h of holidays) {
+            const hf = dateKey(h.date);
+            const ht = h.endDate ? dateKey(h.endDate) : hf;
+            if (key >= hf && key <= ht) return true;
+            if (h.recurring) {
+              const f = hf.slice(5), t = ht.slice(5);
+              if (f <= t ? md >= f && md <= t : md >= f || md <= t) return true;
+            }
+          }
+          return false;
+        };
+
+        // أيام عمل الأسبوع لكل يوم (حسب إسناد الوردية)
+        const assignments = await db.shiftAssignment.findMany({
+          where: { employeeId, fromDate: { lte: kuwaitMidnight(endKey) } },
+          orderBy: { fromDate: 'desc' },
+        });
+        const shiftById = new Map<string, typeof rows[number]['shift']>();
+        for (const a of assignments) {
+          const s = await db.shift.findUnique({ where: { id: a.shiftId } });
+          if (s) shiftById.set(a.shiftId, s);
+        }
+        const shiftFor = (key: string) => {
+          const a = assignments.find((x) => dateKey(x.fromDate) <= key && (!x.toDate || dateKey(x.toDate) >= key));
+          return a ? shiftById.get(a.shiftId) || null : null;
+        };
+        const parseWorkDays = (json: string | null): number[] => {
+          try { const arr = JSON.parse(json || '[]'); return Array.isArray(arr) ? arr.map(Number) : [0, 1, 2, 3, 4]; } catch { return [0, 1, 2, 3, 4]; }
+        };
+
+        const hm = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
+        const wdNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+        const out: (string | number)[][] = [];
+        const stats = { dutyMin: 0, workedMin: 0, otNormal: 0, otWeekend: 0, otHoliday: 0, lateM: 0, earlyM: 0, absH: 0, leaveH: 0, presentDays: 0 };
+        const cur = new Date(kuwaitMidnight(startKey));
+        while (dateKey(cur) <= endKey) {
+          const key = dateKey(cur);
+          const r = byKey.get(key);
+          const shift = shiftFor(key);
+          const wdays = parseWorkDays(shift?.workDays || null);
+          const isWorkday = wdays.includes(weekdayIndex(cur));
+          const dutyMin = shift ? Math.max(0, (new Date(`2000-01-01T${shift.endTime}:00`).getTime() - new Date(`2000-01-01T${shift.startTime}:00`).getTime()) / 60000) : 480;
+          const lv = leaveForKey(key);
+
+          let status = '—', exception = '';
+          let totalHours = 0, workedHours = 0, lateM = 0, earlyM = 0, absH = 0, leaveH = 0, otN = 0, otW = 0, otH = 0;
+
+          if (isHoliday(key)) {
+            status = 'عطلة رسمية';
+            if (r && r.otMinutes > 0) { otH = r.otMinutes; }
+          } else if (!isWorkday) {
+            status = 'راحة أسبوعية';
+            if (r && r.otMinutes > 0) { otW = r.otMinutes; }
+          } else if (lv) {
+            status = lv.leaveType.name;
+            leaveH = dutyMin;
+          } else if (r) {
+            if (r.firstIn) totalHours = Math.round((r.lastOut && r.lastOut > r.firstIn ? r.lastOut.getTime() - r.firstIn.getTime() : 0) / 60000);
+            workedHours = r.workedMinutes;
+            lateM = r.lateMinutes; earlyM = r.earlyMinutes;
+            if (r.otMinutes > 0) otN = r.otMinutes;
+            switch (r.status) {
+              case 'present': status = 'حاضر'; stats.presentDays++; break;
+              case 'late': status = 'متأخر'; stats.presentDays++; break;
+              case 'half_day': status = 'نص يوم'; stats.presentDays++; absH = dutyMin / 2; break;
+              case 'absent': status = 'غائب'; absH = dutyMin; break;
+              case 'missed_punch': status = 'بصمة ناقصة'; exception = 'بصمة ناقصة'; break;
+              default: status = STATUS_AR[r.status] || r.status;
+            }
+          } else {
+            status = 'غياب'; absH = dutyMin;
+          }
+
+          stats.dutyMin += isWorkday && !isHoliday(key) ? dutyMin : 0;
+          stats.workedMin += workedHours;
+          stats.otNormal += otN; stats.otWeekend += otW; stats.otHoliday += otH;
+          stats.lateM += lateM; stats.earlyM += earlyM;
+          stats.absH += absH; stats.leaveH += leaveH;
+
+          out.push([
+            key, wdNames[weekdayIndex(cur)], shift ? `${shift.startTime} - ${shift.endTime}` : '—',
+            fmtTime(r?.firstIn || null), fmtTime(r?.lastOut || null),
+            hm(dutyMin), hm(totalHours), hm(workedHours),
+            lateM || '—', earlyM || '—', absH ? hm(absH) : '—',
+            otN ? hm(otN) : '—', otW ? (otW / 60).toFixed(2) : '—', otH ? (otH / 60).toFixed(2) : '—',
+            leaveH ? hm(leaveH) : '—', status, exception,
+          ]);
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        return ok({
+          employee: {
+            id: emp.id, code: emp.code, name: emp.name,
+            department: emp.department?.name || '—', position: emp.position?.name || '—',
+          },
+          period: `${startKey} → ${endKey}`,
+          columns: ['التاريخ', 'اليوم', 'الوردية', 'الدخول', 'الخروج', 'ساعات الوردية', 'إجمالي الساعات', 'ساعات العمل', 'تأخير (د)', 'خروج مبكر (د)', 'غياب', 'إضافي عادي', 'إضافي راحة (س)', 'إضافي عطلة (س)', 'إجازة', 'الحالة', 'استثناء'],
+          rows: out,
+          statistics: {
+            dutyHours: hm(stats.dutyMin), workedHours: hm(stats.workedMin),
+            otNormal: hm(stats.otNormal), otWeekend: (stats.otWeekend / 60).toFixed(2), otHoliday: (stats.otHoliday / 60).toFixed(2),
+            lateMinutes: stats.lateM, earlyMinutes: stats.earlyM,
+            absenceHours: hm(stats.absH), leaveHours: hm(stats.leaveH), presentDays: stats.presentDays,
+          },
+        });
+      }
+
       default:
         throw new HttpError(404, 'تقرير غير معروف — النوع: daily|monthly|late|overtime|absence|leaves');
     }

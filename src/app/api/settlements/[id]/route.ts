@@ -1,10 +1,23 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireWrite, handle, ok, HttpError } from '@/lib/api';
-import { calcEos, settlementStatus, DEPARTURE_REASONS } from '@/lib/indemnity';
+import { settlementStatus, DEPARTURE_REASONS } from '@/lib/indemnity';
+import { buildSettlementDetail } from '@/lib/settlement';
 import { logAudit } from '@/lib/audit';
 
 const INCLUDE = { employee: { select: { id: true, name: true, code: true, department: { select: { name: true } } } } };
+
+/** قراءة تسوية واحدة بتفاصيلها الكاملة (للطباعة) */
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const { id } = await ctx.params;
+    const { requireRead } = await import('@/lib/api');
+    await requireRead(req, 'settlements');
+    const st = await db.departureSettlement.findUnique({ where: { id }, include: { employee: { select: { id: true, name: true, code: true, department: { select: { name: true } }, position: { select: { name: true } }, nationality: true, bankAccount: true, manager: { select: { name: true } } } } } });
+    if (!st) throw new HttpError(404, 'التسوية غير موجودة');
+    return ok(st);
+  });
+}
 
 /** تعديل التسوية — يعيد الحساب تلقائيًا */
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -23,12 +36,14 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       ? Number(body.lastWage) : st.lastWage;
     const hireDate = body.hireDate ? new Date(String(body.hireDate)) : st.hireDate;
 
-    const calc = calcEos({
-      hireDate, endDate: departureDate, lastWage, reason,
-      leaveAllowance: body.leaveAllowance !== undefined ? Number(body.leaveAllowance) || 0 : st.leaveAllowance,
-      otherDues: body.otherDues !== undefined ? Number(body.otherDues) || 0 : st.otherDues,
-      deductions: body.deductions !== undefined ? Number(body.deductions) || 0 : st.deductions,
+    const calc = await buildSettlementDetail({
+      employeeId: st.employeeId,
+      hireDate, departureDate, reason, lastWage,
+      leaveAllowance: body.leaveAllowance !== undefined ? body.leaveAllowance : st.leaveAllowance,
+      otherDues: body.otherDues !== undefined ? body.otherDues : st.otherDues,
+      deductions: body.deductions !== undefined ? body.deductions : st.deductions,
     });
+    const eosAmount = Math.round(calc.indemnityFull * (calc.servicePercent / 100) * 1000) / 1000;
 
     const paidAmount = body.paidAmount !== undefined ? Math.max(0, Number(body.paidAmount) || 0) : st.paidAmount;
     const status = settlementStatus(calc.totalDue, paidAmount);
@@ -38,10 +53,16 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
         where: { id },
         data: {
           departureDate, reason, hireDate, lastWage,
-          yearsServed: calc.years, indemnityFull: calc.indemnityFull,
-          reasonFactor: calc.factor, eosAmount: calc.eosAmount,
+          yearsServed: calc.yearsServed, indemnityFull: calc.indemnityFull,
+          reasonFactor: calc.servicePercent / 100, eosAmount,
           leaveAllowance: calc.leaveAllowance, otherDues: calc.otherDues,
           deductions: calc.deductions, totalDue: calc.totalDue,
+          vacationDays: calc.vacationDays,
+          stbHousing: calc.stbHousing, stbSocial: calc.stbSocial,
+          stbProvident: calc.stbProvident, stbInsurance: calc.stbInsurance,
+          daysPaid: calc.daysPaid, worthSalary: calc.worthSalary,
+          loanDeduction: calc.loanDeduction,
+          slices: JSON.stringify(calc.slices),
           paidAmount, status,
           paidAt: status === 'paid' ? (st.paidAt || new Date()) : null,
           notes: body.notes !== undefined ? (body.notes ? String(body.notes) : null) : st.notes,

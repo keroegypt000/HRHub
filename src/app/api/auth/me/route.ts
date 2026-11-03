@@ -33,6 +33,10 @@ export async function GET(req: NextRequest) {
         vehicles: canWrite(user, 'vehicles'),
         companyContracts: canWrite(user, 'company-contracts'),
         settlements: canWrite(user, 'settlements'),
+        // الطلبات والموافقات والقروض
+        requests: canWrite(user, 'requests'),
+        workflow: canWrite(user, 'workflow'),
+        loans: canWrite(user, 'loans'),
       },
     });
   });

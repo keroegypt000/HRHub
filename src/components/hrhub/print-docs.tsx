@@ -291,3 +291,192 @@ export function indemnityDoc(s: SettlementDocData, companyName = 'شركة ADMS'
     signatures: ['الموظف / المستحقون', 'الموارد البشرية', 'المحاسب'],
   }, companyName);
 }
+
+// ===== 7. تسوية نهاية الخدمة الكاملة (نموذج مطابق لتقارير التسوية النهائية) =====
+export interface FinalSettlementDocData {
+  employee: { name: string; code: string; department?: string | null; position?: string | null; nationality?: string | null; bankAccount?: string | null; manager?: string | null };
+  hireDate: string;
+  departureDate: string;
+  reasonAr: string;
+  basicSalary: number;
+  stbSalary: number; // راتب المكافأة (آخر أجر)
+  daysPaid: number;
+  worthSalary: number;
+  slices: { from: string; to: string; slice: number; workingDays: number; stbDays: number; percent: number; amount: number }[];
+  servicePercent: number; // نسبة فترة الخدمة %
+  eosAmount: number; // المكافأة المستحقة بعد النسبة
+  stbBreakdown: { housing: number; social: number; provident: number; insurance: number };
+  vacationDays: number;
+  vacationAmount: number;
+  loanDeduction: number;
+  otherDues: number;
+  deductions: number;
+  totalDue: number;
+  paidAmount: number;
+}
+
+export function finalSettlementDoc(s: FinalSettlementDocData, companyName = 'شركة ADMS'): string {
+  const remaining = Math.round((s.totalDue - s.paidAmount) * 1000) / 1000;
+  const pct = (p: number) => `${(p * 100).toFixed(3)}%`;
+  const sliceRows = s.slices.map((x) =>
+    `<tr><td class="num">${esc(fmtDate(x.from))}</td><td class="num">${esc(fmtDate(x.to))}</td>
+     <td class="num">${x.slice}</td><td class="num">${x.workingDays.toFixed(3)}</td>
+     <td class="num">${pct(x.percent)}</td><td class="num">${fmtKWD(x.amount)}</td></tr>`).join('');
+  const slicesTotal = s.slices.reduce((a, b) => a + b.workingDays, 0);
+  const slicesAmount = s.slices.reduce((a, b) => a + b.amount, 0);
+
+  const infoCell = (k: string, v: string) => `<tr><th>${esc(k)}</th><td>${esc(v) || '—'}</td></tr>`;
+  const numRow = (label: string, value: number, cls = '') =>
+    `<tr><th>${esc(label)}</th><td class="num ${cls}">${fmtKWD(value)} د.ك</td></tr>`;
+
+  const body = `
+    <table>
+      <tr>${infoCell('الرقم الوظيفي', s.employee.code)}${infoCell('اسم الموظف', s.employee.name)}</tr>
+      <tr>${infoCell('تاريخ التعيين', s.hireDate)}${infoCell('تاريخ نهاية الخدمة', s.departureDate)}</tr>
+      <tr>${infoCell('القسم', s.employee.department || '—')}${infoCell('الوظيفة', s.employee.position || '—')}</tr>
+      <tr>${infoCell('الجنسية', s.employee.nationality || '—')}${infoCell('سبب النهاية', s.reasonAr)}</tr>
+      <tr>${infoCell('المدير المباشر', s.employee.manager || '—')}${infoCell('الحساب البنكي', s.employee.bankAccount || '—')}</tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">تفاصيل الراتب</p>
+    <table>
+      ${numRow('الراتب الأساسي', s.basicSalary)}
+      ${numRow('إجمالي الراتب', s.stbSalary)}
+      ${numRow('راتب المكافأة (STB Salary)', s.stbSalary)}
+    </table>
+
+    <p style="font-weight:800;color:#14523f">كشف المرتب — أيام مدفوعة حتى تاريخ النهاية</p>
+    <table>
+      <tr><th>الأيام المدفوعة</th><td class="num">${s.daysPaid.toFixed(3)}</td></tr>
+      ${numRow('قيمة راتب الفترة', s.worthSalary)}
+      ${numRow('أقساط قروض غير مسددة', s.loanDeduction)}
+      <tr class="net"><th>صافي كشف المرتب</th><td class="num">${fmtKWD(Math.max(0, s.worthSalary - s.loanDeduction))} د.ك</td></tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">تعويض الإجازات غير المستخدمة</p>
+    <table>
+      <tr><th>أيام الإجازة المتبقية</th><td class="num">${s.vacationDays.toFixed(3)}</td></tr>
+      ${numRow('تعويض الإجازات', s.vacationAmount)}
+    </table>
+
+    <p style="font-weight:800;color:#14523f">مكافأة نهاية الخدمة — شرائح الحساب بالأيام</p>
+    <table>
+      <tr><th>من</th><th>إلى</th><th>الشريحة</th><th>أيام العمل</th><th>نسبة الشريحة</th><th>المبلغ (د.ك)</th></tr>
+      ${sliceRows}
+      <tr><th colspan="3">الإجمالي</th><td class="num">${slicesTotal.toFixed(3)}</td><td class="num">—</td><td class="num">${fmtKWD(slicesAmount)}</td></tr>
+    </table>
+    <table>
+      <tr><th>مجموع الشرائح (المكافأة الكاملة)</th><td class="num">${fmtKWD(slicesAmount)} د.ك</td></tr>
+      <tr><th>نسبة فترة الخدمة</th><td class="num">${slicesAmount.toFixed(3)} × ${s.servicePercent.toFixed(3)}% = <b>${fmtKWD(s.eosAmount)}</b> د.ك</td></tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">تفصيل راتب المكافأة (STB Salary Breakdown)</p>
+    <table>
+      ${numRow('بدل سكن', s.stbBreakdown.housing)}
+      ${numRow('بدل اجتماعي', s.stbBreakdown.social)}
+      ${numRow('صندوق ائتمان / معاش', s.stbBreakdown.provident)}
+      ${numRow('تأمين', s.stbBreakdown.insurance)}
+      ${numRow('الراتب الأساسي', s.basicSalary)}
+      <tr class="net"><th>إجمالي راتب المكافأة</th><td class="num">${fmtKWD(s.stbSalary)} د.ك</td></tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">إجمالي التسوية</p>
+    <table>
+      ${numRow('مكافأة نهاية الخدمة', s.eosAmount)}
+      ${numRow('تعويض الإجازات', s.vacationAmount)}
+      ${numRow('مستحقات أخرى', s.otherDues)}
+      ${numRow('استقطاعات (قروض/غيرها)', -s.deductions)}
+      <tr class="net"><th>الإجمالي المستحق</th><td class="num">${fmtKWD(s.totalDue)} د.ك</td></tr>
+      ${numRow('المدفوع حتى الآن', s.paidAmount)}
+      <tr class="net"><th>المتبقي للسداد</th><td class="num">${fmtKWD(Math.max(0, remaining))} د.ك</td></tr>
+    </table>
+    <div class="tafqit">فقط ${esc(tafqit(s.totalDue))}</div>`;
+  return voucherDocHtml({
+    title: 'تسوية نهاية الخدمة والمستحقات',
+    refNo: `STL-${s.employee.code}-${Date.now().toString().slice(-6)}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['الموظف / المستحقون', 'الموارد البشرية', 'المحاسب', 'المدير المالي'],
+  }, companyName);
+}
+
+// ===== 8. تسوية الإجازة المقدمة (نموذج مطابق لعينة Vacation In-Advance Settlement) =====
+export interface VacationSettlementDocData {
+  employee: { name: string; code: string; department?: string | null; position?: string | null; nationality?: string | null; civilId?: string | null; bankAccount?: string | null };
+  hireDate: string;
+  basicSalary: number;
+  totalSalary: number;
+  leave: { from: string; to: string; days: number; typeName: string; returnDate?: string | null; dueDate?: string | null };
+  balanceBefore: number;
+  balanceAfter: number;
+  annualQuota: number;
+  rows: { month: string; workingDays: number; workingAmount: number; vacationDays: number; vacationAmount: number }[];
+  workingAmountTotal: number;
+  vacationAmountTotal: number;
+  advanceTotal: number;
+  notes?: string | null;
+}
+
+export function vacationSettlementDoc(s: VacationSettlementDocData, companyName = 'شركة ADMS'): string {
+  const esc2 = esc;
+  const monthName = (m: string) => {
+    const [y, mm] = m.split('-');
+    const names = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    return `${names[parseInt(mm, 10) - 1] || mm} / ${y}`;
+  };
+  const workRows = s.rows.filter((r) => r.workingDays > 0).map((r) =>
+    `<tr><td>${esc2(monthName(r.month))}</td><td class="num">${r.workingDays.toFixed(3)}</td><td class="num">${fmtKWD(r.workingAmount)}</td><td>الراتب الأساسي</td></tr>`).join('');
+  const vacRows = s.rows.filter((r) => r.vacationDays > 0).map((r) =>
+    `<tr><td>${esc2(monthName(r.month))}</td><td class="num">${r.vacationDays.toFixed(3)}</td><td class="num">${fmtKWD(r.vacationAmount)}</td><td>الراتب الأساسي</td></tr>`).join('');
+  const infoCell = (k: string, v: string) => `<tr><th>${esc2(k)}</th><td>${esc2(v) || '—'}</td></tr>`;
+
+  const body = `
+    <p style="font-weight:800;color:#14523f">بيانات الموظف</p>
+    <table>
+      <tr>${infoCell('الرقم الوظيفي', s.employee.code)}${infoCell('اسم الموظف', s.employee.name)}</tr>
+      <tr>${infoCell('القسم', s.employee.department || '—')}${infoCell('الوظيفة', s.employee.position || '—')}</tr>
+      <tr>${infoCell('الجنسية', s.employee.nationality || '—')}${infoCell('تاريخ التعيين', s.hireDate)}</tr>
+      <tr>${infoCell('الراتب الأساسي', `${fmtKWD(s.basicSalary)} د.ك`)}${infoCell('إجمالي الراتب', `${fmtKWD(s.totalSalary)} د.ك`)}</tr>
+      <tr>${infoCell('الحساب البنكي', s.employee.bankAccount || '—')}${infoCell('الرقم المدني', s.employee.civilId || '—')}</tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">بيانات الإجازة</p>
+    <table>
+      <tr>${infoCell('من تاريخ', s.leave.from)}${infoCell('إلى تاريخ', s.leave.to)}</tr>
+      <tr>${infoCell('نوع الإجازة', s.leave.typeName)}${infoCell('فترة الإجازة (أيام)', s.leave.days.toFixed(3))}</tr>
+      <tr>${infoCell('تاريخ استئناف العمل', s.leave.returnDate || '—')}${infoCell('تاريخ الاستحقاق', s.leave.dueDate || '—')}</tr>
+      <tr><th>الرصيد قبل الإجازة</th><td class="num">${s.balanceBefore.toFixed(3)} يوم</td>
+          <th>الرصيد بعد الإجازة</th><td class="num">${s.balanceAfter.toFixed(3)} يوم</td></tr>
+      <tr><th>حصة الإجازة السنوية</th><td class="num">${s.annualQuota.toFixed(0)} يوم</td><td></td><td></td></tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">أيام العمل قبل الإجازة</p>
+    <table>
+      <tr><th>الشهر</th><th>الأيام</th><th>المبلغ (د.ك)</th><th>النوع</th></tr>
+      ${workRows || '<tr><td colspan="4">—</td></tr>'}
+      <tr class="net"><th>الإجمالي</th><td class="num">${s.rows.reduce((a, b) => a + b.workingDays, 0).toFixed(3)}</td><td class="num">${fmtKWD(s.workingAmountTotal)}</td><td></td></tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">أيام الإجازة بالتفصيل</p>
+    <table>
+      <tr><th>الشهر</th><th>الأيام</th><th>المبلغ (د.ك)</th><th>النوع</th></tr>
+      ${vacRows || '<tr><td colspan="4">—</td></tr>'}
+      <tr class="net"><th>الإجمالي</th><td class="num">${s.rows.reduce((a, b) => a + b.vacationDays, 0).toFixed(3)}</td><td class="num">${fmtKWD(s.vacationAmountTotal)}</td><td></td></tr>
+    </table>
+
+    <p style="font-weight:800;color:#14523f">إجمالي التسوية المقدمة</p>
+    <table>
+      <tr><th>قيمة أيام العمل</th><td class="num">${fmtKWD(s.workingAmountTotal)} د.ك</td></tr>
+      <tr><th>قيمة أيام الإجازة</th><td class="num">${fmtKWD(s.vacationAmountTotal)} د.ك</td></tr>
+      <tr class="net"><th>إجمالي المقدّم المستحق</th><td class="num">${fmtKWD(s.advanceTotal)} د.ك</td></tr>
+    </table>
+    <div class="tafqit">فقط ${esc2(tafqit(s.advanceTotal))}</div>
+    ${s.notes ? `<p>ملاحظات: ${esc2(s.notes)}</p>` : ''}`;
+  return voucherDocHtml({
+    title: 'تسوية الإجازة المقدمة',
+    refNo: `VAC-${s.employee.code}-${Date.now().toString().slice(-6)}`,
+    date: fmtDate(new Date()),
+    body,
+    signatures: ['الموظف', 'الموارد البشرية', 'المحاسب'],
+  }, companyName);
+}
