@@ -2,7 +2,7 @@
 // معادلات معلنة + تقريب 3 خانات في كل خطوة + مصدر لكل رقم
 // ترتيب حسم حالة اليوم: عطلة رسمية ← راحة أسبوعية (وردية الموظف) ← إجازة معتمدة ← بصمة اليوم ← غياب
 import { db } from '@/lib/db';
-import { round3, hourRate, otAmount, lateDeductionAmount, attendancePay } from '@/lib/calc';
+import { round3, hourRate, otAmount, lateDeductionAmount, attendancePay, unpaidHolidayIndexes } from '@/lib/calc';
 import { getSettings } from '@/lib/settings';
 import { dateKey, monthDayKeys, weekdayIndex, kuwaitMidnight } from '@/lib/time';
 import { effectiveWorkDays } from '@/lib/workweek';
@@ -207,7 +207,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     let lateMinutes = 0;
     let weekdayOtMinutes = 0;
     let holidayOtMinutes = 0;
-    const ledger: { d: string; s: string }[] = [];
+    const ledger: { d: string; s: string; wd?: boolean }[] = [];
 
     for (const key of keys) {
       if (hireKey && key < hireKey) continue; // يوم قبل التعيين — مُتجاهل تمامًا
@@ -262,8 +262,16 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
           absenceDays += 1;
         }
       }
-      ledger.push({ d: key.slice(8), s: code });
+      ledger.push({ d: key.slice(8), s: code, wd: isWorkday });
     }
+
+    // عطلة رسمية بين غيابين (أو في شهر كله غياب) لا تُصرف — تتحول غيابًا
+    for (const i of unpaidHolidayIndexes(ledger.map((x) => ({ s: x.s, wd: !!x.wd })))) {
+      ledger[i].s = 'a';
+      holidayDays -= 1;
+      absenceDays += 1;
+    }
+    for (const x of ledger) delete x.wd;
 
     // ===== المكملات =====
     const items: {

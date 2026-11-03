@@ -1,6 +1,6 @@
 // قواعد الراتب حسب الحضور — كل حالة شكا منها المستخدم أو قد تحدث
 import { describe, expect, it } from 'vitest';
-import { attendancePay, lateDeductionAmount, otAmount } from '@/lib/calc';
+import { attendancePay, lateDeductionAmount, otAmount, unpaidHolidayIndexes } from '@/lib/calc';
 
 const base = { monthlyFixed: 260, monthWorkDays: 27, employedWorkDays: 27, absentDays: 0, unpaidLeaveDays: 0 };
 
@@ -57,5 +57,30 @@ describe('late and overtime rates (no intermediate rounding)', () => {
   it('إضافي 13 ساعة عادية على أساسي 380', () => {
     // 380 ÷ 26 ÷ 8 × 13 × 1.25 = 29.688
     expect(otAmount(380, 13 * 60, 0)).toBe(29.688);
+  });
+});
+
+describe('unpaidHolidayIndexes (holiday between absences)', () => {
+  const day = (s: string, wd = true) => ({ s, wd });
+  it('غياب الشهر كله + عطلة → العطلة غير مدفوعة (حالة Maria: 9.231 → 0)', () => {
+    const days = [day('a'), day('a'), day('ho'), day('a'), day('we', false), day('a')];
+    expect(unpaidHolidayIndexes(days)).toEqual([2]);
+    const r = attendancePay({ monthlyFixed: 240, monthWorkDays: 26, employedWorkDays: 26, absentDays: 26, unpaidLeaveDays: 0 });
+    expect(r.payable).toBe(0);
+  });
+  it('حاضر قبل العطلة → مدفوعة', () => {
+    expect(unpaidHolidayIndexes([day('p'), day('ho'), day('a')])).toEqual([]);
+  });
+  it('حاضر بعد العطلة → مدفوعة', () => {
+    expect(unpaidHolidayIndexes([day('a'), day('ho'), day('p')])).toEqual([]);
+  });
+  it('الراحة الأسبوعية بين العطلة والغياب لا تكسر القاعدة', () => {
+    expect(unpaidHolidayIndexes([day('a'), day('we', false), day('ho'), day('ho'), day('we', false), day('a')])).toEqual([2, 3]);
+  });
+  it('عطلة على يوم راحة لا تُحتسب', () => {
+    expect(unpaidHolidayIndexes([day('a'), day('ho', false), day('a')])).toEqual([]);
+  });
+  it('إجازة بدون راتب قبل وبعد → غير مدفوعة', () => {
+    expect(unpaidHolidayIndexes([day('lu'), day('ho'), day('lu')])).toEqual([1]);
   });
 });

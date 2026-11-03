@@ -132,3 +132,24 @@ export function attendancePay(x: AttendancePayInput): AttendancePayResult {
     payable: remaining,
   };
 }
+
+/**
+ * العطلة الرسمية لا تُصرف لمن غاب يوم العمل السابق واللاحق لها (قاعدة «الساندويتش»):
+ * days = رموز أيام الفترة بالترتيب (a غياب، lu إجازة بدون راتب، ho عطلة، we راحة، وغيرها حضور/إجازة مدفوعة)
+ * wd = هل اليوم يوم عمل للموظف. يرجع مواقع العطلات التي تتحول غيابًا.
+ */
+export function unpaidHolidayIndexes(days: { s: string; wd: boolean }[]): number[] {
+  const unpaid = (s: string) => s === 'a' || s === 'lu';
+  const skip = (s: string) => s === 'we' || s === 'ho';
+  const out: number[] = [];
+  days.forEach((d, i) => {
+    if (d.s !== 'ho' || !d.wd) return;
+    let prev: string | null = null;
+    for (let j = i - 1; j >= 0; j--) if (!skip(days[j].s)) { prev = days[j].s; break; }
+    let next: string | null = null;
+    for (let k = i + 1; k < days.length; k++) if (!skip(days[k].s)) { next = days[k].s; break; }
+    if (prev === null && next === null) return;
+    if ((prev === null || unpaid(prev)) && (next === null || unpaid(next))) out.push(i);
+  });
+  return out;
+}
