@@ -82,7 +82,7 @@ export async function handle(fn: () => Promise<NextResponse>): Promise<NextRespo
       return fail(400, `قيمة مكررة — يوجد سجل آخر بنفس القيمة${target ? ` (${target})` : ''}`);
     }
     if (code === 'P2025') return fail(404, 'السجل غير موجود — ربما حُذف بواسطة مستخدم آخر');
-    if (code === 'P1001' || code === 'P1000') return fail(500, `تعذر الاتصال بقاعدة البيانات (كود ${code}) — تحقق من DATABASE_URL`);
+    if (code === 'P1001' || code === 'P1000') return fail(500, `تعذر الاتصال بقاعدة البيانات (كود ${code}) — الأسباب المحتملة: استهلاك حصة Prisma Postgres المجانية (راجع console.prisma.io) أو DATABASE_URL غير صحيح على Vercel`);
     if (code.startsWith('P')) return fail(500, `خطأ قاعدة بيانات (${code}): ${brief(msg)}`);
 
     // أخطاء قيود عامة (نصوص بدون كود)

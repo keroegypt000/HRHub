@@ -84,7 +84,13 @@ export function decryptSecret(payload: string): string {
   }
 }
 
+// كاش قصير في الذاكرة — كل استعلام من قاعدة Prisma Postgres يُحتسب عملية،
+// وgetSettings كانت تُستدعى مع كل طلب ADMS (كل 30 ثانية لكل جهاز) فتستهلك الحصة المجانية
+let settingsCache: { value: SystemSettings; at: number } | null = null;
+const SETTINGS_TTL_MS = 60_000;
+
 export async function getSettings(): Promise<SystemSettings> {
+  if (settingsCache && Date.now() - settingsCache.at < SETTINGS_TTL_MS) return settingsCache.value;
   const rows = await db.setting.findMany();
   const map = new Map(rows.map((r) => [r.key, r.value]));
   const s: SystemSettings = { ...DEFAULT_SETTINGS };
@@ -113,6 +119,7 @@ export async function getSettings(): Promise<SystemSettings> {
   s.biotimePasswordEnc = map.get('biotimePasswordEnc') || null;
   s.biotimeAutoSyncMinutes = numv('biotimeAutoSyncMinutes', 0);
   s.deviceOfflineAlertMinutes = numv('deviceOfflineAlertMinutes', 10);
+  settingsCache = { value: s, at: Date.now() };
   return s;
 }
 
@@ -126,4 +133,5 @@ export async function saveSettings(updates: Record<string, string | boolean | nu
       create: { key, value: String(value) },
     });
   }
+  settingsCache = null; // إبطال الكاش فورًا بعد الحفظ
 }
