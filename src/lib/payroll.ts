@@ -68,6 +68,12 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
   const startKey = dateKey(period.startDate);
   const endKey = dateKey(period.endDate);
   const todayKey = dateKey();
+  // لا تُحسب رواتب فترة لم تنتهِ — الأيام القادمة لم تحدث بعد فيأخذ الجميع رواتب كاملة بالخطأ
+  if (endKey > todayKey) {
+    throw new Error(`الفترة لم تنتهِ بعد — تُحسب رواتب ${period.name} بعد آخر يوم فيها (${endKey})`);
+  }
+  // الأيام قبل تاريخ بدء احتساب الحضور لا تُحسب غيابًا (قبل تشغيل البصمة)
+  const attendanceStartKey = settings.attendanceStartDate || '';
   const allKeys = monthDayKeys(period.name);
   const periodKeys = allKeys.filter((k) => k >= startKey && k <= endKey);
   const keys = allKeys.filter((k) => k >= startKey && k <= endKey && k <= todayKey);
@@ -230,8 +236,13 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
           if (paid) { code = 'lp'; paidLeaveDays += 1; }
           else { code = 'lu'; unpaidLeaveDays += 1; }
           if (row && row.otMinutes > 0) holidayOtMinutes += row.otMinutes;
+        } else if (emp.attendanceExempt || (attendanceStartKey && key < attendanceStartKey)) {
+          // 4) معفى من البصمة، أو يوم قبل بدء احتساب الحضور — يوم مدفوع بلا غياب ولا تأخير
+          code = 'x';
+          workedDays += 1;
+          if (row && row.otMinutes > 0 && (row.status === 'present' || row.status === 'late')) weekdayOtMinutes += row.otMinutes;
         } else if (row) {
-          // 4) حالة يوم الحضور اليومي
+          // 5) حالة يوم الحضور اليومي
           switch (row.status) {
             case 'present': code = 'p'; workedDays += 1; break;
             case 'late': code = 'l'; workedDays += 1; lateMinutes += row.lateMinutes; break;
@@ -246,7 +257,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
             weekdayOtMinutes += row.otMinutes;
           }
         } else {
-          // 5) يوم عمل بلا بصمة ولا إجازة → غياب
+          // 6) يوم عمل بلا بصمة ولا إجازة → غياب
           code = 'a';
           absenceDays += 1;
         }
@@ -280,29 +291,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       if (amount > 0) pushAuto({ name, type: 'earning', amount, note: 'من العقد' });
     }
 
-    // مكونات إضافية من جدول المكونات
-    for (const comp of components) {
-      if (comp.calculation === 'attendance') continue;
-      if (comp.type === 'earning' && comp.calculation === 'fixed') {
-        if (comp.code === 'BASIC') continue;
-        if (comp.code === 'HOUSING' && (contract?.housingAllowance || 0) > 0) continue;
-        if (comp.code === 'TRANSPORT' && (contract?.transportAllowance || 0) > 0) continue;
-        if (comp.code === 'OTHER' && (contract?.otherAllowance || 0) > 0) continue;
-        if (comp.value <= 0) continue;
-        pushAuto({ componentId: comp.id, name: comp.name, type: 'earning', amount: round3(comp.value) });
-      } else if (comp.type === 'earning' && comp.calculation === 'percent') {
-        if (comp.code === 'BASIC') continue;
-        if (comp.code === 'HOUSING' && (contract?.housingAllowance || 0) > 0) continue;
-        if (comp.code === 'TRANSPORT' && (contract?.transportAllowance || 0) > 0) continue;
-        if (comp.code === 'OTHER' && (contract?.otherAllowance || 0) > 0) continue;
-        if (!(comp.percentOfBasic)) continue;
-        pushAuto({
-          componentId: comp.id, name: comp.name, type: 'earning',
-          amount: round3(((comp.percentOfBasic || 0) / 100) * basic),
-          note: `${comp.percentOfBasic}% من الأساسي`,
-        });
-      }
-    }
+    // البدلات تأتي من عقد الموظف فقط — لم تعد مكونات الراتب (سكن 30% / مواصلات) تُضاف للجميع تلقائيًا
 
     // الراتب الشهري الثابت (الأساسي + البدلات) — أساس خصم الغياب وأيام ما قبل التعيين
     const monthlyFixed = round3(items.filter((i) => i.type === 'earning').reduce((s, i) => s + i.amount, 0));
@@ -321,7 +310,9 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
 
     // العمل الإضافي
     const hr = hourRate(basic, rates);
-    const otVal = otAmount(basic, weekdayOtMinutes, holidayOtMinutes, rates);
+    // الإضافي يُصرف فقط لمن فُعّل له «يستحق العمل الإضافي» — وإلا يظهر في الملاحظات للمراجعة
+    const computedOt = otAmount(basic, weekdayOtMinutes, holidayOtMinutes, rates);
+    const otVal = emp.otEligible ? computedOt : 0;
     const otComp = components.find((c) => c.code === 'OT' && c.type === 'earning');
     if (otVal > 0) {
       pushAuto({
@@ -416,7 +407,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
 
     // استرجاع البنود اليدوية المحفوظة (تعديلات المحاسب تبقى بعد إعادة الحساب)
     for (const m of manualByEmp.get(emp.id) || []) {
-      items.push({ ...m, source: 'manual' });
+      items.push({ ...m, type: m.type === 'deduction' ? 'deduction' : 'earning', note: m.note ?? undefined, source: 'manual' });
     }
 
     // الإجماليات بتقريب موحد
@@ -426,6 +417,10 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     totalNet = round3(totalNet + netPay);
 
     const notes: string[] = [];
+    if (!emp.otEligible && computedOt > 0) {
+      notes.push(`إضافي غير مصروف: ${((weekdayOtMinutes + holidayOtMinutes) / 60).toFixed(1)} ساعة = ${computedOt.toFixed(3)} د.ك — فعّل «يستحق الإضافي» في ملف الموظف لصرفه`);
+    }
+    if (emp.attendanceExempt) notes.push('معفى من البصمة — راتب كامل');
     if (missedPunchDays > 0) notes.push(`${missedPunchDays} يوم بصمة ناقصة (missed_punch) بلا خصم — راجعه`);
     if (departKey && departKey >= keys[0] && departKey <= keys[keys.length - 1]) {
       notes.push('حُسبت قسيمة منتصف الشهر حتى تاريخ ترك العمل');

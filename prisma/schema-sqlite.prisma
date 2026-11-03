@@ -140,6 +140,8 @@ model Employee {
   managerId        String? // المدير المباشر
   weeklyOffDays    String? // JSON أيام الراحة الأسبوعية للموظف [0=الأحد..6=السبت] — يتقدم على وردية الموظف
   eosBasis         String? // أساس مكافأة نهاية الخدمة: basic=الأساسي فقط | full_wage=الأساسي+البدلات | فارغ=افتراضي الشركة
+  otEligible       Boolean               @default(false) // يستحق العمل الإضافي — لا يُصرف إضافي إلا بموافقة صريحة
+  attendanceExempt Boolean               @default(false) // معفى من البصمة (مدير/مندوب) — راتب كامل بلا خصم غياب أو تأخير
   notes            String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt

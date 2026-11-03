@@ -146,7 +146,7 @@ interface SettingsData {
   defaultShiftId: string | null; autoAcceptDevices: boolean; admsEnabled: boolean;
   biotimeEnabled: boolean; biotimeUrl: string; biotimeUsername: string;
   biotimeAutoSyncMinutes: number; deviceOfflineAlertMinutes: number;
-  vacationAnnualQuota: number; eosResignTiers: string; eosBasisDefault: string;
+  vacationAnnualQuota: number; eosResignTiers: string; eosBasisDefault: string; attendanceStartDate: string;
   hasBiotimePassword?: boolean;
   emailEnabled: boolean; smtpHost: string; smtpPort: number; smtpSecure: boolean;
   smtpUser: string; smtpFrom: string; appUrl: string; hasSmtpPassword?: boolean;
@@ -241,6 +241,11 @@ export function SettingsSection() {
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">معادلات الرواتب</CardTitle></CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+            <Label className="mb-1.5">بداية احتساب الحضور (تاريخ تشغيل البصمة)</Label>
+            <Input type="date" className="max-w-xs" value={s.attendanceStartDate || ''} onChange={(e) => set('attendanceStartDate', e.target.value)} />
+            <p className="text-[11px] text-muted-foreground mt-1">الأيام قبل هذا التاريخ تُصرف كاملة ولا تُحسب غيابًا — ضع أول يوم بدأت فيه البصمات تصل للنظام</p>
+          </div>
           <div>
             <Label className="mb-1.5">أيام عمل الشهر (26 القاعدة الكويتية)</Label>
             <Input type="number" value={s.workDaysPerMonth} onChange={(e) => set('workDaysPerMonth', parseFloat(e.target.value) || 26)} />

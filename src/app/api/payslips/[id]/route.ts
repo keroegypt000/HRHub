@@ -9,9 +9,9 @@ import { tafqitKWD } from '@/lib/tafqit';
 /** هل الفترة قابلة للتعديل؟ (قبل الاعتماد) */
 async function editableSlip(id: string) {
   const slip = await db.payslip.findUnique({ where: { id }, include: { period: true } });
-  if (!slip) return { error: fail(404, 'القسيمة غير موجودة') as const };
+  if (!slip) return { error: fail(404, 'القسيمة غير موجودة') };
   if (slip.period.status === 'approved' || slip.period.status === 'paid') {
-    return { error: fail(400, 'القسيمة في فترة معتمدة/مصروفة — اطلب من المدير «إعادة فتح» الفترة أولًا') as const };
+    return { error: fail(400, 'القسيمة في فترة معتمدة/مصروفة — اطلب من المدير «إعادة فتح» الفترة أولًا') };
   }
   return { slip };
 }

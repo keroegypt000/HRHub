@@ -36,7 +36,7 @@ export async function PUT(req: NextRequest) {
       'sscEmployerExpatriate', 'defaultShiftId', 'autoAcceptDevices', 'admsEnabled',
       'biotimeEnabled', 'biotimeUrl', 'biotimeUsername', 'biotimeAutoSyncMinutes', 'deviceOfflineAlertMinutes',
       'companyLogoFileId', 'vacationAnnualQuota', 'eosResignTiers', 'eosBasisDefault',
-      'emailEnabled', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpFrom', 'appUrl',
+      'attendanceStartDate', 'emailEnabled', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpFrom', 'appUrl',
     ];
     const updates: Record<string, string | boolean | number> = {};
     for (const key of allowedKeys) {

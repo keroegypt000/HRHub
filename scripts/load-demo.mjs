@@ -200,6 +200,7 @@ async function loadDemo() {
         departmentId: deptId[unit], positionId: posId[position], hireDate, basicSalary: basic,
         bankAccount: `KW00DEMO${digits(14)}`, status: 'active', weeklyOffDays: def.off,
         eosBasis: unit === 'HOD' ? 'full_wage' : null, notes: `${DEMO} بيانات تجريبية`,
+        otEligible: unit !== 'HOD' && !lead, attendanceExempt: position === 'General Manager',
       });
       const housing = unit === 'HOD' || lead ? int(5, 15) * 10 : 0;
       const transport = unit === 'HOD' || lead ? int(2, 5) * 10 : 0;

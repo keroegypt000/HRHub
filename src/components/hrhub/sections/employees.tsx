@@ -21,7 +21,7 @@ interface EmployeeRow extends Record<string, unknown> {
   department?: { id: string; name: string } | null;
   position?: { id: string; name: string } | null;
   status: string; basicSalary: number; phone?: string | null; pin?: string | null;
-  weeklyOffDays?: string | null; eosBasis?: string | null;
+  weeklyOffDays?: string | null; eosBasis?: string | null; otEligible?: boolean; attendanceExempt?: boolean;
   nationality?: string | null; civilId?: string | null; hireDate?: string | null; birthDate?: string | null;
   photo?: { id: string } | null;
   _count?: { contracts: number; leaveRequests: number };
@@ -153,17 +153,20 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
             { value: 'default', label: 'افتراضي الشركة (من الإعدادات)' },
             ...EOS_BASIS_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
           ] },
+          { key: 'otEligible', label: 'يستحق العمل الإضافي (يُصرف في الراتب)', type: 'switch' },
+          { key: 'attendanceExempt', label: 'معفى من البصمة (راتب كامل بلا خصم غياب)', type: 'switch' },
           { key: 'pin', label: 'PIN الجهاز (افتراضي = الرقم الوظيفي)', type: 'text' },
           { key: 'address', label: 'العنوان', type: 'textarea', span: 2 },
           { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
         ]}
-        defaultValues={{ status: 'active', basicSalary: 0, weeklyOffDays: 'shift', eosBasis: 'default' }}
+        defaultValues={{ status: 'active', basicSalary: 0, weeklyOffDays: 'shift', eosBasis: 'default', otEligible: false, attendanceExempt: false }}
         loadOptions={optionLoaders.combine(optionLoaders.departments, optionLoaders.positions)}
         rowToForm={(r) => ({
           ...r,
           hireDate: fmtDate(r.hireDate), birthDate: fmtDate(r.birthDate),
           departmentId: r.department?.id || '', positionId: r.position?.id || '',
           weeklyOffDays: r.weeklyOffDays || 'shift', eosBasis: r.eosBasis || 'default',
+          otEligible: !!r.otEligible, attendanceExempt: !!r.attendanceExempt,
         })}
       />
       {profile && (

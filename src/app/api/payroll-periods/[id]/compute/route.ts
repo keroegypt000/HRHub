@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     } catch (err) {
       // أخطاء قواعد العمل (فترة معتمدة/غير موجودة) ترجع 400 برسالتها العربية
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('أعد فتحها') || msg.includes('غير موجودة')) throw new HttpError(400, msg);
+      if (msg.includes('أعد فتحها') || msg.includes('غير موجودة') || msg.includes('لم تنتهِ') || msg.includes('مستقبلية')) throw new HttpError(400, msg);
       throw err;
     }
     await logAudit({

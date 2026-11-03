@@ -36,6 +36,7 @@ export interface SystemSettings {
   smtpPasswordEnc: string | null; // مشفرة ولا تعود للواجهة
   smtpFrom: string; // اسم وعنوان المرسل
   appUrl: string; // رابط النظام في الإيميلات
+  attendanceStartDate: string; // YYYY-MM-DD — الأيام قبله لا تُحسب غيابًا (قبل تشغيل البصمة)
 }
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -70,6 +71,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   smtpPasswordEnc: null,
   smtpFrom: '',
   appUrl: '',
+  attendanceStartDate: '',
 };
 
 /** مفتاح تشفير ثابت للجلسة — يُولَّد مرة ويُحفظ بجانب قاعدة البيانات */
@@ -155,6 +157,7 @@ export async function getSettings(): Promise<SystemSettings> {
   s.smtpPasswordEnc = map.get('smtpPasswordEnc') || null;
   s.smtpFrom = map.get('smtpFrom') || '';
   s.appUrl = map.get('appUrl') || '';
+  s.attendanceStartDate = /^\d{4}-\d{2}-\d{2}$/.test(map.get('attendanceStartDate') || '') ? map.get('attendanceStartDate')! : '';
   settingsCache = { value: s, at: Date.now() };
   return s;
 }
