@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
     const results: RowResult[] = [];
     let success = 0;
     const affectedDays = new Set<string>();
+    const affectedEmployees = new Set<string>();
 
     for (let i = 0; i < parsed.punches.length; i++) {
       const p = parsed.punches[i];
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
             workCode: p.workCode, source: 'usb',
           },
         });
-        if (emp) affectedDays.add(dateKeySafe(p.punchTime));
+        if (emp) { affectedDays.add(dateKeySafe(p.punchTime)); affectedEmployees.add(emp.id); }
         results.push({ row: rowNo, ok: true, message: emp ? `سجلة مربوطة بموظف ${p.pin}` : `سجلة (pin غير معروف: ${p.pin})` });
         success++;
       } catch (e) {
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
     // إعادة معالجة الحضور لكل الأيام المتأثرة
     const days = Array.from(affectedDays).sort();
     if (days.length) {
-      await recomputeRange({ from: days[0], to: days[days.length - 1] }).catch(() => {});
+      await recomputeRange({ from: days[0], to: days[days.length - 1], employeeIds: [...affectedEmployees] }).catch(() => {});
     }
 
     await db.importLog.create({

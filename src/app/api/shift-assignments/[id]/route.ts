@@ -13,7 +13,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     const existing = await db.shiftAssignment.findUnique({ where: { id }, include: { shift: true, employee: true } });
     if (!existing) return fail(404, 'التوزيعة غير موجودة');
     await db.shiftAssignment.delete({ where: { id } });
-    await recomputeRange({ from: dateKey(existing.fromDate), to: dateKey() }).catch(() => {});
+    await recomputeRange({ from: dateKey(existing.fromDate), to: dateKey(), employeeId: existing.employeeId }).catch(() => {});
     await logAudit({
       userId: user.id, action: 'delete', entity: 'shift-assignment', entityId: id,
       description: `حذف توزيعة وردية «${existing.shift?.name}» عن ${existing.employee?.name}`,

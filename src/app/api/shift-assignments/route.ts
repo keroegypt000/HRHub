@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
     // إعادة معالجة الحضور من تاريخ السريان حتى اليوم (أو نهاية السريان)
     const today = dateKey();
     const recomputeTo = to && dateKey(to) < today ? dateKey(to) : today;
-    await recomputeRange({ from: body.fromDate, to: recomputeTo }).catch(() => {});
+    // للموظفين الذين تغيرت ورديتهم فقط (كانت تعيد معالجة كل الشركة — دقائق لكل إسناد)
+    await recomputeRange({ from: body.fromDate, to: recomputeTo, employeeIds }).catch(() => {});
 
     await logAudit({
       userId: user.id, action: 'create', entity: 'shift-assignment', entityId: created[0],
@@ -85,7 +86,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     const existing = await db.shiftAssignment.findUnique({ where: { id }, include: { shift: true, employee: true } });
     if (!existing) return fail(404, 'التوزيعة غير موجودة');
     await db.shiftAssignment.delete({ where: { id } });
-    await recomputeRange({ from: dateKey(existing.fromDate), to: dateKey() }).catch(() => {});
+    await recomputeRange({ from: dateKey(existing.fromDate), to: dateKey(), employeeId: existing.employeeId }).catch(() => {});
     await logAudit({
       userId: user.id, action: 'delete', entity: 'shift-assignment', entityId: id,
       description: `حذف توزيعة وردية «${existing.shift?.name}» عن ${existing.employee?.name}`,

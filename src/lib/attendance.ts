@@ -291,9 +291,11 @@ export async function recomputeRange(opts: {
   from: string; // YYYY-MM-DD
   to: string;
   employeeId?: string;
+  employeeIds?: string[]; // نطاق محدد — بدونه تُعاد معالجة كل الموظفين (بطيء جدًا على فترات طويلة)
 }): Promise<{ days: number; employees: number }> {
+  const scope = opts.employeeId ? [opts.employeeId] : opts.employeeIds;
   const employees = await db.employee.findMany({
-    where: opts.employeeId ? { id: opts.employeeId } : { status: { not: 'terminated' } },
+    where: scope ? { id: { in: scope } } : { status: { not: 'terminated' } },
     select: { id: true },
   });
   let days = 0;

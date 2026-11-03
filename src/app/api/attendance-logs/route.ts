@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         });
         linked += updated.count;
       }
-      await recomputeRange({ from: dateKey(new Date(Date.now() - 60 * 86400_000)), to: dateKey() }).catch(() => {});
+      await recomputeRange({ from: dateKey(new Date(Date.now() - 60 * 86400_000)), to: dateKey(), employeeIds: body.mappings.map((m) => m.employeeId) }).catch(() => {});
       await logAudit({ userId: user.id, action: 'update', entity: 'attendance-log', description: `ربط جماعي: ${linked} سجلة بموظفين` });
       return ok({ linked });
     }
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
         where: { pin: body.pin, employeeId: null },
         data: { employeeId: body.employeeId },
       });
-      await recomputeRange({ from: dateKey(new Date(Date.now() - 60 * 86400_000)), to: dateKey() }).catch(() => {});
+      await recomputeRange({ from: dateKey(new Date(Date.now() - 60 * 86400_000)), to: dateKey(), employeeId: body.employeeId }).catch(() => {});
       await logAudit({ userId: user.id, action: 'update', entity: 'attendance-log', description: `ربط pin ${body.pin} بموظف (${updated.count} سجلة)` });
       return ok({ linked: updated.count });
     }
