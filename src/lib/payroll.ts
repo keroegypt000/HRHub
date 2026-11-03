@@ -2,7 +2,7 @@
 // معادلات معلنة + تقريب 3 خانات في كل خطوة + مصدر لكل رقم
 // ترتيب حسم حالة اليوم: عطلة رسمية ← راحة أسبوعية (وردية الموظف) ← إجازة معتمدة ← بصمة اليوم ← غياب
 import { db } from '@/lib/db';
-import { round3, hourRate, minuteRate, dayRate, otAmount } from '@/lib/calc';
+import { round3, hourRate, otAmount, lateDeductionAmount, attendancePay } from '@/lib/calc';
 import { getSettings } from '@/lib/settings';
 import { dateKey, monthDayKeys, weekdayIndex, kuwaitMidnight } from '@/lib/time';
 import { effectiveWorkDays } from '@/lib/workweek';
@@ -69,6 +69,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
   const endKey = dateKey(period.endDate);
   const todayKey = dateKey();
   const allKeys = monthDayKeys(period.name);
+  const periodKeys = allKeys.filter((k) => k >= startKey && k <= endKey);
   const keys = allKeys.filter((k) => k >= startKey && k <= endKey && k <= todayKey);
   if (keys.length === 0) {
     throw new Error('فترة مستقبلية بالكامل — لا يمكن حسابها قبل بدايتها');
@@ -303,6 +304,21 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       }
     }
 
+    // الراتب الشهري الثابت (الأساسي + البدلات) — أساس خصم الغياب وأيام ما قبل التعيين
+    const monthlyFixed = round3(items.filter((i) => i.type === 'earning').reduce((s, i) => s + i.amount, 0));
+
+    // أيام عمل الموظف في الشهر كله، ومنها داخل فترة عمله (التعيين ← ترك العمل)
+    let monthWorkDays = 0;
+    let employedWorkDays = 0;
+    for (const key of periodKeys) {
+      if (!workDaysFor(emp, key).includes(weekdayIndex(kuwaitMidnight(key)))) continue;
+      monthWorkDays++;
+      if (hireKey && key < hireKey) continue;
+      if (departKey && key > departKey) continue;
+      employedWorkDays++;
+    }
+    const pay = attendancePay({ monthlyFixed, monthWorkDays, employedWorkDays, absentDays: absenceDays, unpaidLeaveDays });
+
     // العمل الإضافي
     const hr = hourRate(basic, rates);
     const otVal = otAmount(basic, weekdayOtMinutes, holidayOtMinutes, rates);
@@ -318,36 +334,40 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     }
 
     // ===== الاستقطاعات =====
-    const mr = minuteRate(basic, rates);
-    const dr = dayRate(basic, rates);
-
-    // خصم التأخير
-    const lateComp = components.find((c) => c.code === 'LATE' && c.type === 'deduction');
-    const lateDeduction = rates.lateDeductionMode === 'minute' ? round3(mr * lateMinutes) : 0;
-    if (lateDeduction > 0) {
+    // أيام قبل التعيين / بعد ترك العمل (المعيَّن في منتصف الشهر يأخذ نصيب أيامه فقط)
+    if (pay.notEmployedDeduction > 0) {
       pushAuto({
-        componentId: lateComp?.id, name: 'خصم التأخير', type: 'deduction', amount: lateDeduction,
-        note: `${lateMinutes} دقيقة × ${mr.toFixed(3)} أجر الدقيقة`,
+        name: 'أيام خارج فترة العمل', type: 'deduction', amount: pay.notEmployedDeduction,
+        note: `${pay.notEmployedDays} من ${monthWorkDays} يوم عمل بالشهر — ${hireKey && hireKey > startKey ? `التعيين ${hireKey}` : ''}${departKey && departKey < endKey ? ` ترك العمل ${departKey}` : ''}`.trim(),
       });
     }
 
-    // خصم الغياب
+    // خصم الغياب — على الراتب الثابت كله (الأساسي + البدلات) بنسبة الأيام
     const absComp = components.find((c) => c.code === 'ABSENCE' && c.type === 'deduction');
-    const absenceDeduction = round3(dr * absenceDays);
+    const absenceDeduction = pay.absenceDeduction;
     if (absenceDeduction > 0) {
       pushAuto({
         componentId: absComp?.id, name: 'خصم الغياب', type: 'deduction', amount: absenceDeduction,
-        note: `${absenceDays} يوم × ${dr.toFixed(3)} أجر اليوم (الأساسي ÷ ${rates.workDaysPerMonth})`,
+        note: `${absenceDays} يوم × ${pay.dayValue.toFixed(3)} قيمة اليوم (${monthlyFixed.toFixed(3)} ÷ ${monthWorkDays} يوم عمل)`,
       });
     }
 
     // خصم الإجازة غير المدفوعة المعتمدة
     const ulComp = components.find((c) => c.code === 'UNPAID' && c.type === 'deduction');
-    const unpaidDeduction = round3(dr * unpaidLeaveDays);
-    if (unpaidDeduction > 0) {
+    if (pay.unpaidDeduction > 0) {
       pushAuto({
-        componentId: ulComp?.id, name: 'خصم إجازة غير مدفوعة', type: 'deduction', amount: unpaidDeduction,
-        note: `${unpaidLeaveDays} يوم × ${dr.toFixed(3)}`,
+        componentId: ulComp?.id, name: 'خصم إجازة غير مدفوعة', type: 'deduction', amount: pay.unpaidDeduction,
+        note: `${unpaidLeaveDays} يوم × ${pay.dayValue.toFixed(3)}`,
+      });
+    }
+
+    // خصم التأخير — لا يُخصم تأخير من موظف لم يتبق له راتب
+    const lateComp = components.find((c) => c.code === 'LATE' && c.type === 'deduction');
+    const lateDeduction = Math.min(pay.payable, lateDeductionAmount(basic, lateMinutes, rates));
+    if (lateDeduction > 0) {
+      pushAuto({
+        componentId: lateComp?.id, name: 'خصم التأخير', type: 'deduction', amount: lateDeduction,
+        note: `${lateMinutes} دقيقة × أجر الدقيقة (الأساسي ÷ ${rates.workDaysPerMonth} ÷ ${rates.hoursPerDay} ÷ 60)`,
       });
     }
 

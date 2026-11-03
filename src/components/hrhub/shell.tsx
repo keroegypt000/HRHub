@@ -40,70 +40,71 @@ const visible = (item: NavItem, role: string): boolean => {
 
 export const STANDALONE: NavItem = { key: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard };
 
+// القائمة مرتبة حسب العمل اليومي: الموظفون ← الحضور والإجازات ← الرواتب ← المستندات ← التقارير ← الإعدادات
 export const NAV_GROUPS: NavGroup[] = [
   {
     key: 'employees',
-    label: 'الموظفون والعقود',
+    label: 'الموظفون',
     icon: Users,
     items: [
-      { key: 'employees', label: 'الموظفون', icon: Users },
+      { key: 'employees', label: 'كل الموظفين', icon: Users },
+      { key: 'contracts', label: 'العقود', icon: FileSignature },
       { key: 'departments', label: 'الأقسام والمسميات', icon: Network },
-      { key: 'contracts', label: 'عقود الموظفين', icon: FileSignature },
-      { key: 'passports', label: 'الجوازات', icon: Plane },
-      { key: 'iqamas', label: 'الإقامات', icon: CreditCard },
     ],
   },
   {
     key: 'attendance',
-    label: 'الحضور والانصراف',
-    icon: Fingerprint,
+    label: 'الحضور والإجازات',
+    icon: CalendarCheck2,
     items: [
       { key: 'daily-attendance', label: 'الحضور اليومي', icon: CalendarCheck2 },
-      { key: 'attendance-logs', label: 'سجل البصمة', icon: Fingerprint },
-      { key: 'shifts', label: 'الورديات', icon: Clock4 },
       { key: 'leaves', label: 'الإجازات', icon: Plane },
-      { key: 'holidays', label: 'العطلات الرسمية', icon: Sparkles },
-      { key: 'devices', label: 'الأجهزة', icon: MonitorSmartphone },
-    ],
-  },
-  {
-    key: 'requests',
-    label: 'الطلبات والموافقات',
-    icon: ClipboardList,
-    items: [
       { key: 'requests', label: 'الطلبات والموافقات', icon: ClipboardList },
+      { key: 'shifts', label: 'الورديات', icon: Clock4 },
+      { key: 'holidays', label: 'العطلات الرسمية', icon: Sparkles },
     ],
   },
   {
     key: 'payroll',
-    label: 'الرواتب ونهاية الخدمة',
+    label: 'الرواتب والمستحقات',
     icon: Wallet,
     items: [
       { key: 'payroll', label: 'الرواتب والقسائم', icon: Wallet, visibleFor: ['accountant'] },
-      { key: 'salary-components', label: 'مكونات الراتب', icon: SlidersHorizontal, visibleFor: ['accountant'] },
       { key: 'end-of-service', label: 'نهاية الخدمة', icon: Hourglass },
-    ],
-  },
-  {
-    key: 'alerts',
-    label: 'التنبيهات والمستحقات',
-    icon: BellRing,
-    items: [
-      { key: 'alerts', label: 'التنبيهات والنفاذ', icon: BellRing },
       { key: 'departed', label: 'المنصرفون والمستحقات', icon: UserMinus },
       { key: 'deceased', label: 'الموظفون المتوفون', icon: Flower2 },
     ],
   },
   {
-    key: 'system',
-    label: 'التقارير والنظام',
+    key: 'alerts',
+    label: 'المستندات والتنبيهات',
+    icon: BellRing,
+    items: [
+      { key: 'alerts', label: 'التنبيهات (انتهاء الصلاحية)', icon: BellRing },
+      { key: 'iqamas', label: 'الإقامات', icon: CreditCard },
+      { key: 'passports', label: 'الجوازات', icon: Plane },
+    ],
+  },
+  {
+    key: 'reports',
+    label: 'التقارير',
     icon: BarChart3,
     items: [
-      { key: 'reports', label: 'التقارير', icon: BarChart3 },
+      { key: 'reports', label: 'التقارير وكشف الوقت', icon: BarChart3 },
+    ],
+  },
+  {
+    key: 'system',
+    label: 'الإعدادات والنظام',
+    icon: Settings,
+    items: [
+      { key: 'settings', label: 'الإعدادات', icon: Settings, adminOnly: true },
+      { key: 'users', label: 'المستخدمون', icon: UserCog, adminOnly: true },
+      { key: 'salary-components', label: 'مكونات الراتب', icon: SlidersHorizontal, visibleFor: ['accountant'] },
+      { key: 'devices', label: 'أجهزة البصمة', icon: MonitorSmartphone },
+      { key: 'attendance-logs', label: 'سجل البصمات الخام', icon: Fingerprint },
       { key: 'import', label: 'الاستيراد والتصدير', icon: FileSpreadsheet },
       { key: 'audit', label: 'سجل التدقيق', icon: ScrollText, adminOnly: true },
-      { key: 'users', label: 'المستخدمون', icon: UserCog, adminOnly: true },
-      { key: 'settings', label: 'الإعدادات', icon: Settings, adminOnly: true },
     ],
   },
 ];

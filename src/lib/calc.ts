@@ -56,7 +56,8 @@ export function otAmount(
   s: Partial<RateSettings> = {}
 ): number {
   const r = { ...DEFAULT_RATES, ...s };
-  const hr = hourRate(basic, s);
+  // أجر الساعة بلا تقريب وسيط — التقريب مرة واحدة على الناتج
+  const hr = basic / (r.workDaysPerMonth > 0 ? r.workDaysPerMonth : 26) / (r.hoursPerDay > 0 ? r.hoursPerDay : 8);
   return round3(
     round3((weekdayOtMinutes / 60) * hr * r.otWeekdayMult) +
       round3((holidayOtMinutes / 60) * hr * r.otHolidayMult)
@@ -72,4 +73,62 @@ export function percentOfBasic(pct: number, basic: number): number {
 export function num(v: unknown, fallback = 0): number {
   const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
   return Number.isFinite(n) ? n : fallback;
+}
+
+/** خصم التأخير بالدقائق: الأساسي ÷ أيام الشهر ÷ ساعات اليوم ÷ 60 × الدقائق (تقريب مرة واحدة) */
+export function lateDeductionAmount(basic: number, lateMinutes: number, s: Partial<RateSettings> = {}): number {
+  const r = { ...DEFAULT_RATES, ...s };
+  if (r.lateDeductionMode !== 'minute' || lateMinutes <= 0) return 0;
+  const days = r.workDaysPerMonth > 0 ? r.workDaysPerMonth : 26;
+  const hours = r.hoursPerDay > 0 ? r.hoursPerDay : 8;
+  return round3((basic / days / hours / 60) * lateMinutes);
+}
+
+export interface AttendancePayInput {
+  monthlyFixed: number; // الراتب الشهري الثابت: الأساسي + البدلات الثابتة
+  monthWorkDays: number; // أيام عمل الموظف في الشهر كاملًا (حسب أيام راحته)
+  employedWorkDays: number; // منها: الأيام داخل فترة عمله (بعد التعيين وقبل ترك العمل)
+  absentDays: number; // غياب بلا إذن
+  unpaidLeaveDays: number; // إجازة بدون راتب معتمدة
+}
+
+export interface AttendancePayResult {
+  dayValue: number; // قيمة اليوم = الراتب الشهري ÷ أيام عمل الشهر
+  notEmployedDays: number;
+  notEmployedDeduction: number; // أيام قبل التعيين / بعد ترك العمل
+  absenceDeduction: number;
+  unpaidDeduction: number;
+  paidDays: number; // الأيام المستحقة فعليًا
+  payable: number; // الراتب الثابت المستحق بعد الخصومات (لا يقل عن صفر)
+}
+
+/**
+ * الراتب حسب الحضور — قاعدة واحدة واضحة:
+ * المستحق = الراتب الشهري × (أيام العمل داخل فترة التعيين − الغياب − الإجازة بدون راتب) ÷ أيام عمل الشهر
+ * غياب الشهر كله = صفر، والمعيَّن في منتصف الشهر يأخذ نصيب أيامه فقط، والخصومات لا تتجاوز الراتب.
+ * الخصم يشمل البدلات الثابتة (لا تُصرف بدلات عن أيام لم يعملها).
+ */
+export function attendancePay(x: AttendancePayInput): AttendancePayResult {
+  const S = x.monthWorkDays > 0 ? x.monthWorkDays : 26;
+  const E = Math.min(S, Math.max(0, x.employedWorkDays));
+  const dayValue = x.monthlyFixed / S;
+  const notEmployedDays = S - E;
+  let remaining = x.monthlyFixed;
+  const take = (days: number) => {
+    const amount = Math.min(remaining, round3(dayValue * Math.max(0, days)));
+    remaining = round3(remaining - amount);
+    return amount;
+  };
+  const notEmployedDeduction = take(notEmployedDays);
+  const absenceDeduction = take(x.absentDays);
+  const unpaidDeduction = take(x.unpaidLeaveDays);
+  return {
+    dayValue: round3(dayValue),
+    notEmployedDays,
+    notEmployedDeduction,
+    absenceDeduction,
+    unpaidDeduction,
+    paidDays: Math.max(0, E - x.absentDays - x.unpaidLeaveDays),
+    payable: remaining,
+  };
 }

@@ -49,6 +49,8 @@ export interface CrudPanelProps<T extends { id: string }> {
   loadOptions?: () => Promise<Record<string, { value: string; label: string }[]>>;
   rowToForm?: (row: T) => Record<string, unknown>;
   filtersBar?: React.ReactNode;
+  /** تصفية إضافية على الصفوف المحملة (فلاتر الشاشة) */
+  filterRows?: (rows: T[]) => T[];
   searchPlaceholder?: string;
   /** إجراءات إضافية لكل صف (تجديد، اعتماد...) */
   rowActions?: (row: T) => React.ReactNode;
@@ -56,7 +58,7 @@ export interface CrudPanelProps<T extends { id: string }> {
 
 export function CrudPanel<T extends { id: string }>({
   entityPath, entityLabel, title, subtitle, columns, fields, canWrite,
-  extraActions, defaultValues = {}, loadOptions, rowToForm, filtersBar, searchPlaceholder, rowActions,
+  extraActions, defaultValues = {}, loadOptions, rowToForm, filtersBar, filterRows, searchPlaceholder, rowActions,
 }: CrudPanelProps<T>) {
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,7 +216,7 @@ export function CrudPanel<T extends { id: string }>({
           ...columns,
           ...(rowActions ? [{ key: '__actions', header: 'إجراءات', render: (row: T) => <div className="flex gap-1">{rowActions(row)}</div> } as Column<T>] : []),
         ]}
-        rows={rows}
+        rows={filterRows ? filterRows(rows) : rows}
         loading={loading}
       />
 

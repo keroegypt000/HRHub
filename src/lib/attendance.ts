@@ -148,7 +148,7 @@ export async function computeDay(employeeId: string, key: string): Promise<DayCo
     orderBy: { punchTime: 'asc' },
   });
 
-  // أولوية تغطية اليوم (قاعدة 5): عطلة ← إجازة معتمدة ← راحة أسبوعية ← يوم عمل
+  // أولوية تغطية اليوم: عطلة ← راحة أسبوعية ← إجازة معتمدة ← يوم عمل (مثل الرواتب)
   const holiday = await findHoliday(key);
   const leave = await findApprovedLeave(employeeId, key);
   const workDays = effectiveWorkDays(employee.weeklyOffDays, shift?.workDays);
@@ -159,12 +159,13 @@ export async function computeDay(employeeId: string, key: string): Promise<DayCo
   if (holiday) {
     baseStatus = 'holiday';
     note = `عطلة رسمية: ${holiday.name}`;
+  } else if (isWeekend) {
+    // الراحة الأسبوعية قبل الإجازة — نفس ترتيب الرواتب (يوم الراحة داخل الإجازة لا يُحسب إجازة)
+    baseStatus = 'weekend';
+    note = 'راحة أسبوعية';
   } else if (leave) {
     baseStatus = 'leave';
     note = `إجازة معتمدة: ${leave.typeName}${leave.paid ? '' : ' (بدون راتب)'}`;
-  } else if (isWeekend) {
-    baseStatus = 'weekend';
-    note = 'راحة أسبوعية';
   } else {
     baseStatus = 'work';
   }

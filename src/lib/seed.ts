@@ -17,8 +17,9 @@ export async function seedDefaults(): Promise<void> {
   // مكونات الراتب الافتراضية
   const components = [
     { name: 'الراتب الأساسي', code: 'BASIC', type: 'earning', calculation: 'fixed', value: 0, order: 1 },
-    { name: 'بدل سكن', code: 'HOUSING', type: 'earning', calculation: 'percent', percentOfBasic: 30, value: 0, order: 2 },
-    { name: 'بدل مواصلات', code: 'TRANSPORT', type: 'earning', calculation: 'fixed', value: 30, order: 3 },
+    // البدلات صفر افتراضيًا — تُضبط في عقد كل موظف (كانت 30% سكن + 30 مواصلات تُضاف للجميع تلقائيًا)
+    { name: 'بدل سكن', code: 'HOUSING', type: 'earning', calculation: 'percent', percentOfBasic: 0, value: 0, order: 2 },
+    { name: 'بدل مواصلات', code: 'TRANSPORT', type: 'earning', calculation: 'fixed', value: 0, order: 3 },
     { name: 'بدل أخرى', code: 'OTHER', type: 'earning', calculation: 'fixed', value: 0, order: 4 },
     { name: 'بدل العمل الإضافي', code: 'OT', type: 'earning', calculation: 'attendance', value: 0, order: 5 },
     { name: 'خصم التأخير', code: 'LATE', type: 'deduction', calculation: 'attendance', value: 0, order: 6 },
