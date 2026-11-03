@@ -7,6 +7,7 @@ import {
   shiftMoment, weekdayIndex, addDaysKey,
 } from '@/lib/time';
 import { getSettings } from '@/lib/settings';
+import { effectiveWorkDays } from '@/lib/workweek';
 
 export interface DayComputeResult {
   employeeId: string;
@@ -21,13 +22,21 @@ export interface DayComputeResult {
   note: string | null;
 }
 
-function parseWorkDays(json: string): number[] {
-  try {
-    const arr = JSON.parse(json);
-    return Array.isArray(arr) ? arr.map(Number) : [0, 1, 2, 3, 4];
-  } catch {
-    return [0, 1, 2, 3, 4];
-  }
+/**
+ * الدوام المرن (مثل BioTime: جدول 00:00-23:59 بمدة 8 ساعات) — لا تأخير ولا خروج مبكر،
+ * المطلوب عدد ساعات في اليوم: ما زاد = إضافي، وما نقص = عجز (يظهر في عمود الخروج المبكر بالدقائق)
+ */
+export function flexibleDay(
+  workedMinutes: number, dutyMinutes: number,
+  opts: { halfDayMinutes: number; otRoundMinutes: number; otEnabled: boolean },
+): { status: 'present' | 'half_day'; otMinutes: number; shortMinutes: number } {
+  const round = opts.otRoundMinutes > 0 ? opts.otRoundMinutes : 1;
+  const extra = Math.max(0, workedMinutes - dutyMinutes);
+  return {
+    status: workedMinutes < opts.halfDayMinutes ? 'half_day' : 'present',
+    otMinutes: opts.otEnabled ? Math.floor(extra / round) * round : 0,
+    shortMinutes: Math.max(0, dutyMinutes - workedMinutes),
+  };
 }
 
 /** هل التاريخ داخل نطاق عطلة رسمية؟ */
@@ -122,7 +131,7 @@ export async function computeDay(employeeId: string, key: string): Promise<DayCo
   // أولوية تغطية اليوم (قاعدة 5): عطلة ← إجازة معتمدة ← راحة أسبوعية ← يوم عمل
   const holiday = await findHoliday(key);
   const leave = await findApprovedLeave(employeeId, key);
-  const workDays = parseWorkDays(shift?.workDays || '[0,1,2,3,4]');
+  const workDays = effectiveWorkDays(employee.weeklyOffDays, shift?.workDays);
   const isWeekend = !workDays.includes(weekdayIndex(from));
 
   let baseStatus: 'holiday' | 'leave' | 'weekend' | 'work';
@@ -190,7 +199,16 @@ export async function computeDay(employeeId: string, key: string): Promise<DayCo
       const otRound = shift?.otRoundMinutes ?? 15;
       const halfDay = shift?.halfDayMinutes ?? 240;
 
-      if (baseStatus === 'work') {
+      if (baseStatus === 'work' && shift?.type === 'flexible') {
+        // دوام مرن: الساعات المطلوبة من الإعدادات (8 افتراضيًا) بدل بداية/نهاية ثابتة
+        const settings = await getSettings();
+        const flex = flexibleDay(workedMinutes, Math.round(settings.hoursPerDay * 60), {
+          halfDayMinutes: halfDay, otRoundMinutes: otRound, otEnabled,
+        });
+        status = flex.status;
+        otMinutes = Math.max(flex.otMinutes, deviceOt > 0 ? Math.floor(deviceOt / (otRound || 1)) * (otRound || 1) : 0);
+        earlyMinutes = flex.shortMinutes;
+      } else if (baseStatus === 'work') {
         // لحظات بداية ونهاية الوردية المتوقعة (الورديات الليلية تضيف 24 ساعة تلقائيًا)
         const expectedStart = shiftMoment(dayStart, startMin);
         const expectedEnd = crossDay ? shiftMoment(dayStart, endMin + 1440) : shiftMoment(dayStart, endMin);

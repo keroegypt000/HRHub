@@ -32,18 +32,20 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     const reason = body.reason ? String(body.reason) : st.reason;
     if (!DEPARTURE_REASONS.some((r) => r.value === reason)) throw new HttpError(400, 'سبب نهاية الخدمة غير صحيح');
     const departureDate = body.departureDate ? new Date(String(body.departureDate)) : st.departureDate;
-    const lastWage = body.lastWage !== undefined && body.lastWage !== null && String(body.lastWage) !== ''
-      ? Number(body.lastWage) : st.lastWage;
+    // أجر المكافأة: المُرسل (فارغ = إعادة حسابه من العقد حسب الأساس) أو المخزن
+    const lastWage = body.lastWage !== undefined ? (body.lastWage as number | null) : st.lastWage;
+    const eosBasis = body.eosBasis !== undefined ? (body.eosBasis as string | null) : st.eosBasis;
     const hireDate = body.hireDate ? new Date(String(body.hireDate)) : st.hireDate;
 
     const calc = await buildSettlementDetail({
       employeeId: st.employeeId,
-      hireDate, departureDate, reason, lastWage,
+      hireDate, departureDate, reason, lastWage, eosBasis,
       leaveAllowance: body.leaveAllowance !== undefined ? body.leaveAllowance : st.leaveAllowance,
       otherDues: body.otherDues !== undefined ? body.otherDues : st.otherDues,
       deductions: body.deductions !== undefined ? body.deductions : st.deductions,
     });
-    const eosAmount = Math.round(calc.indemnityFull * (calc.servicePercent / 100) * 1000) / 1000;
+    if (body.preview) return ok(calc);
+    const eosAmount = calc.eosAmount;
 
     const paidAmount = body.paidAmount !== undefined ? Math.max(0, Number(body.paidAmount) || 0) : st.paidAmount;
     const status = settlementStatus(calc.totalDue, paidAmount);
@@ -52,7 +54,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       db.departureSettlement.update({
         where: { id },
         data: {
-          departureDate, reason, hireDate, lastWage,
+          departureDate, reason, hireDate, lastWage: calc.lastWage, eosBasis: calc.eosBasis,
           yearsServed: calc.yearsServed, indemnityFull: calc.indemnityFull,
           reasonFactor: calc.servicePercent / 100, eosAmount,
           leaveAllowance: calc.leaveAllowance, otherDues: calc.otherDues,

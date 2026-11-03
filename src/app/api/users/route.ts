@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     await requireRead(req, 'users');
     const rows = await db.user.findMany({
       select: {
-        id: true, username: true, name: true, role: true, permissions: true,
+        id: true, username: true, name: true, role: true, permissions: true, email: true, employeeId: true,
         active: true, createdAt: true, updatedAt: true,
         _count: { select: { sessions: true } },
       },
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   return handle(async () => {
     const user = await requireWrite(req, 'users');
     const body = (await req.json().catch(() => ({}))) as {
-      username?: string; name?: string; password?: string; role?: string; permissions?: string;
+      username?: string; name?: string; password?: string; role?: string; permissions?: string; email?: string;
     };
     const username = (body.username || '').trim();
     if (!username) return fail(400, 'أدخل اسم المستخدم');
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       data: {
         username, name: body.name?.trim() || username,
         salt, passwordHash: hashPassword(body.password, salt),
-        role, permissions: body.permissions || null, active: true,
+        role, permissions: body.permissions || null, active: true, email: body.email?.trim() || null,
       },
     });
     await logAudit({

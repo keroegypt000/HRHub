@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit';
 import { createRestorePoint } from '@/lib/restores';
 import { recomputeRange } from '@/lib/attendance';
 import { dateKey } from '@/lib/time';
+import { createLeaveRequest } from '@/lib/leaves';
 
 /** قائمة طلبات الإجازة مع الأرصدة */
 export async function GET(req: NextRequest) {
@@ -44,26 +45,8 @@ export async function POST(req: NextRequest) {
     }
     const from = new Date(`${body.fromDate}T00:00:00.000+03:00`);
     const to = new Date(`${body.toDate}T00:00:00.000+03:00`);
-    if (from > to) return fail(400, 'تاريخ البداية يجب أن يسبق النهاية');
-
-    const emp = await db.employee.findUnique({ where: { id: body.employeeId } });
-    if (!emp) return fail(404, 'الموظف غير موجود');
-    const lt = await db.leaveType.findUnique({ where: { id: body.leaveTypeId } });
-    if (!lt) return fail(404, 'نوع الإجازة غير موجود');
-
-    const days = Math.round(((to.getTime() - from.getTime()) / (24 * 3600_000) + 1) * 10) / 10;
-
-    const created = await db.leaveRequest.create({
-      data: {
-        employeeId: body.employeeId,
-        leaveTypeId: body.leaveTypeId,
-        fromDate: from,
-        toDate: to,
-        days,
-        reason: body.reason || null,
-        status: 'pending',
-      },
-      include: { employee: true, leaveType: true },
+    const { created, emp, lt, days } = await createLeaveRequest({
+      employeeId: body.employeeId, leaveTypeId: body.leaveTypeId, from, to, reason: body.reason,
     });
 
     await logAudit({

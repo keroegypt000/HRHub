@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 
 export type AuditAction =
   | 'create' | 'update' | 'delete' | 'login' | 'logout' | 'sync' | 'import'
-  | 'approve' | 'pay' | 'compute' | 'reopen' | 'denied' | 'restore' | 'reset';
+  | 'approve' | 'pay' | 'compute' | 'reopen' | 'denied' | 'restore' | 'reset' | 'email';
 
 const ACTION_AR: Record<AuditAction, string> = {
   create: 'إنشاء',
@@ -20,6 +20,7 @@ const ACTION_AR: Record<AuditAction, string> = {
   denied: 'محاولة مرفوضة',
   restore: 'استعادة',
   reset: 'مسح بيانات',
+  email: 'بريد',
 };
 
 const ENTITY_AR: Record<string, string> = {

@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
     const user = await requireUser(req);
     return ok({
       id: user.id, username: user.username, name: user.name, role: user.role, permissions: user.permissions,
+      employeeId: user.employeeId,
       can: {
         // الخريطة التي تعتمدها الواجهة لإخفاء أزرار الكتابة
         employees: canWrite(user, 'employees'),

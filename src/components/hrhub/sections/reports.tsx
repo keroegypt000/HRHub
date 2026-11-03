@@ -156,6 +156,7 @@ export function ReportsSection() {
             <p className="text-sm font-bold text-emerald-800 mb-2">إحصائيات الفترة</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
               {([['ساعات الوردية', statistics.dutyHours], ['ساعات العمل', statistics.workedHours],
+                ['عادي Regular (س)', statistics.regularHours], ['إجمالي الإضافي', statistics.otTotal],
                 ['إضافي عادي', statistics.otNormal], ['إضافي راحة (س)', statistics.otWeekend], ['إضافي عطلة (س)', statistics.otHoliday],
                 ['تأخير (دقيقة)', statistics.lateMinutes], ['خروج مبكر (دقيقة)', statistics.earlyMinutes],
                 ['غياب (ساعة)', statistics.absenceHours], ['إجازة (ساعة)', statistics.leaveHours], ['أيام حضور', statistics.presentDays]] as [string, string | number][]).map(([k, v]) => (

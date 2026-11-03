@@ -1,8 +1,10 @@
 // lib/indemnity.ts — حساب مكافأة نهاية الخدمة والمستحقات
 // المرجع: قانون العمل الكويتي رقم 6 لسنة 2010 (المواد 47-53)
-// المادة 47: نصف شهر لكل سنة من السنوات الخمس الأولى + شهر لكل سنة بعدها، والكسور تُحسب بنفس النسبة
-// المادة 49: عند الاستقالة: أقل من 3 سنوات لا شيء | 3-5 سنوات الثلث | 5-10 سنوات النصف | 10+ كاملة
-// المادة 53: الوفاة: المكافأة كاملة للمستحقين (الورثة)
+// المادة 51: 15 يومًا لكل سنة من السنوات الخمس الأولى + شهر لكل سنة بعدها، والكسور بنفس النسبة،
+//            وبحد أقصى أجر سنة ونصف (18 شهرًا)
+// المادة 51 (الاستقالة): أقل من 3 سنوات لا شيء | 3-5 سنوات النصف | 5-10 سنوات الثلثان | 10+ كاملة
+// الوفاة/إنهاء الخدمة من صاحب العمل: المكافأة كاملة
+import { addDaysKey, dateKey, kuwaitMidnight, weekdayIndex } from '@/lib/time';
 
 export const INDEMNITY_LAW = 'قانون العمل الكويتي رقم 6 لسنة 2010';
 
@@ -29,31 +31,33 @@ export function yearsServed(hireDate: Date | string | null | undefined, endDate:
   return Math.round(((e - h) / (365.25 * 24 * 3600_000)) * 100) / 100;
 }
 
-/** المكافأة الكاملة قبل معامل السبب (المادة 47) */
+/** الحد الأقصى للمكافأة بالأشهر — أجر سنة ونصف (المادة 51) */
+export const EOS_MAX_MONTHS = 18;
+
+/** تطبيق الحد الأقصى: لا تتجاوز المكافأة أجر 18 شهرًا */
+export function capIndemnity(amount: number, monthlyWage: number): number {
+  const cap = Math.round(monthlyWage * EOS_MAX_MONTHS * 1000) / 1000;
+  return monthlyWage > 0 ? Math.min(amount, cap) : amount;
+}
+
+/** المكافأة الكاملة قبل معامل السبب (15/26 من الأجر لكل سنة من أول 5 ثم أجر شهر) — بالحد الأقصى */
 export function indemnityFull(lastWage: number, years: number): number {
   if (!lastWage || lastWage <= 0 || years <= 0) return 0;
   const first = Math.min(years, 5);
   const rest = Math.max(years - 5, 0);
-  const months = first * 0.5 + rest * 1.0;
-  return Math.round(lastWage * months * 1000) / 1000;
+  const months = first * SLICE1_PERCENT + rest * SLICE2_PERCENT;
+  return capIndemnity(Math.round(lastWage * months * 1000) / 1000, lastWage);
 }
 
-/** معامل الاستحقاق حسب السبب (المادة 49 للاستقالة، والباقي كاملة) */
+/** معامل الاستحقاق حسب السبب (المادة 51 للاستقالة، والباقي كاملة) */
 export function reasonFactor(reason: string, years: number): number {
-  if (reason === 'resigned') {
-    if (years < 3) return 0;
-    if (years < 5) return 1 / 3;
-    if (years < 10) return 0.5;
-    return 1;
-  }
-  // إنهاء من الشركة / تقاعد / وفاة / انتهاء عقد → كاملة
-  return 1;
+  return servicePeriodPercent(reason, years) / 100;
 }
 
 // ===== شرائح المكافأة بالأيام (مطابقة لنماذج التسويات) =====
 // المكافأة تُحسب على أساس الأيام: (الراتب × أيام الفترة ÷ 365) × نسبة الشريحة
 // الشريحة 1 (أول 5 سنوات): 15/26 لكل يوم = 57.692% — الشريحة 2 (ما بعد 5 سنوات): 26/26 = 100%
-export const SLICE1_PERCENT = 15 / 26; // 57.692%
+export const SLICE1_PERCENT = 0.57692; // 15/26 مقربة إلى 57.692% كما في تقارير MenaITech
 export const SLICE2_PERCENT = 1; // 26/26
 const FIVE_YEARS_DAYS = 5 * 365;
 
@@ -75,7 +79,8 @@ export interface IndemnitySlice {
   workingDays: number;
   stbDays: number; // أيام المكافأة (= أيام العمل هنا)
   percent: number; // نسبة الشريحة (0.576923 أو 1)
-  amount: number; // (الراتب × الأيام ÷ 365) × النسبة
+  amount: number; // (الراتب × الأيام ÷ 365) × النسبة — مقربة للعرض
+  exact?: number; // القيمة بلا تقريب — المجموع يُحسب منها ثم يُقرب مرة واحدة
 }
 
 /**
@@ -89,7 +94,8 @@ export function indemnitySlices(lastWage: number, hireDate: Date | string, endDa
   const total = daysBetween(hireDate, endDate);
   if (!wage || wage <= 0 || total <= 0) return [];
 
-  const amount = (days: number, pct: number) => Math.round(((wage * days) / 365) * pct * 1000) / 1000;
+  const exactOf = (days: number, pct: number) => ((wage * days) / 365) * pct;
+  const amount = (days: number, pct: number) => Math.round(exactOf(days, pct) * 1000) / 1000;
   const slices: IndemnitySlice[] = [];
   let sliceNo = 1;
 
@@ -102,14 +108,14 @@ export function indemnitySlices(lastWage: number, hireDate: Date | string, endDa
       slices.push({
         from: keyOf(hireDate), to: keyOf(addDays(hireDate, fullDays - 1)),
         slice: sliceNo++, workingDays: fullDays, stbDays: fullDays,
-        percent: SLICE1_PERCENT, amount: amount(fullDays, SLICE1_PERCENT),
+        percent: SLICE1_PERCENT, amount: amount(fullDays, SLICE1_PERCENT), exact: exactOf(fullDays, SLICE1_PERCENT),
       });
     }
     if (fracDays > 0) {
       slices.push({
         from: keyOf(addDays(hireDate, fullDays)), to: keyOf(endDate),
         slice: sliceNo++, workingDays: fracDays, stbDays: fracDays,
-        percent: SLICE1_PERCENT, amount: amount(fracDays, SLICE1_PERCENT),
+        percent: SLICE1_PERCENT, amount: amount(fracDays, SLICE1_PERCENT), exact: exactOf(fracDays, SLICE1_PERCENT),
       });
     }
   } else {
@@ -117,7 +123,7 @@ export function indemnitySlices(lastWage: number, hireDate: Date | string, endDa
     slices.push({
       from: keyOf(hireDate), to: keyOf(addDays(hireDate, FIVE_YEARS_DAYS - 1)),
       slice: sliceNo++, workingDays: FIVE_YEARS_DAYS, stbDays: FIVE_YEARS_DAYS,
-      percent: SLICE1_PERCENT, amount: amount(FIVE_YEARS_DAYS, SLICE1_PERCENT),
+      percent: SLICE1_PERCENT, amount: amount(FIVE_YEARS_DAYS, SLICE1_PERCENT), exact: exactOf(FIVE_YEARS_DAYS, SLICE1_PERCENT),
     });
     const rest = total - FIVE_YEARS_DAYS;
     const fullYears = Math.floor(rest / 365);
@@ -127,14 +133,14 @@ export function indemnitySlices(lastWage: number, hireDate: Date | string, endDa
       slices.push({
         from: keyOf(addDays(hireDate, FIVE_YEARS_DAYS)), to: keyOf(addDays(hireDate, FIVE_YEARS_DAYS + fullDays - 1)),
         slice: sliceNo++, workingDays: fullDays, stbDays: fullDays,
-        percent: SLICE2_PERCENT, amount: amount(fullDays, SLICE2_PERCENT),
+        percent: SLICE2_PERCENT, amount: amount(fullDays, SLICE2_PERCENT), exact: exactOf(fullDays, SLICE2_PERCENT),
       });
     }
     if (fracDays > 0) {
       slices.push({
         from: keyOf(addDays(hireDate, FIVE_YEARS_DAYS + fullDays)), to: keyOf(endDate),
         slice: sliceNo++, workingDays: fracDays, stbDays: fracDays,
-        percent: SLICE2_PERCENT, amount: amount(fracDays, SLICE2_PERCENT),
+        percent: SLICE2_PERCENT, amount: amount(fracDays, SLICE2_PERCENT), exact: exactOf(fracDays, SLICE2_PERCENT),
       });
     }
   }
@@ -146,9 +152,14 @@ function keyOf(d: Date | string): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** مجموع الشرائح بلا تقريب — يُقرب مرة واحدة في النهاية (مطابق لـ MenaITech: 417.635 ثم 208.817) */
+export function slicesExactTotal(slices: IndemnitySlice[]): number {
+  return slices.reduce((s, x) => s + (x.exact ?? x.amount), 0);
+}
+
 /** مجموع الشرائح — المكافأة الكاملة بالأيام (أدق من حساب السنوات العشرية) */
 export function indemnityFullByDays(lastWage: number, hireDate: Date | string, endDate: Date | string): number {
-  return Math.round(indemnitySlices(lastWage, hireDate, endDate).reduce((s, x) => s + x.amount, 0) * 1000) / 1000;
+  return Math.round(slicesExactTotal(indemnitySlices(lastWage, hireDate, endDate)) * 1000) / 1000;
 }
 
 /**
@@ -157,8 +168,8 @@ export function indemnityFullByDays(lastWage: number, hireDate: Date | string, e
  */
 export const DEFAULT_RESIGN_TIERS = [
   { minYears: 10, percent: 100 },
-  { minYears: 5, percent: 50 },
-  { minYears: 3, percent: 33.333 },
+  { minYears: 5, percent: 66.667 },
+  { minYears: 3, percent: 50 },
   { minYears: 0, percent: 0 },
 ];
 
@@ -221,14 +232,14 @@ export function calcEos(input: EosCalcInput): EosCalcResult {
 
   let note = '';
   if (input.reason === 'resigned') {
-    if (years < 3) note = 'استقالة قبل إكمال 3 سنوات — لا تستحق مكافأة (المادة 49)';
-    else if (years < 5) note = 'استقالة بعد 3 سنوات فأقل من 5 — يستحق ثلث المكافأة (المادة 49)';
-    else if (years < 10) note = 'استقالة بعد 5 سنوات فأقل من 10 — يستحق نصف المكافأة (المادة 49)';
-    else note = 'استقالة بعد 10 سنوات — يستحق المكافأة كاملة (المادة 49)';
+    if (years < 3) note = 'استقالة قبل إكمال 3 سنوات — لا تستحق مكافأة (المادة 51)';
+    else if (years < 5) note = 'استقالة بعد 3 سنوات فأقل من 5 — يستحق نصف المكافأة (المادة 51)';
+    else if (years < 10) note = 'استقالة بعد 5 سنوات فأقل من 10 — يستحق ثلثي المكافأة (المادة 51)';
+    else note = 'استقالة بعد 10 سنوات — يستحق المكافأة كاملة (المادة 51)';
   } else if (input.reason === 'deceased') {
-    note = 'الوفاة: المكافأة كاملة للمستحقين (المادة 53)';
+    note = 'الوفاة: المكافأة كاملة للمستحقين';
   } else {
-    note = 'المكافأة كاملة حسب المادة 47';
+    note = 'المكافأة كاملة حسب المادة 51';
   }
 
   return {
@@ -243,4 +254,80 @@ export function settlementStatus(totalDue: number, paidAmount: number): 'pending
   if (paidAmount <= 0) return 'pending';
   if (paidAmount + 0.0005 >= totalDue) return 'paid';
   return 'partial';
+}
+
+// ===== أساس المكافأة: الأساسي فقط أو الأساسي + البدلات (اختيار الشركة/الموظف) =====
+export const EOS_BASIS_OPTIONS = [
+  { value: 'basic', label: 'الراتب الأساسي فقط' },
+  { value: 'full_wage', label: 'الأساسي + البدلات (سكن/مواصلات/أخرى)' },
+] as const;
+export type EosBasis = (typeof EOS_BASIS_OPTIONS)[number]['value'];
+
+export function normalizeEosBasis(v: unknown, fallback: EosBasis = 'basic'): EosBasis {
+  return v === 'basic' || v === 'full_wage' ? v : fallback;
+}
+
+export interface WageParts { basic: number; housing: number; transport: number; other: number }
+
+/** الأجر الشهري الكامل (الأساسي + كل البدلات) */
+export function fullWage(w: WageParts): number {
+  return Math.round(((w.basic || 0) + (w.housing || 0) + (w.transport || 0) + (w.other || 0)) * 1000) / 1000;
+}
+
+/** أجر المكافأة حسب الأساس المختار */
+export function eosWage(w: WageParts, basis: EosBasis): number {
+  return basis === 'full_wage' ? fullWage(w) : Math.round((w.basic || 0) * 1000) / 1000;
+}
+
+// ===== أيام العمل وراتب شهر الترك =====
+
+/** عدد أيام العمل (حسب أيام عمل الموظف) بين تاريخين شاملين */
+export function workingDaysBetween(from: Date | string, to: Date | string, workDays: number[]): number {
+  let key = dateKey(new Date(from));
+  const endKey = dateKey(new Date(to));
+  let n = 0;
+  while (key <= endKey) {
+    if (workDays.includes(weekdayIndex(kuwaitMidnight(key)))) n++;
+    key = addDaysKey(key, 1);
+  }
+  return n;
+}
+
+/**
+ * راتب شهر الترك: أيام العمل من بداية الشهر (أو التعيين) حتى تاريخ الترك × (الراتب ÷ أيام الشهر المعتمدة)
+ * بحد أقصى راتب شهر كامل — مطابق لنموذج التسوية (23 يوم × 195 ÷ 26 = 172.500)
+ */
+export function finalMonthSalary(
+  monthlyWage: number,
+  hireDate: Date | string | null | undefined,
+  departureDate: Date | string,
+  workDays: number[],
+  workDaysPerMonth: number,
+): { daysPaid: number; worthSalary: number } {
+  const depKey = dateKey(new Date(departureDate));
+  let fromKey = `${depKey.slice(0, 7)}-01`;
+  if (hireDate) {
+    const hireKey = dateKey(new Date(hireDate));
+    if (hireKey > depKey) return { daysPaid: 0, worthSalary: 0 };
+    if (hireKey > fromKey) fromKey = hireKey;
+  }
+  const base = workDaysPerMonth > 0 ? workDaysPerMonth : 26;
+  const daysPaid = Math.min(base, workingDaysBetween(kuwaitMidnight(fromKey), kuwaitMidnight(depKey), workDays));
+  const worthSalary = Math.min(monthlyWage, Math.round((monthlyWage / base) * daysPaid * 1000) / 1000);
+  return { daysPaid, worthSalary };
+}
+
+export interface SettlementTotalsInput {
+  worthSalary: number;   // راتب شهر الترك
+  eosAmount: number;     // المكافأة بعد نسبة فترة الخدمة
+  leaveAllowance: number; // تعويض الإجازات
+  otherDues: number;
+  deductions: number;
+  loanDeduction: number; // أقساط قروض غير مسددة
+}
+
+/** صافي التسوية = راتب الشهر + المكافأة + تعويض الإجازات + مستحقات أخرى − استقطاعات − قروض */
+export function settlementTotal(x: SettlementTotalsInput): number {
+  const t = x.worthSalary + x.eosAmount + x.leaveAllowance + x.otherDues - x.deductions - x.loanDeduction;
+  return Math.round(t * 1000) / 1000;
 }

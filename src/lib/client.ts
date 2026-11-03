@@ -8,6 +8,7 @@ export interface Me {
   role: string;
   permissions: Record<string, boolean> | null;
   can: Record<string, boolean>;
+  employeeId?: string | null;
 }
 
 const IGNORE_401_UNTIL = Date.now() + 3000;

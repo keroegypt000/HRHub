@@ -21,6 +21,7 @@ import { ReportsSection } from '@/components/hrhub/sections/reports';
 import { ImportExportSection } from '@/components/hrhub/sections/import-export';
 import { AuditSection, UsersSection, SettingsSection } from '@/components/hrhub/sections/admin';
 import { RequestsSection } from '@/components/hrhub/sections/requests';
+import { EssApp } from '@/components/hrhub/ess';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type Screen = 'loading' | 'setup' | 'login' | 'app';
@@ -91,6 +92,9 @@ export default function Page() {
 
   if (screen === 'setup') return <SetupScreen onDone={() => setScreen('login')} />;
   if (screen === 'login' || !me) return <LoginScreen onLogin={onLogin} />;
+
+  // حساب موظف → بوابة الموظف (واجهة مستقلة للموبايل)
+  if (me.role === 'employee') return <EssApp me={me} onLogout={logout} />;
 
   const can = me.can || {};
 

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, requireWrite, handle, ok, HttpError } from '@/lib/api';
 import { crudList, CrudConfig } from '@/lib/crud';
-import { calcEos, DEPARTURE_REASONS } from '@/lib/indemnity';
+import { DEPARTURE_REASONS } from '@/lib/indemnity';
 import { buildSettlementDetail } from '@/lib/settlement';
 import { logAudit } from '@/lib/audit';
 import { createRestorePoint } from '@/lib/restores';
@@ -67,36 +67,24 @@ export async function POST(req: NextRequest) {
       },
     });
     if (!emp) throw new HttpError(404, 'الموظف غير موجود');
-    if (emp.settlements && emp.settlements.length) throw new HttpError(400, 'يوجد تسوية سابقة لهذا الموظف — عدّلها بدلًا من إنشاء جديدة');
 
-    // آخر أجر: من الطلب أو من آخر عقد نشط (أساسي + سكن + مواصلات) أو الراتب الأساسي
-    const contractWage = emp.contracts[0]
-      ? emp.contracts[0].basicSalary + emp.contracts[0].housingAllowance + emp.contracts[0].transportAllowance
-      : emp.basicSalary;
-    const lastWage = body.lastWage !== undefined && body.lastWage !== null && String(body.lastWage) !== ''
-      ? Number(body.lastWage) : contractWage;
-
-    const calc = calcEos({
-      hireDate: body.hireDate ? new Date(String(body.hireDate)) : emp.hireDate,
-      endDate: departureDate,
-      lastWage,
-      reason,
-      leaveAllowance: Number(body.leaveAllowance) || 0,
-      otherDues: Number(body.otherDues) || 0,
-      deductions: Number(body.deductions) || 0,
-    });
-
-    // التفاصيل الكاملة (شرائح بالأيام + تعويض إجازات تلقائي + قروض + كشف المرتب)
+    // التفاصيل الكاملة (أساس المكافأة + شرائح بالأيام + تعويض إجازات تلقائي + قروض + راتب شهر الترك)
     const detail = await buildSettlementDetail({
       employeeId,
       hireDate: body.hireDate ? new Date(String(body.hireDate)) : emp.hireDate,
       departureDate,
       reason,
-      lastWage,
+      lastWage: body.lastWage as number | null | undefined,
+      eosBasis: body.eosBasis as string | null | undefined,
       leaveAllowance: body.leaveAllowance,
       otherDues: body.otherDues,
       deductions: body.deductions,
     });
+
+    // معاينة فقط — نفس حساب الحفظ بالضبط دون تسجيل أي شيء
+    if (body.preview) return ok(detail);
+
+    if (emp.settlements && emp.settlements.length) throw new HttpError(400, 'يوجد تسوية سابقة لهذا الموظف — عدّلها بدلًا من إنشاء جديدة');
 
     const deathDate = reason === 'deceased' && body.deathDate
       ? new Date(String(body.deathDate)) : (reason === 'deceased' ? departureDate : null);
@@ -105,9 +93,9 @@ export async function POST(req: NextRequest) {
       db.departureSettlement.create({
         data: {
           employeeId, departureDate, reason,
-          hireDate: emp.hireDate, lastWage,
+          hireDate: emp.hireDate, lastWage: detail.lastWage, eosBasis: detail.eosBasis,
           yearsServed: detail.yearsServed, indemnityFull: detail.indemnityFull,
-          reasonFactor: detail.servicePercent / 100, eosAmount: Math.round(detail.indemnityFull * (detail.servicePercent / 100) * 1000) / 1000,
+          reasonFactor: detail.servicePercent / 100, eosAmount: detail.eosAmount,
           leaveAllowance: detail.leaveAllowance, otherDues: detail.otherDues,
           deductions: detail.deductions, totalDue: detail.totalDue,
           vacationDays: detail.vacationDays,
@@ -144,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     await logAudit({
       userId: user.id, action: 'create', entity: 'settlement', entityId: settlement.id,
-      changes: { after: final }, description: `تسوية مستحقات ${emp.name} (${emp.code}) — سبب: ${reason} — الإجمالي ${calc.totalDue} د.ك`,
+      changes: { after: final }, description: `تسوية مستحقات ${emp.name} (${emp.code}) — سبب: ${reason} — الإجمالي ${detail.totalDue} د.ك`,
     });
     await createRestorePoint(user.id, `تسوية نهاية خدمة: ${emp.name}`).catch(() => {});
     return ok(final, 201);

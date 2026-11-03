@@ -17,7 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Hourglass, Printer, UserMinus, Calculator, TrendingUp, AlertTriangle } from 'lucide-react';
-import { calcEos, DEPARTURE_REASONS, reasonLabel, INDEMNITY_LAW } from '@/lib/indemnity';
+import { DEPARTURE_REASONS, reasonLabel, INDEMNITY_LAW } from '@/lib/indemnity';
+import { useSettlementPreview, SettlementPreviewBox, EosBasisSelect, numOrAuto } from '@/components/hrhub/settlement-preview';
 import { indemnityDoc, finalSettlementDoc, printHtml } from '@/components/hrhub/print-docs';
 import { cn } from '@/lib/utils';
 
@@ -237,7 +238,7 @@ export function EndOfServiceSection({ canWrite, companyName }: { canWrite: boole
                 <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
                   <p className="font-bold">تقدير حتى اليوم (لم تُسجّل نهاية خدمة)</p>
                   <div className="flex justify-between"><span className="text-muted-foreground">بإنهاء الشركة (كاملة)</span><span className="tabular font-bold text-emerald-700">{fmtKWD(detail.eosAccrued)} د.ك</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">لو استقال اليوم (بمعامل المادة 49)</span><span className="tabular">{fmtKWD(detail.eosIfResigned)} د.ك</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">لو استقال اليوم (نسبة المادة 51)</span><span className="tabular">{fmtKWD(detail.eosIfResigned)} د.ك</span></div>
                   <p className="text-[11px] text-muted-foreground">النظام: نصف شهر لكل سنة من أول 5 سنوات + شهر لكل سنة بعدها. الاستقالة: أقل من 3 سنوات لا شيء، 3-5 الثلث، 5-10 النصف، 10+ كاملة.</p>
                 </div>
               )}
@@ -269,38 +270,31 @@ function DepartureDialog({ row, onClose, onDone, companyName }: {
   const [form, setForm] = useState({
     departureDate: new Date(Date.now() + 180 * 60_000).toISOString().slice(0, 10),
     reason: 'terminated',
-    lastWage: String(row.lastWage || ''),
-    leaveAllowance: '0', otherDues: '0', deductions: '0', notes: '',
+    eosBasis: 'default',
+    lastWage: '', leaveAllowance: '', otherDues: '0', deductions: '0', notes: '',
   });
   const [saving, setSaving] = useState(false);
 
-  const preview = useMemo(() => calcEos({
-    hireDate: row.hireDate,
-    endDate: form.departureDate,
-    lastWage: Number(form.lastWage) || 0,
+  const body = {
+    employeeId: row.employeeId,
+    departureDate: form.departureDate,
     reason: form.reason,
-    leaveAllowance: Number(form.leaveAllowance) || 0,
+    eosBasis: form.eosBasis === 'default' ? null : form.eosBasis,
+    lastWage: numOrAuto(form.lastWage),
+    leaveAllowance: numOrAuto(form.leaveAllowance),
     otherDues: Number(form.otherDues) || 0,
     deductions: Number(form.deductions) || 0,
-  }), [row.hireDate, form]);
+  };
+  const { data: preview, error: previewError } = useSettlementPreview('/api/settlements', 'POST', body);
 
   const submit = async () => {
     setSaving(true);
     try {
-      await api('/api/settlements', {
+      const saved = await api<{ totalDue: number }>('/api/settlements', {
         method: 'POST',
-        body: JSON.stringify({
-          employeeId: row.employeeId,
-          departureDate: form.departureDate,
-          reason: form.reason,
-          lastWage: Number(form.lastWage) || 0,
-          leaveAllowance: Number(form.leaveAllowance) || 0,
-          otherDues: Number(form.otherDues) || 0,
-          deductions: Number(form.deductions) || 0,
-          notes: form.notes || null,
-        }),
+        body: JSON.stringify({ ...body, notes: form.notes || null }),
       });
-      toast.success(`تم تسجيل نهاية الخدمة — الإجمالي ${fmtKWD(preview.totalDue)} د.ك`);
+      toast.success(`تم تسجيل نهاية الخدمة — الإجمالي ${fmtKWD(saved.totalDue)} د.ك`);
       onDone();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'فشل الحفظ');
@@ -329,15 +323,16 @@ function DepartureDialog({ row, onClose, onDone, companyName }: {
               </SelectContent>
             </Select>
           </div>
+          <EosBasisSelect value={form.eosBasis} onChange={(v) => setForm({ ...form, eosBasis: v })} />
           <div>
-            <Label className="mb-1.5 block">آخر أجر شهري (د.ك)</Label>
-            <Input type="number" step="any" value={form.lastWage} onChange={(e) => setForm({ ...form, lastWage: e.target.value })} />
-            <p className="text-[11px] text-muted-foreground mt-1">افتراضيًا: أساسي + بدل سكن + مواصلات من آخر عقد</p>
+            <Label className="mb-1.5 block">أجر المكافأة يدويًا (د.ك)</Label>
+            <Input type="number" step="any" placeholder="تلقائي حسب الأساس" value={form.lastWage} onChange={(e) => setForm({ ...form, lastWage: e.target.value })} />
+            <p className="text-[11px] text-muted-foreground mt-1">اتركه فارغًا ليُحسب من آخر عقد حسب الأساس المختار</p>
           </div>
           <div>
-            <Label className="mb-1.5 block">بدل الإجازات غير المستخدمة (د.ك)</Label>
-            <Input type="number" step="any" value={form.leaveAllowance} onChange={(e) => setForm({ ...form, leaveAllowance: e.target.value })} />
-            <p className="text-[11px] text-muted-foreground mt-1">اتركه 0 ليُحسب تلقائيًا من رصيد الإجازات × قيمة اليوم</p>
+            <Label className="mb-1.5 block">تعويض الإجازات (د.ك)</Label>
+            <Input type="number" step="any" placeholder="تلقائي من الرصيد" value={form.leaveAllowance} onChange={(e) => setForm({ ...form, leaveAllowance: e.target.value })} />
+            <p className="text-[11px] text-muted-foreground mt-1">اتركه فارغًا ليُحسب من رصيد الإجازات × قيمة اليوم</p>
           </div>
           <div>
             <Label className="mb-1.5 block">مستحقات أخرى (د.ك)</Label>
@@ -354,21 +349,8 @@ function DepartureDialog({ row, onClose, onDone, companyName }: {
           </div>
         </div>
 
-        {/* معاينة الحساب الحية */}
-        <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/50 p-4 space-y-1.5 text-sm">
-          <p className="font-bold flex items-center gap-2 mb-1"><Calculator className="h-4 w-4 text-emerald-600" /> معاينة الحساب ({INDEMNITY_LAW})</p>
-          {!row.hireDate && (
-            <p className="text-red-700 text-xs font-bold">لا يوجد تاريخ تعيين — أدخله من صفحة الموظفين أولًا وإلا ستكون المكافأة صفرًا.</p>
-          )}
-          <div className="flex justify-between"><span className="text-muted-foreground">سنوات الخدمة</span><span className="tabular font-bold">{preview.years.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">المكافأة القانونية كاملة</span><span className="tabular">{fmtKWD(preview.indemnityFull)} د.ك</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">المعامل ({reasonLabel(form.reason)})</span><span className="tabular">{preview.factor}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">{preview.note}</span></div>
-          <div className="flex justify-between border-t pt-1.5 mt-1">
-            <span className="font-bold">إجمالي المستحقات الصافي</span>
-            <span className="tabular font-extrabold text-emerald-700 text-lg">{fmtKWD(preview.totalDue)} د.ك</span>
-          </div>
-        </div>
+        {/* معاينة الحساب الحية — من الخادم */}
+        <SettlementPreviewBox data={preview} error={previewError} noHireDate={!row.hireDate} />
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
