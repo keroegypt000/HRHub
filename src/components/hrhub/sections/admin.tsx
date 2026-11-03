@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -143,6 +144,7 @@ interface SettingsData {
   defaultShiftId: string | null; autoAcceptDevices: boolean; admsEnabled: boolean;
   biotimeEnabled: boolean; biotimeUrl: string; biotimeUsername: string;
   biotimeAutoSyncMinutes: number; deviceOfflineAlertMinutes: number;
+  vacationAnnualQuota: number; eosResignTiers: string;
   hasBiotimePassword?: boolean;
 }
 
@@ -271,6 +273,23 @@ export function SettingsSection() {
               <div><Label className="mb-1.5">جهة عمل مقيم %</Label><Input type="number" step="0.5" value={s.sscEmployerExpatriate} onChange={(e) => set('sscEmployerExpatriate', parseFloat(e.target.value) || 0)} /></div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">الإجازات ونهاية الخدمة</CardTitle></CardHeader>
+        <CardContent className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label className="mb-1.5">حصة الإجازة السنوية (يوم/سنة)</Label>
+            <Input type="number" value={s.vacationAnnualQuota} onChange={(e) => set('vacationAnnualQuota', parseFloat(e.target.value) || 30)} />
+            <p className="text-[11px] text-muted-foreground mt-1">الرصيد المتراكم = الحصة × أيام الخدمة ÷ 365 — تُستخدم في التسويات وتسوية المقدّم</p>
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="mb-1.5">نِسَب فترة الخدمة للاستقالة (JSON — قابلة للضبط)</Label>
+            <Textarea rows={3} dir="ltr" className="font-mono text-xs" placeholder='[{"minYears":10,"percent":100},{"minYears":5,"percent":50},{"minYears":3,"percent":33.333},{"minYears":0,"percent":0}]'
+              value={s.eosResignTiers || ''} onChange={(e) => set('eosResignTiers', e.target.value)} />
+            <p className="text-[11px] text-muted-foreground mt-1">اتركه فارغًا للقانون الكويتي (أقل من 3 سنوات: 0% · 3-5: ثلث · 5-10: نصف · 10+: كاملة). لو سياستكم مثل العينة (3 سنوات = 50%) ضعها هنا.</p>
+          </div>
         </CardContent>
       </Card>
 
