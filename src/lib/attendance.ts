@@ -23,6 +23,26 @@ export interface DayComputeResult {
 }
 
 /**
+ * ساعات العمل من البصمات — مثل BioTime: البصمات أزواج (دخول ← خروج) فتُستبعد الاستراحات بينها.
+ * تُدمج البصمات المكررة خلال دقيقتين، و4 بصمات فأكثر بعدد زوجي = مجموع الأزواج،
+ * وغير ذلك (بصمتان أو عدد فردي) = من أول بصمة لآخر بصمة.
+ */
+export function workedFromPunches(punches: Date[]): number {
+  const sorted = [...punches].sort((a, b) => a.getTime() - b.getTime());
+  const uniq: Date[] = [];
+  for (const p of sorted) {
+    if (!uniq.length || p.getTime() - uniq[uniq.length - 1].getTime() > 2 * 60_000) uniq.push(p);
+  }
+  if (uniq.length < 2) return 0;
+  if (uniq.length >= 4 && uniq.length % 2 === 0) {
+    let total = 0;
+    for (let i = 0; i < uniq.length; i += 2) total += minutesBetween(uniq[i], uniq[i + 1]);
+    return total;
+  }
+  return minutesBetween(uniq[0], uniq[uniq.length - 1]);
+}
+
+/**
  * الدوام المرن (مثل BioTime: جدول 00:00-23:59 بمدة 8 ساعات) — لا تأخير ولا خروج مبكر،
  * المطلوب عدد ساعات في اليوم: ما زاد = إضافي، وما نقص = عجز (يظهر في عمود الخروج المبكر بالدقائق)
  */
@@ -161,7 +181,7 @@ export async function computeDay(employeeId: string, key: string): Promise<DayCo
     const punches = logs.map((l) => new Date(l.punchTime));
     firstIn = punches[0];
     lastOut = punches[punches.length - 1];
-    workedMinutes = minutesBetween(firstIn, lastOut);
+    workedMinutes = workedFromPunches(punches);
 
     // سجل واحد فقط أو فرق أقل من 10 دقائق = missed_punch (قاعدة 6)
     if (logs.length < 2 || workedMinutes < 10) {
