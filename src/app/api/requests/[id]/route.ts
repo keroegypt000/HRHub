@@ -6,6 +6,8 @@ import { requireWrite, handle, ok, HttpError } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
 import { round3 } from '@/lib/calc';
 import { parseSteps, requestTypeLabel } from '@/lib/requests';
+import { createLeaveRequest } from '@/lib/leaves';
+import { recomputeRange } from '@/lib/attendance';
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handle(async () => {
@@ -75,10 +77,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     // اكتملت السلسلة → الطلب معتمد نهائيًا
+    const payload = (() => { try { return JSON.parse(request.payload || '{}') as Record<string, unknown>; } catch { return {}; } })();
+    let leaveId: string | null = null;
+    if (request.type === 'vacation') {
+      // إجازة معتمدة فعلية — تحمي أيامها من الغياب في الرواتب وتُخصم من الرصيد
+      if (!payload.leaveTypeId || !payload.fromDate || !payload.toDate) {
+        throw new HttpError(400, 'طلب الإجازة ينقصه نوع الإجازة أو التواريخ — لا يمكن اعتماده');
+      }
+      const from = new Date(`${String(payload.fromDate).slice(0, 10)}T00:00:00.000+03:00`);
+      const to = new Date(`${String(payload.toDate).slice(0, 10)}T00:00:00.000+03:00`);
+      const { created } = await createLeaveRequest({
+        employeeId: request.employeeId, leaveTypeId: String(payload.leaveTypeId), from, to,
+        reason: payload.description ? String(payload.description) : `طلب موظف #${id.slice(-6)}`,
+        status: 'approved', reviewedBy: user.id,
+      });
+      leaveId = created.id;
+      await recomputeRange({
+        from: String(payload.fromDate).slice(0, 10), to: String(payload.toDate).slice(0, 10), employeeId: request.employeeId,
+      }).catch(() => {});
+    }
+
     let loanId: string | null = null;
     if (request.type === 'loan') {
       // إنشاء قرض مرتبط يُخصم من الرواتب تلقائيًا
-      const payload = (() => { try { return JSON.parse(request.payload || '{}') as Record<string, unknown>; } catch { return {}; } })();
       const amount = Number(payload.amount) || 0;
       const installments = Math.max(1, Number(payload.installments) || 1);
       if (amount > 0) {
@@ -101,11 +122,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const updated = await db.employeeRequest.update({
       where: { id },
-      data: { steps: JSON.stringify(steps), status: 'approved', decidedAt: new Date(), currentStep: steps.length - 1, loanId },
+      data: {
+        steps: JSON.stringify(steps), status: 'approved', decidedAt: new Date(), currentStep: steps.length - 1, loanId,
+        payload: leaveId ? JSON.stringify({ ...payload, leaveId }) : request.payload,
+      },
     });
     await logAudit({
       userId: user.id, action: 'approve', entity: 'request', entityId: id,
-      description: `اعتماد نهائي لطلب ${requestTypeLabel(request.type)} — ${request.employee.name}${loanId ? ' + إنشاء قرض مرتبط' : ''}`,
+      description: `اعتماد نهائي لطلب ${requestTypeLabel(request.type)} — ${request.employee.name}${loanId ? ' + إنشاء قرض مرتبط' : ''}${leaveId ? ' + تسجيل الإجازة' : ''}`,
     });
     return ok(updated);
   });

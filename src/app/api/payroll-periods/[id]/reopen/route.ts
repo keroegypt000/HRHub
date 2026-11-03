@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireWrite, ok, fail, handle } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
+import { postLoanInstallments } from '@/lib/loans';
 
 /** إعادة فتح فترة محسوبة/معتمدة/مصروفة → draft — للمدير فقط ويُسجل في التدقيق (قاعدة 13) */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -16,8 +17,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (period.status === 'draft') {
       return fail(400, 'الفترة مسودة بالفعل — احسبها مباشرة');
     }
-    await db.payrollPeriod.update({ where: { id }, data: { status: 'draft', approvedBy: null, approvedAt: null, paidAt: null } });
-    await db.payslip.updateMany({ where: { periodId: id }, data: { status: 'draft' } });
+    await db.$transaction(async (tx) => {
+      await tx.payrollPeriod.update({ where: { id }, data: { status: 'draft', approvedBy: null, approvedAt: null, paidAt: null } });
+      await tx.payslip.updateMany({ where: { periodId: id }, data: { status: 'draft' } });
+      // فترة كانت مصروفة: إرجاع أقساط السلف المرحّلة حتى لا تُحتسب مرتين عند الصرف من جديد
+      if (period.status === 'paid') await postLoanInstallments(tx, id, -1);
+    });
     await logAudit({
       userId: user.id, action: 'reopen', entity: 'payroll-period', entityId: id,
       description: `إعادة فتح فترة رواتب ${period.name} (كانت ${period.status}) — تتيح إعادة الحساب`,

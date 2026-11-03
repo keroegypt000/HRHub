@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { requireRead, ok, handle, HttpError } from '@/lib/api';
 import { getSettings } from '@/lib/settings';
 import { kuwaitMidnight, monthDayKeys, dateKey, weekdayIndex, hmToMinutes, fmtTime } from '@/lib/time';
+import { effectiveWorkDays } from '@/lib/workweek';
 
 const STATUS_AR: Record<string, string> = {
   present: 'حاضر', late: 'متأخر', half_day: 'نص يوم', absent: 'غائب',
@@ -199,6 +200,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           include: { department: { select: { name: true } }, position: { select: { name: true } } },
         });
         if (!emp) throw new HttpError(404, 'الموظف غير موجود');
+        const empOffDays = emp.weeklyOffDays;
 
         const rows = await db.dailyAttendance.findMany({
           where: { employeeId, date: { gte: kuwaitMidnight(startKey), lte: kuwaitMidnight(endKey) } },
@@ -247,9 +249,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           const a = assignments.find((x) => dateKey(x.fromDate) <= key && (!x.toDate || dateKey(x.toDate) >= key));
           return a ? shiftById.get(a.shiftId) || null : null;
         };
-        const parseWorkDays = (json: string | null): number[] => {
-          try { const arr = JSON.parse(json || '[]'); return Array.isArray(arr) ? arr.map(Number) : [0, 1, 2, 3, 4]; } catch { return [0, 1, 2, 3, 4]; }
-        };
 
         const hm = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
         const wdNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -261,7 +260,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           const key = dateKey(cur);
           const r = byKey.get(key);
           const shift = shiftFor(key);
-          const wdays = parseWorkDays(shift?.workDays || null);
+          const wdays = effectiveWorkDays(empOffDays, shift?.workDays);
           const isWorkday = wdays.includes(weekdayIndex(cur));
           const dutyMin = shift ? Math.max(0, (new Date(`2000-01-01T${shift.endTime}:00`).getTime() - new Date(`2000-01-01T${shift.startTime}:00`).getTime()) / 60000) : 480;
           const lv = leaveForKey(key);

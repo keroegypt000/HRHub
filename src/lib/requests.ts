@@ -5,12 +5,12 @@ export interface RequestTypeDef {
   value: string;
   label: string;
   /** حقول النموذج الديناميكية */
-  fields: ('days' | 'dateRange' | 'amount' | 'installments' | 'description' | 'purpose')[];
+  fields: ('days' | 'dateRange' | 'leaveType' | 'amount' | 'installments' | 'description' | 'purpose')[];
   needsAttachment?: boolean;
 }
 
 export const REQUEST_TYPES: RequestTypeDef[] = [
-  { value: 'vacation', label: 'إجازة (سنوية/مرضية/بدون راتب/أخرى)', fields: ['dateRange', 'description'] },
+  { value: 'vacation', label: 'إجازة (سنوية/مرضية/بدون راتب/أخرى)', fields: ['leaveType', 'dateRange', 'description'] },
   { value: 'loan', label: 'سلفة / قرض', fields: ['amount', 'installments', 'description'] },
   { value: 'salary_certificate', label: 'شهادة راتب / خطاب إلى من يهمه الأمر', fields: ['purpose'] },
   { value: 'salary_continuity', label: 'شهادة استمرارية راتب', fields: ['purpose'] },

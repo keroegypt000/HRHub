@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Save, History, Undo2, Trash2, KeyRound, Plus } from 'lucide-react';
+import { EOS_BASIS_OPTIONS } from '@/lib/indemnity';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -144,7 +145,7 @@ interface SettingsData {
   defaultShiftId: string | null; autoAcceptDevices: boolean; admsEnabled: boolean;
   biotimeEnabled: boolean; biotimeUrl: string; biotimeUsername: string;
   biotimeAutoSyncMinutes: number; deviceOfflineAlertMinutes: number;
-  vacationAnnualQuota: number; eosResignTiers: string;
+  vacationAnnualQuota: number; eosResignTiers: string; eosBasisDefault: string;
   hasBiotimePassword?: boolean;
 }
 
@@ -284,11 +285,21 @@ export function SettingsSection() {
             <Input type="number" value={s.vacationAnnualQuota} onChange={(e) => set('vacationAnnualQuota', parseFloat(e.target.value) || 30)} />
             <p className="text-[11px] text-muted-foreground mt-1">الرصيد المتراكم = الحصة × أيام الخدمة ÷ 365 — تُستخدم في التسويات وتسوية المقدّم</p>
           </div>
+          <div>
+            <Label className="mb-1.5">أساس مكافأة نهاية الخدمة (افتراضي الشركة)</Label>
+            <Select value={s.eosBasisDefault || 'basic'} onValueChange={(v) => set('eosBasisDefault', v)}>
+              <SelectTrigger dir="rtl"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {EOS_BASIS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">يمكن تغييره لموظف بعينه من ملفه، أو عند تسجيل التسوية نفسها</p>
+          </div>
           <div className="sm:col-span-2">
             <Label className="mb-1.5">نِسَب فترة الخدمة للاستقالة (JSON — قابلة للضبط)</Label>
-            <Textarea rows={3} dir="ltr" className="font-mono text-xs" placeholder='[{"minYears":10,"percent":100},{"minYears":5,"percent":50},{"minYears":3,"percent":33.333},{"minYears":0,"percent":0}]'
+            <Textarea rows={3} dir="ltr" className="font-mono text-xs" placeholder='[{"minYears":10,"percent":100},{"minYears":5,"percent":66.667},{"minYears":3,"percent":50},{"minYears":0,"percent":0}]'
               value={s.eosResignTiers || ''} onChange={(e) => set('eosResignTiers', e.target.value)} />
-            <p className="text-[11px] text-muted-foreground mt-1">اتركه فارغًا للقانون الكويتي (أقل من 3 سنوات: 0% · 3-5: ثلث · 5-10: نصف · 10+: كاملة). لو سياستكم مثل العينة (3 سنوات = 50%) ضعها هنا.</p>
+            <p className="text-[11px] text-muted-foreground mt-1">اتركه فارغًا للقانون الكويتي المادة 51 (أقل من 3 سنوات: 0% · 3-5: النصف · 5-10: الثلثان · 10+: كاملة) — مطابق لعينة التسوية.</p>
           </div>
         </CardContent>
       </Card>

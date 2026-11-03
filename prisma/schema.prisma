@@ -134,6 +134,8 @@ model Employee {
   deathDate        DateTime? // تاريخ الوفاة (صفحة المتوفين)
   pin              String? // معرف البصمة داخل الأجهزة
   managerId        String? // المدير المباشر
+  weeklyOffDays    String? // JSON أيام الراحة الأسبوعية للموظف [0=الأحد..6=السبت] — يتقدم على وردية الموظف
+  eosBasis         String? // أساس مكافأة نهاية الخدمة: basic=الأساسي فقط | full_wage=الأساسي+البدلات | فارغ=افتراضي الشركة
   notes            String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
@@ -265,6 +267,7 @@ model DepartureSettlement {
   reason          String // resigned|terminated|retired|deceased|contract_end
   hireDate        DateTime?
   lastWage        Float     @default(0) // آخر أجر شهري (أساسي + بدلات منتظمة)
+  eosBasis        String? // أساس المكافأة المستخدم: basic|full_wage
   yearsServed     Float     @default(0)
   indemnityFull   Float     @default(0) // المكافأة كاملة قبل معامل السبب
   reasonFactor    Float     @default(1) // معامل القانون حسب السبب (نسبة فترة الخدمة للاستقالة)
@@ -555,6 +558,7 @@ model PayslipItem {
   amount      Float
   note        String?
   source      String           @default("auto") // auto محسوب تلقائيًا | manual بند يدوي — يبقى بعد إعادة الحساب
+  loanId      String? // قسط سلفة — يُرحَّل للقرض عند صرف الفترة
   editedBy    String? // من عدّل البند (للتدقيق)
   editedAt    DateTime?
   payslip     Payslip          @relation(fields: [payslipId], references: [id], onDelete: Cascade)

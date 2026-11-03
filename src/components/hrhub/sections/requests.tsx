@@ -194,6 +194,12 @@ function RequestsTab({ canWrite, meId, isAdmin, isHr }: { canWrite: boolean; meI
               <Label className="mb-1.5">الموظف</Label>
               <EmpSelect value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })} />
             </div>
+            {typeDef.fields.includes('leaveType') && (
+              <div>
+                <Label className="mb-1.5">نوع الإجازة</Label>
+                <LeaveTypeSelect value={form.leaveTypeId || ''} onChange={(v) => setForm({ ...form, leaveTypeId: v })} />
+              </div>
+            )}
             {typeDef.fields.includes('dateRange') && (
               <div className="grid grid-cols-2 gap-3">
                 <div><Label className="mb-1.5">من</Label><Input type="date" value={form.fromDate || ''} onChange={(e) => setForm({ ...form, fromDate: e.target.value })} /></div>
@@ -231,6 +237,22 @@ function EmpSelect({ value, onChange }: { value: string; onChange: (v: string) =
     <Select value={value} onValueChange={onChange} dir="rtl">
       <SelectTrigger dir="rtl"><SelectValue placeholder="اختر الموظف" /></SelectTrigger>
       <SelectContent>{emps.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}</SelectContent>
+    </Select>
+  );
+}
+
+/** أنواع الإجازات — عند اعتماد طلب الإجازة نهائيًا تُسجل إجازة فعلية بهذا النوع */
+function LeaveTypeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [types, setTypes] = useState<{ id: string; name: string; active: boolean }[]>([]);
+  useEffect(() => {
+    api<{ rows: { id: string; name: string; active: boolean }[] }>('/api/leave-types')
+      .then((d) => setTypes(d.rows.filter((t) => t.active)))
+      .catch(() => setTypes([]));
+  }, []);
+  return (
+    <Select value={value} onValueChange={onChange} dir="rtl">
+      <SelectTrigger dir="rtl"><SelectValue placeholder="اختر نوع الإجازة" /></SelectTrigger>
+      <SelectContent>{types.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
     </Select>
   );
 }

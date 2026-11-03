@@ -14,12 +14,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Camera, Eye, UserRound, Award, FileBadge } from 'lucide-react';
 import { salaryCertificateDoc, introLetterDoc, printHtml } from '@/components/hrhub/print-docs';
+import { WEEKLY_OFF_OPTIONS } from '@/lib/workweek';
+import { EOS_BASIS_OPTIONS } from '@/lib/indemnity';
 
 interface EmployeeRow extends Record<string, unknown> {
   id: string; code: string; name: string; photoId?: string | null;
   department?: { id: string; name: string } | null;
   position?: { id: string; name: string } | null;
   status: string; basicSalary: number; phone?: string | null; pin?: string | null;
+  weeklyOffDays?: string | null; eosBasis?: string | null;
   nationality?: string | null; civilId?: string | null; hireDate?: string | null; birthDate?: string | null;
   photo?: { id: string } | null;
   _count?: { contracts: number; leaveRequests: number };
@@ -332,16 +335,23 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
             { value: 'on_leave', label: 'في إجازة' }, { value: 'terminated', label: 'منصرف' },
             { value: 'deceased', label: 'متوفى (يُفضَّل التسجيل من تبويب نهاية الخدمة)' },
           ] },
+          { key: 'weeklyOffDays', label: 'يوم الراحة الأسبوعية', type: 'select', options: WEEKLY_OFF_OPTIONS,
+            hint: 'يُستخدم في الحضور والرواتب والإجازات وراتب شهر الترك' },
+          { key: 'eosBasis', label: 'أساس مكافأة نهاية الخدمة', type: 'select', options: [
+            { value: 'default', label: 'افتراضي الشركة (من الإعدادات)' },
+            ...EOS_BASIS_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+          ] },
           { key: 'pin', label: 'PIN الجهاز (افتراضي = الرقم الوظيفي)', type: 'text' },
           { key: 'address', label: 'العنوان', type: 'textarea', span: 2 },
           { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
         ]}
-        defaultValues={{ status: 'active', basicSalary: 0 }}
+        defaultValues={{ status: 'active', basicSalary: 0, weeklyOffDays: 'shift', eosBasis: 'default' }}
         loadOptions={optionLoaders.combine(optionLoaders.departments, optionLoaders.positions)}
         rowToForm={(r) => ({
           ...r,
           hireDate: fmtDate(r.hireDate), birthDate: fmtDate(r.birthDate),
           departmentId: r.department?.id || '', positionId: r.position?.id || '',
+          weeklyOffDays: r.weeklyOffDays || 'shift', eosBasis: r.eosBasis || 'default',
         })}
       />
       {profileId && (

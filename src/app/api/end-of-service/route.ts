@@ -1,7 +1,11 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, handle, ok } from '@/lib/api';
-import { INDEMNITY_LAW, yearsServed, indemnityFull, reasonFactor } from '@/lib/indemnity';
+import {
+  INDEMNITY_LAW, yearsServed, indemnityFullByDays, capIndemnity, servicePeriodPercent, parseResignTiers,
+  eosWage, normalizeEosBasis,
+} from '@/lib/indemnity';
+import { getSettings } from '@/lib/settings';
 import { dateKey } from '@/lib/time';
 
 /** حساب نهاية الخدمة لكل موظف (تقديري حتى اليوم) + التسويات الفعلية للمنصرفين */
@@ -11,6 +15,8 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const employeeId = url.searchParams.get('employeeId');
     const today = new Date(`${dateKey()}T00:00:00.000+03:00`);
+    const settings = await getSettings();
+    const tiers = parseResignTiers(settings.eosResignTiers);
 
     const employees = await db.employee.findMany({
       where: employeeId ? { id: employeeId } : {},
@@ -24,12 +30,14 @@ export async function GET(req: NextRequest) {
 
     const rows = employees.map((emp) => {
       const c = emp.contracts[0];
-      // آخر أجر = أساسي + سكن + مواصلات من آخر عقد نشط، وإلا الراتب الأساسي
-      const lastWage = c
-        ? c.basicSalary + c.housingAllowance + c.transportAllowance
-        : emp.basicSalary;
+      // أجر المكافأة حسب الأساس: اختيار الموظف ← افتراضي الشركة
+      const eosBasis = normalizeEosBasis(emp.eosBasis, normalizeEosBasis(settings.eosBasisDefault));
+      const lastWage = eosWage({
+        basic: c?.basicSalary ?? emp.basicSalary,
+        housing: c?.housingAllowance ?? 0, transport: c?.transportAllowance ?? 0, other: c?.otherAllowance ?? 0,
+      }, eosBasis);
       const years = yearsServed(emp.hireDate, today);
-      const full = indemnityFull(lastWage, years);
+      const full = emp.hireDate ? capIndemnity(indemnityFullByDays(lastWage, emp.hireDate, today), lastWage) : 0;
       const st = emp.settlements[0] || null;
 
       return {
@@ -44,10 +52,11 @@ export async function GET(req: NextRequest) {
         departureReason: emp.departureReason,
         deathDate: emp.deathDate ? emp.deathDate.toISOString() : null,
         lastWage,
+        eosBasis,
         years,
         // تقدير مستحق حتى اليوم (معامل استقالة للعرض فقط — النهائي يُحدد عند التسوية)
         eosAccrued: Math.round(full * 1000) / 1000,
-        eosIfResigned: Math.round(full * reasonFactor('resigned', years) * 1000) / 1000,
+        eosIfResigned: Math.round(full * (servicePeriodPercent('resigned', years, tiers) / 100) * 1000) / 1000,
         // التسوية الفعلية إن وجدت
         settlement: st ? {
           id: st.id, reason: st.reason, yearsServed: st.yearsServed, lastWage: st.lastWage,

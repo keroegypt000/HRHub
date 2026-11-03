@@ -5,15 +5,7 @@ import { db } from '@/lib/db';
 import { round3, hourRate, minuteRate, dayRate, otAmount } from '@/lib/calc';
 import { getSettings } from '@/lib/settings';
 import { dateKey, monthDayKeys, weekdayIndex, kuwaitMidnight } from '@/lib/time';
-
-function parseWorkDays(json: string): number[] {
-  try {
-    const arr = JSON.parse(json);
-    return Array.isArray(arr) ? arr.map(Number) : [0, 1, 2, 3, 4];
-  } catch {
-    return [0, 1, 2, 3, 4];
-  }
-}
+import { effectiveWorkDays } from '@/lib/workweek';
 
 export interface ComputeResult {
   periodId: string;
@@ -170,22 +162,18 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
   const defaultShift = settings.defaultShiftId
     ? await db.shift.findUnique({ where: { id: settings.defaultShiftId } })
     : null;
-  const defaultWorkDays = parseWorkDays(defaultShift?.workDays || '[0,1,2,3,4]');
 
-  /** أيام عمل الموظف في يوم معين حسب وردته الفعلية، وإلا الوردية الافتراضية */
-  const workDaysFor = (empId: string, key: string): number[] => {
+  /** أيام عمل الموظف في يوم معين: أيام راحته الخاصة ← ورديته الفعلية ← الوردية الافتراضية */
+  const workDaysFor = (emp: { id: string; weeklyOffDays: string | null }, key: string): number[] => {
     let found: (typeof activeAssignments)[number] | null = null;
     for (const a of activeAssignments) {
-      if (a.employeeId !== empId) continue;
+      if (a.employeeId !== emp.id) continue;
       if (dateKey(a.fromDate) <= key && (!a.toDate || dateKey(a.toDate) >= key)) {
         if (!found || a.fromDate > found.fromDate) found = a;
       }
     }
-    if (found) {
-      const s = shiftById.get(found.shiftId);
-      if (s) return parseWorkDays(s.workDays);
-    }
-    return defaultWorkDays;
+    const shift = found ? shiftById.get(found.shiftId) : defaultShift;
+    return effectiveWorkDays(emp.weeklyOffDays, shift?.workDays);
   };
 
   let totalNet = 0;
@@ -219,7 +207,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       if (departKey && key > departKey) continue; // يوم بعد ترك العمل/الوفاة — مُتجاهل تمامًا
 
       const row = empDaily.get(key);
-      const isWorkday = workDaysFor(emp.id, key).includes(weekdayIndex(kuwaitMidnight(key)));
+      const isWorkday = workDaysFor(emp, key).includes(weekdayIndex(kuwaitMidnight(key)));
       let code = 'a';
 
       if (holidayForKey(key)) {
@@ -268,12 +256,12 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     // ===== المكملات =====
     const items: {
       componentId?: string | null; name: string; type: 'earning' | 'deduction';
-      amount: number; note?: string; source?: 'manual'; editedBy?: string | null; editedAt?: Date | null;
+      amount: number; note?: string; source?: 'manual'; editedBy?: string | null; editedAt?: Date | null; loanId?: string | null;
     }[] = [];
 
     // أي بند محسوب له نسخة يدوية معدلة (نفس الاسم) يُتخطى — النسخة اليدوية تحل محله
     const manualNames = manualNamesByEmp.get(emp.id) || new Set<string>();
-    const pushAuto = (item: { name: string; type: 'earning' | 'deduction'; amount: number; note?: string; componentId?: string | null }) => {
+    const pushAuto = (item: { name: string; type: 'earning' | 'deduction'; amount: number; note?: string; componentId?: string | null; loanId?: string | null }) => {
       if (manualNames.has(item.name.trim())) return;
       items.push(item);
     };
@@ -402,6 +390,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
         type: 'deduction',
         amount,
         note: `القسط ${loan.paidInstallments + 1} من ${loan.installmentsCount} — متبقٍ ${remaining.toFixed(3)} د.ك`,
+        loanId: loan.id,
       });
     }
 
@@ -459,6 +448,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
           source: i.source || 'auto',
           editedBy: i.editedBy ?? null,
           editedAt: i.editedAt ?? null,
+          loanId: i.loanId ?? null,
         })),
       });
     }

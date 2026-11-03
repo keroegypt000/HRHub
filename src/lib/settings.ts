@@ -27,6 +27,7 @@ export interface SystemSettings {
   deviceOfflineAlertMinutes: number; // 10
   vacationAnnualQuota: number; // حصة الإجازة السنوية المتراكمة (30 يوم افتراضيًا)
   eosResignTiers: string; // JSON نسب فترة الخدمة للاستقالة
+  eosBasisDefault: string; // أساس مكافأة نهاية الخدمة الافتراضي: basic|full_wage
 }
 
 export const DEFAULT_SETTINGS: SystemSettings = {
@@ -52,6 +53,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   deviceOfflineAlertMinutes: 10,
   vacationAnnualQuota: 30,
   eosResignTiers: '',
+  eosBasisDefault: 'basic',
 };
 
 /** مفتاح تشفير ثابت للجلسة — يُولَّد مرة ويُحفظ بجانب قاعدة البيانات */
@@ -125,6 +127,7 @@ export async function getSettings(): Promise<SystemSettings> {
   s.deviceOfflineAlertMinutes = numv('deviceOfflineAlertMinutes', 10);
   s.vacationAnnualQuota = numv('vacationAnnualQuota', 30);
   s.eosResignTiers = map.get('eosResignTiers') || '';
+  s.eosBasisDefault = map.get('eosBasisDefault') === 'full_wage' ? 'full_wage' : 'basic';
   settingsCache = { value: s, at: Date.now() };
   return s;
 }

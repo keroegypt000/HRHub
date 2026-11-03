@@ -66,8 +66,12 @@ export async function POST(req: NextRequest) {
 
     // تفاصيل النوع (payload)
     const payload: Record<string, unknown> = {};
-    for (const k of ['fromDate', 'toDate', 'days', 'amount', 'installments', 'monthlyDeduction', 'description', 'purpose']) {
+    for (const k of ['leaveTypeId', 'fromDate', 'toDate', 'days', 'amount', 'installments', 'monthlyDeduction', 'description', 'purpose']) {
       if (body[k] !== undefined && body[k] !== null && body[k] !== '') payload[k] = body[k];
+    }
+
+    if (type === 'vacation' && (!payload.leaveTypeId || !payload.fromDate || !payload.toDate)) {
+      throw new HttpError(400, 'طلب الإجازة يحتاج نوع الإجازة وتاريخ البداية والنهاية');
     }
 
     const steps = await buildSteps(employeeId, type);

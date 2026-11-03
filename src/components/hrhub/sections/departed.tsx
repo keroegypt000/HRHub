@@ -18,7 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Flower2, UserMinus, Printer, HandCoins, Pencil, Plus, Wallet, AlertTriangle } from 'lucide-react';
-import { DEPARTURE_REASONS, reasonLabel, calcEos, INDEMNITY_LAW } from '@/lib/indemnity';
+import { DEPARTURE_REASONS, reasonLabel, INDEMNITY_LAW } from '@/lib/indemnity';
+import { useSettlementPreview, SettlementPreviewBox, EosBasisSelect, numOrAuto } from '@/components/hrhub/settlement-preview';
 import { indemnityDoc, printHtml } from '@/components/hrhub/print-docs';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +27,7 @@ interface SettlementRow {
   id: string;
   employee: { id: string; name: string; code: string; department?: { name: string } | null };
   departureDate: string; reason: string;
-  hireDate: string | null; lastWage: number; yearsServed: number;
+  hireDate: string | null; lastWage: number; eosBasis?: string | null; yearsServed: number;
   indemnityFull: number; reasonFactor: number; eosAmount: number;
   leaveAllowance: number; otherDues: number; deductions: number;
   totalDue: number; paidAmount: number; status: string; notes: string | null;
@@ -172,6 +173,7 @@ function EditSettlementDialog({ s, onClose, onDone }: { s: SettlementRow; onClos
   const [form, setForm] = useState({
     departureDate: fmtDate(s.departureDate),
     reason: s.reason,
+    eosBasis: s.eosBasis || 'default',
     lastWage: String(s.lastWage),
     leaveAllowance: String(s.leaveAllowance),
     otherDues: String(s.otherDues),
@@ -181,28 +183,22 @@ function EditSettlementDialog({ s, onClose, onDone }: { s: SettlementRow; onClos
   });
   const [saving, setSaving] = useState(false);
 
-  const preview = useMemo(() => calcEos({
-    hireDate: s.hireDate, endDate: form.departureDate, reason: form.reason,
-    lastWage: Number(form.lastWage) || 0,
-    leaveAllowance: Number(form.leaveAllowance) || 0,
+  const body = {
+    departureDate: form.departureDate, reason: form.reason,
+    eosBasis: form.eosBasis === 'default' ? null : form.eosBasis,
+    lastWage: numOrAuto(form.lastWage),
+    leaveAllowance: numOrAuto(form.leaveAllowance),
     otherDues: Number(form.otherDues) || 0,
     deductions: Number(form.deductions) || 0,
-  }), [s.hireDate, form]);
+  };
+  const { data: preview, error: previewError } = useSettlementPreview(`/api/settlements/${s.id}`, 'PUT', body);
 
   const submit = async () => {
     setSaving(true);
     try {
       await api(`/api/settlements/${s.id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          departureDate: form.departureDate, reason: form.reason,
-          lastWage: Number(form.lastWage) || 0,
-          leaveAllowance: Number(form.leaveAllowance) || 0,
-          otherDues: Number(form.otherDues) || 0,
-          deductions: Number(form.deductions) || 0,
-          paidAmount: Number(form.paidAmount) || 0,
-          notes: form.notes || null,
-        }),
+        body: JSON.stringify({ ...body, paidAmount: Number(form.paidAmount) || 0, notes: form.notes || null }),
       });
       toast.success('تم تعديل التسوية');
       onDone();
@@ -227,7 +223,8 @@ function EditSettlementDialog({ s, onClose, onDone }: { s: SettlementRow; onClos
               <SelectContent>{DEPARTURE_REASONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          {([['lastWage', 'آخر أجر شهري (د.ك)'], ['leaveAllowance', 'بدل الإجازات (د.ك)'],
+          <EosBasisSelect value={form.eosBasis} onChange={(v) => setForm({ ...form, eosBasis: v, lastWage: '' })} />
+          {([['lastWage', 'أجر المكافأة (فارغ = تلقائي)'], ['leaveAllowance', 'تعويض الإجازات (فارغ = تلقائي)'],
             ['otherDues', 'مستحقات أخرى (د.ك)'], ['deductions', 'استقطاعات (د.ك)'],
             ['paidAmount', 'المدفوع حتى الآن (د.ك)']] as [keyof typeof form, string][]).map(([k, label]) => (
             <div key={k}>
@@ -240,10 +237,7 @@ function EditSettlementDialog({ s, onClose, onDone }: { s: SettlementRow; onClos
             <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
         </div>
-        <div className="rounded-lg border p-3 text-sm flex justify-between items-center bg-muted/30">
-          <span className="font-bold">الإجمالي بعد التعديل</span>
-          <span className="tabular font-extrabold text-emerald-700">{fmtKWD(preview.totalDue)} د.ك</span>
-        </div>
+        <SettlementPreviewBox data={preview} error={previewError} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
           <Button onClick={submit} disabled={saving}>{saving ? 'جارٍ الحفظ...' : 'حفظ التعديل'}</Button>
@@ -259,16 +253,24 @@ function CreateSettlementFor({ emp, companyName, onDone }: { emp: NoSettlementEm
       : emp.departureDate ? fmtDate(emp.departureDate)
       : new Date(Date.now() + 180 * 60_000).toISOString().slice(0, 10),
     reason: emp.status === 'deceased' || emp.deathDate ? 'deceased' : (emp.departureReason || 'terminated'),
-    leaveAllowance: '0', otherDues: '0', deductions: '0', notes: '',
+    eosBasis: 'default', leaveAllowance: '', otherDues: '0', deductions: '0', notes: '',
   });
   const [saving, setSaving] = useState(false);
+
+  const body = {
+    employeeId: emp.id, departureDate: form.departureDate, reason: form.reason,
+    eosBasis: form.eosBasis === 'default' ? null : form.eosBasis,
+    leaveAllowance: numOrAuto(form.leaveAllowance),
+    otherDues: Number(form.otherDues) || 0, deductions: Number(form.deductions) || 0,
+  };
+  const { data: preview, error: previewError } = useSettlementPreview('/api/settlements', 'POST', body);
 
   const submit = async () => {
     setSaving(true);
     try {
       await api('/api/settlements', {
         method: 'POST',
-        body: JSON.stringify({ employeeId: emp.id, ...form }),
+        body: JSON.stringify({ ...body, notes: form.notes || null }),
       });
       toast.success('تم إنشاء التسوية');
       onDone();
@@ -294,13 +296,15 @@ function CreateSettlementFor({ emp, companyName, onDone }: { emp: NoSettlementEm
               <SelectContent>{DEPARTURE_REASONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          {([['leaveAllowance', 'بدل الإجازات (د.ك)'], ['otherDues', 'مستحقات أخرى (د.ك)'], ['deductions', 'استقطاعات (د.ك)']] as [keyof typeof form, string][]).map(([k, label]) => (
+          <EosBasisSelect value={form.eosBasis} onChange={(v) => setForm({ ...form, eosBasis: v })} />
+          {([['leaveAllowance', 'تعويض الإجازات (فارغ = تلقائي)'], ['otherDues', 'مستحقات أخرى (د.ك)'], ['deductions', 'استقطاعات (د.ك)']] as [keyof typeof form, string][]).map(([k, label]) => (
             <div key={k}>
               <Label className="mb-1.5 block">{label}</Label>
               <Input type="number" step="any" value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
             </div>
           ))}
         </div>
+        <SettlementPreviewBox data={preview} error={previewError} />
         <DialogFooter>
           <Button variant="outline" onClick={onDone}>إلغاء</Button>
           <Button onClick={submit} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? 'جارٍ الحفظ...' : 'إنشاء التسوية'}</Button>

@@ -6,6 +6,9 @@ import { requireRead, handle, ok, HttpError } from '@/lib/api';
 import { getSettings } from '@/lib/settings';
 import { vacationBalance, vacationAdvanceBreakdown } from '@/lib/vacation';
 import { round3 } from '@/lib/calc';
+import { effectiveWorkDays } from '@/lib/workweek';
+import { resolveShift } from '@/lib/attendance';
+import { dateKey } from '@/lib/time';
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handle(async () => {
@@ -32,32 +35,19 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const contract = leave.employee.contracts[0];
     const basic = round3(contract?.basicSalary ?? leave.employee.basicSalary ?? 0);
 
-    // أيام عمل الأسبوع: من وردية الموظف النشطة أو الافتراضي
-    let workDays: number[] = [0, 1, 2, 3, 4];
-    const assignment = await db.shiftAssignment.findFirst({
-      where: { employeeId: leave.employeeId, fromDate: { lte: leave.toDate } },
-      orderBy: { fromDate: 'desc' },
-    });
-    if (assignment) {
-      const shift = await db.shift.findUnique({ where: { id: assignment.shiftId } });
-      if (shift) {
-        try {
-          const arr = JSON.parse(shift.workDays);
-          if (Array.isArray(arr)) workDays = arr.map(Number);
-        } catch {}
-      }
-    }
+    // أيام عمل الموظف: أيام راحته الخاصة ← ورديته في بداية الإجازة ← الافتراضي
+    const { shift } = await resolveShift(leave.employeeId, dateKey(leave.fromDate));
+    const workDays = effectiveWorkDays(leave.employee.weeklyOffDays, shift?.workDays);
 
     // الرصيد قبل الإجازة (حتى يوم ما قبل البداية) وبعدها
     const before = await vacationBalance(
       leave.employeeId, leave.employee.hireDate, settings.vacationAnnualQuota ?? 30,
       new Date(leave.fromDate.getTime() - 24 * 3600_000),
     );
-    const after = { ...before, balance: round3(before.balance - Number(leave.days)) };
-
     const breakdown = vacationAdvanceBreakdown(
-      leave.fromDate, leave.toDate, Number(leave.days), basic, settings.workDaysPerMonth, workDays,
+      leave.fromDate, leave.toDate, basic, settings.workDaysPerMonth, workDays, leave.employee.hireDate,
     );
+    const after = { ...before, balance: round3(before.balance - breakdown.periodDays) };
 
     return ok({
       leave: {

@@ -7,6 +7,7 @@ import {
   shiftMoment, weekdayIndex, addDaysKey,
 } from '@/lib/time';
 import { getSettings } from '@/lib/settings';
+import { effectiveWorkDays } from '@/lib/workweek';
 
 export interface DayComputeResult {
   employeeId: string;
@@ -19,15 +20,6 @@ export interface DayComputeResult {
   earlyMinutes: number;
   otMinutes: number;
   note: string | null;
-}
-
-function parseWorkDays(json: string): number[] {
-  try {
-    const arr = JSON.parse(json);
-    return Array.isArray(arr) ? arr.map(Number) : [0, 1, 2, 3, 4];
-  } catch {
-    return [0, 1, 2, 3, 4];
-  }
 }
 
 /** هل التاريخ داخل نطاق عطلة رسمية؟ */
@@ -122,7 +114,7 @@ export async function computeDay(employeeId: string, key: string): Promise<DayCo
   // أولوية تغطية اليوم (قاعدة 5): عطلة ← إجازة معتمدة ← راحة أسبوعية ← يوم عمل
   const holiday = await findHoliday(key);
   const leave = await findApprovedLeave(employeeId, key);
-  const workDays = parseWorkDays(shift?.workDays || '[0,1,2,3,4]');
+  const workDays = effectiveWorkDays(employee.weeklyOffDays, shift?.workDays);
   const isWeekend = !workDays.includes(weekdayIndex(from));
 
   let baseStatus: 'holiday' | 'leave' | 'weekend' | 'work';

@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest) {
       'lateDeductionMode', 'socialSecurityEnabled', 'sscEmployeeCitizen', 'sscEmployerCitizen',
       'sscEmployerExpatriate', 'defaultShiftId', 'autoAcceptDevices', 'admsEnabled',
       'biotimeEnabled', 'biotimeUrl', 'biotimeUsername', 'biotimeAutoSyncMinutes', 'deviceOfflineAlertMinutes',
-      'companyLogoFileId',
+      'companyLogoFileId', 'vacationAnnualQuota', 'eosResignTiers', 'eosBasisDefault',
     ];
     const updates: Record<string, string | boolean | number> = {};
     for (const key of allowedKeys) {
