@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { requireWrite, ok, fail, handle } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
 import { num } from '@/lib/calc';
-import { pick, parseDateSafe, statusFromText, employeeStatusFromText, parseWorkDays } from '@/lib/excel';
+import { pick, parseDateSafe, statusFromText, employeeStatusFromText, parseWorkDays, parseOffDays, yesNo } from '@/lib/excel';
 
 interface RowResult { row: number; ok: boolean; message: string }
 
@@ -76,6 +76,13 @@ export async function POST(req: NextRequest) {
             status: employeeStatusFromText(r['الحالة']),
             // PIN اختياري تمامًا: يقبل «PIN البصمة» أو «PIN» أو يرجع للرقم الوظيفي تلقائيًا
             pin: pick(r, ['PIN البصمة', 'PIN', 'pin']) || code,
+            // الأعمدة الإضافية (اختيارية — الفارغ لا يغيّر القيمة الحالية)
+            ...(pick(r, ['يوم الراحة', 'الراحة الأسبوعية']) ? { weeklyOffDays: parseOffDays(pick(r, ['يوم الراحة', 'الراحة الأسبوعية'])) } : {}),
+            ...(pick(r, ['رصيد الإجازة الافتتاحي', 'رصيد الإجازة']) !== '' && pick(r, ['رصيد الإجازة الافتتاحي', 'رصيد الإجازة']) !== undefined
+              ? { openingLeaveBalance: num(pick(r, ['رصيد الإجازة الافتتاحي', 'رصيد الإجازة'])), openingLeaveDate: parseDateSafe(r['تاريخ الرصيد']) || new Date() }
+              : {}),
+            ...(yesNo(r['يستحق الإضافي']) !== undefined ? { otEligible: yesNo(r['يستحق الإضافي']) } : {}),
+            ...(yesNo(r['معفى من البصمة']) !== undefined ? { attendanceExempt: yesNo(r['معفى من البصمة']) } : {}),
           };
           if (exists) {
             await db.employee.update({ where: { code }, data });

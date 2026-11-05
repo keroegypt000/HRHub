@@ -123,6 +123,11 @@ export const TEMPLATES: Record<string, { sheet: string; columns: { key: string; 
       { key: 'الحساب البنكي', example: 'KW81xxxx' },
       { key: 'الحالة', example: 'active' },
       { key: 'PIN البصمة', example: '1001' },
+      { key: 'يوم الراحة', example: 'الأحد' },
+      { key: 'رصيد الإجازة الافتتاحي', example: 40.412 },
+      { key: 'تاريخ الرصيد', example: '2026-11-01' },
+      { key: 'يستحق الإضافي', example: 'نعم' },
+      { key: 'معفى من البصمة', example: 'لا' },
     ],
   },
   devices: {
@@ -189,4 +194,24 @@ export const TEMPLATES: Record<string, { sheet: string; columns: { key: string; 
 export function exportBuffer(entity: string, rows: Record<string, Cell>[]): Buffer {
   const name = TEMPLATES[entity]?.sheet || entity;
   return sheetToBuffer(rows.length ? rows : [{ 'لا توجد بيانات': '' }], name.slice(0, 30));
+}
+
+/** «الأحد» أو «الجمعة والسبت» أو «5,6» → JSON أيام الراحة (null = حسب الوردية) */
+export function parseOffDays(v: unknown): string | null {
+  const text = String(v ?? '').trim();
+  if (!text) return null;
+  if (/بدون|لا يوجد|none/i.test(text)) return '[]';
+  const names = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const days = new Set<number>();
+  names.forEach((n, i) => { if (text.includes(n)) days.add(i); });
+  if (text.includes('الإثنين')) days.add(1);
+  for (const m of text.match(/\d/g) || []) { const d = Number(m); if (d >= 0 && d <= 6) days.add(d); }
+  return days.size ? JSON.stringify([...days].sort()) : null;
+}
+
+/** نعم/لا/1/0/true → boolean (فارغ = undefined لعدم التغيير) */
+export function yesNo(v: unknown): boolean | undefined {
+  const t = String(v ?? '').trim().toLowerCase();
+  if (!t) return undefined;
+  return ['نعم', 'yes', 'true', '1', 'y', '✓'].includes(t);
 }

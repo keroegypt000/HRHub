@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, handle, HttpError } from '@/lib/api';
 import { exportBuffer, workDaysToText } from '@/lib/excel';
+import { offDaysText } from '@/lib/workweek';
 import { kuwaitMidnight, dateKey, fmtTime, fmtDate } from '@/lib/time';
 import { tafqitKWD } from '@/lib/tafqit';
 
@@ -41,6 +42,9 @@ export async function GET(req: NextRequest) {
           'القسم': e.department?.name || '', 'المسمى الوظيفي': e.position?.name || '',
           'تاريخ التعيين': e.hireDate ? fmtDate(e.hireDate) : '', 'الراتب الأساسي': e.basicSalary,
           'الحساب البنكي': e.bankAccount || '', 'الحالة': e.status, 'PIN البصمة': e.pin || e.code,
+          'يوم الراحة': offDaysText(e.weeklyOffDays),
+          'رصيد الإجازة الافتتاحي': e.openingLeaveBalance ?? '', 'تاريخ الرصيد': e.openingLeaveDate ? fmtDate(e.openingLeaveDate) : '',
+          'يستحق الإضافي': e.otEligible ? 'نعم' : 'لا', 'معفى من البصمة': e.attendanceExempt ? 'نعم' : 'لا',
         }));
         break;
       }
