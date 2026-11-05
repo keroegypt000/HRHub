@@ -327,7 +327,7 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
         }
       />
 
-      <DataTable columns={periodColumns} rows={periods} loading={loading} emptyText="لا توجد فترات رواتب — أنشئ فترة الشهر مثل 2026-11" maxBodyHeight="45vh" />
+      <DataTable columns={periodColumns} rows={periods} loading={loading} onRowClick={openPeriod} emptyText="لا توجد فترات رواتب — أنشئ فترة الشهر مثل 2026-11" maxBodyHeight="45vh" />
 
       {/* قسائم الفترة المحددة */}
       {selected && (
@@ -348,7 +348,7 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
             {['approved', 'paid'].includes(selected.status) && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-2">🔒 الفترة مقفولة نهائيًا — لتعديل الكشوفات: «إعادة فتح» (مدير فقط) ثم «إعادة حساب».</p>
             )}
-            <DataTable columns={slipColumns} rows={slips} emptyText="لا قسائم — احسب الفترة أولًا" maxBodyHeight="50vh" />
+            <DataTable columns={slipColumns} rows={slips} onRowClick={setViewSlip} emptyText="لا قسائم — احسب الفترة أولًا" maxBodyHeight="50vh" />
           </CardContent>
         </Card>
       )}

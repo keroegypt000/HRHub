@@ -1,10 +1,38 @@
 'use client';
 
 // DataTable مشترك: جدول كامل على الديسكتوب + بطاقات مكدسة على الموبايل + ترقيم صفحات
+// الضغط على أي صف يفتح «عرض التفاصيل» تلقائيًا (كل الأعمدة) ما لم يُمرَّر onRowClick
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, ChevronLeft, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { RecordDetails, rowEmployeeId, DetailItem } from '@/components/hrhub/record-details';
+
+/** أعمدة الأزرار (إجراءات) لا تُعرض كحقول بل كأزرار أسفل نافذة التفاصيل */
+export function isActionColumn<T>(c: Column<T>): boolean {
+  return c.key.startsWith('__') || c.key === 'actions' || c.key === 'view' || c.header === '' || c.header === 'إجراءات';
+}
+
+/** الضغط على زر/رابط/حقل داخل الصف لا يفتح التفاصيل */
+function fromInteractive(e: React.MouseEvent): boolean {
+  const t = e.target as HTMLElement | null;
+  return !!t?.closest('button, a, input, select, textarea, label, [role="checkbox"], [role="switch"], [role="combobox"], [data-no-details]');
+}
+
+export function cellValue<T>(c: Column<T>, row: T): React.ReactNode {
+  return c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '—');
+}
+
+/** عنوان افتراضي للتفاصيل: اسم السجل أو اسم الموظف */
+function defaultTitle(row: unknown): string {
+  const r = row as Record<string, unknown>;
+  const emp = r.employee as { name?: string; code?: string } | null | undefined;
+  if (emp?.name) return `${emp.name}${emp.code ? ` (${emp.code})` : ''}`;
+  if (typeof r.name === 'string' && r.name) return r.name;
+  if (typeof r.title === 'string' && r.title) return r.title;
+  return 'التفاصيل';
+}
 
 export interface Column<T> {
   key: string;
@@ -16,6 +44,7 @@ export interface Column<T> {
 
 export function DataTable<T extends { id: string }>({
   columns, rows, loading, page, total, limit, onPage, emptyText, onRowClick, maxBodyHeight = '60vh',
+  details = true, detailsTitle, detailsExtra,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -27,7 +56,33 @@ export function DataTable<T extends { id: string }>({
   emptyText?: string;
   onRowClick?: (row: T) => void;
   maxBodyHeight?: string;
+  /** false = بدون نافذة تفاصيل تلقائية */
+  details?: boolean;
+  detailsTitle?: (row: T) => React.ReactNode;
+  /** محتوى إضافي أسفل التفاصيل (بنود القسيمة مثلًا) */
+  detailsExtra?: (row: T) => React.ReactNode;
 }) {
+  const [viewing, setViewing] = useState<T | null>(null);
+  const handleClick = onRowClick ?? (details ? setViewing : undefined);
+  const click = (e: React.MouseEvent, row: T) => {
+    if (!handleClick || fromInteractive(e)) return;
+    handleClick(row);
+  };
+  // الصف المعروض من أحدث بيانات (بعد تحديث الجدول)
+  const current = viewing ? rows.find((r) => r.id === viewing.id) || viewing : null;
+  const detailsDialog = current && (
+    <RecordDetails
+      open
+      onClose={() => setViewing(null)}
+      title={detailsTitle ? detailsTitle(current) : defaultTitle(current)}
+      employeeId={rowEmployeeId(current)}
+      items={columns.filter((c) => !isActionColumn(c)).map<DetailItem>((c) => ({ label: c.header, value: cellValue(c, current) }))}
+      actions={columns.filter((c) => isActionColumn(c)).map((c) => <div key={c.key} className="flex flex-wrap gap-1">{cellValue(c, current)}</div>)}
+    >
+      {detailsExtra?.(current)}
+    </RecordDetails>
+  );
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -65,12 +120,12 @@ export function DataTable<T extends { id: string }>({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                onClick={() => onRowClick?.(row)}
-                className={cn('border-t transition-colors hover:bg-muted/40', onRowClick && 'cursor-pointer')}
+                onClick={(e) => click(e, row)}
+                className={cn('border-t transition-colors hover:bg-muted/40', handleClick && 'cursor-pointer')}
               >
                 {columns.map((c) => (
                   <td key={c.key} className={cn('px-3 py-2.5 whitespace-nowrap', c.className)}>
-                    {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '—')}
+                    {cellValue(c, row)}
                   </td>
                 ))}
               </tr>
@@ -84,8 +139,8 @@ export function DataTable<T extends { id: string }>({
         {rows.map((row) => (
           <div
             key={row.id}
-            onClick={() => onRowClick?.(row)}
-            className={cn('rounded-lg border p-3 space-y-1.5', onRowClick && 'cursor-pointer active:bg-muted/40')}
+            onClick={(e) => click(e, row)}
+            className={cn('rounded-lg border p-3 space-y-1.5', handleClick && 'cursor-pointer active:bg-muted/40')}
           >
             {columns
               .filter((c) => !c.hideOnMobile)
@@ -93,7 +148,7 @@ export function DataTable<T extends { id: string }>({
               .map((c) => (
                 <div key={c.key} className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-muted-foreground text-xs shrink-0">{c.header}</span>
-                  <span className="text-left">{c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '—')}</span>
+                  <span className="text-left">{cellValue(c, row)}</span>
                 </div>
               ))}
           </div>
@@ -116,6 +171,7 @@ export function DataTable<T extends { id: string }>({
           </div>
         </div>
       )}
+      {detailsDialog}
     </div>
   );
 }

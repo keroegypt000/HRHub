@@ -103,6 +103,7 @@ export function EndOfServiceSection({ canWrite, companyName }: { canWrite: boole
       </div>
 
       <DataTable<Row>
+        onRowClick={setDetail}
         columns={[
           { key: 'name', header: 'الموظف', render: (r) => (<div><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground tabular">{r.code}{r.department ? ` · ${r.department}` : ''}</p></div>) },
           { key: 'hireDate', header: 'التعيين', render: (r) => <span className="tabular">{r.hireDate ? fmtDate(r.hireDate) : '—'}</span> },

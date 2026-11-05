@@ -122,6 +122,7 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
         searchPlaceholder="بحث بالاسم أو الرقم الوظيفي أو الرقم المدني أو الهاتف..."
         filtersBar={filtersBar}
         filterRows={filterRows}
+        onRowClick={setProfile}
         columns={columns}
         fields={[
           { key: 'code', label: 'الرقم الوظيفي (= PIN الجهاز)', type: 'text', required: true },

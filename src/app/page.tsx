@@ -24,6 +24,7 @@ import { RequestsSection } from '@/components/hrhub/sections/requests';
 import { EssApp } from '@/components/hrhub/ess';
 import { CustodySection, AdjustmentsSection } from '@/components/hrhub/sections/custody';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmployeePage } from '@/components/hrhub/employee/employee-page';
 
 type Screen = 'loading' | 'setup' | 'login' | 'app';
 
@@ -32,6 +33,13 @@ export default function Page() {
   const [me, setMe] = useState<Me | null>(null);
   const [section, setSection] = useState('dashboard');
   const [companyName, setCompanyName] = useState('شركة ADMS');
+  // ملف الموظف من أي شاشة (زر «ملف الموظف» في نافذة التفاصيل)
+  const [profileId, setProfileId] = useState<string | null>(null);
+  useEffect(() => {
+    const onOpen = (e: Event) => setProfileId((e as CustomEvent<{ id: string }>).detail?.id || null);
+    window.addEventListener('hrhub:open-employee', onOpen);
+    return () => window.removeEventListener('hrhub:open-employee', onOpen);
+  }, []);
 
   // شاشة الإعداد الأول أو الدخول
   useEffect(() => {
@@ -127,6 +135,9 @@ export default function Page() {
       {section === 'audit' && <AuditSection />}
       {section === 'users' && <UsersSection />}
       {section === 'settings' && <SettingsSection />}
+      {profileId && (
+        <EmployeePage id={profileId} open onClose={() => setProfileId(null)} canWrite={!!can.employees} companyName={companyName} />
+      )}
     </AppShell>
   );
 }

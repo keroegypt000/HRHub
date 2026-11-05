@@ -14,7 +14,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { DataTable, Column } from '@/components/hrhub/data-table';
+import { DataTable, Column, isActionColumn, cellValue } from '@/components/hrhub/data-table';
+import { RecordDetails, rowEmployeeId, DetailItem } from '@/components/hrhub/record-details';
 import { PageHeader } from '@/components/hrhub/common';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Download, Search } from 'lucide-react';
@@ -54,12 +55,19 @@ export interface CrudPanelProps<T extends { id: string }> {
   searchPlaceholder?: string;
   /** إجراءات إضافية لكل صف (تجديد، اعتماد...) */
   rowActions?: (row: T) => React.ReactNode;
+  /** بديل لنافذة التفاصيل (الموظفون يفتحون الملف الكامل) */
+  onRowClick?: (row: T) => void;
+  detailsTitle?: (row: T) => React.ReactNode;
+  /** محتوى إضافي داخل نافذة التفاصيل */
+  detailsExtra?: (row: T) => React.ReactNode;
 }
 
 export function CrudPanel<T extends { id: string }>({
   entityPath, entityLabel, title, subtitle, columns, fields, canWrite,
   extraActions, defaultValues = {}, loadOptions, rowToForm, filtersBar, filterRows, searchPlaceholder, rowActions,
+  onRowClick, detailsTitle, detailsExtra,
 }: CrudPanelProps<T>) {
+  const [viewing, setViewing] = useState<T | null>(null);
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -161,6 +169,33 @@ export function CrudPanel<T extends { id: string }>({
 
   const setVal = (key: string, v: unknown) => setForm((f) => ({ ...f, [key]: v }));
 
+  /** كل الحقول المُدخلة + الأعمدة المحسوبة — بقيم مقروءة (أسماء الاختيارات، نعم/لا، تواريخ) */
+  const detailItems = (row: T): DetailItem[] => {
+    const values = rowToForm ? rowToForm(row) : (row as unknown as Record<string, unknown>);
+    const dataCols = columns.filter((c) => !isActionColumn(c));
+    const used = new Set<string>();
+    // العمود يمثل الحقل إذا كان اسمه اختصارًا له: item ↔ itemName، issued ↔ issuedAt، emp ↔ employeeId، ot ↔ otEnabled
+    const sameKey = (col: string, field: string) =>
+      col === field || (field.startsWith(col) && (col.length >= 3 || /[A-Z]/.test(field[col.length] || '')));
+    const colFor = (f: FieldDef) => dataCols.find((c) => !used.has(c.key) && (sameKey(c.key, f.key) || c.header === f.label));
+    const items: DetailItem[] = [];
+    for (const f of fields) {
+      const col = f.type === 'textarea' ? undefined : colFor(f);
+      if (col) { used.add(col.key); items.push({ label: f.label, value: cellValue(col, row) }); continue; }
+      const v = values[f.key];
+      let shown: React.ReactNode = v === null || v === undefined || v === '' ? '—' : String(v);
+      if (f.type === 'switch') shown = v ? 'نعم' : 'لا';
+      else if (f.type === 'select' && shown !== '—') shown = (f.options || options[f.key] || []).find((o) => o.value === String(v))?.label ?? String(v);
+      else if (f.type === 'date' && shown !== '—') shown = <span className="tabular">{fmtDate(String(v))}</span>;
+      else if (f.type === 'number' && shown !== '—') shown = <span className="tabular">{String(v)}</span>;
+      items.push({ label: f.label, value: shown, wide: f.type === 'textarea' || f.span === 2 });
+    }
+    for (const c of dataCols) if (!used.has(c.key)) items.push({ label: c.header, value: cellValue(c, row) });
+    // النصوص الطويلة في آخر العرض
+    return [...items.filter((i) => !i.wide), ...items.filter((i) => i.wide)];
+  };
+  const viewed = viewing ? rows.find((r) => r.id === viewing.id) || viewing : null;
+
   return (
     <div>
       <PageHeader
@@ -218,7 +253,36 @@ export function CrudPanel<T extends { id: string }>({
         ]}
         rows={filterRows ? filterRows(rows) : rows}
         loading={loading}
+        onRowClick={onRowClick ?? setViewing}
       />
+
+      {/* عرض التفاصيل: الضغط على أي صف */}
+      {viewed && (
+        <RecordDetails
+          open
+          onClose={() => setViewing(null)}
+          title={detailsTitle ? detailsTitle(viewed) : `تفاصيل ${entityLabel}`}
+          items={detailItems(viewed)}
+          employeeId={rowEmployeeId(viewed)}
+          actions={
+            <>
+              {rowActions?.(viewed)}
+              {canWrite && (
+                <>
+                  <Button variant="outline" size="sm" className="text-red-600" onClick={() => { setViewing(null); setDeleting(viewed); }}>
+                    <Trash2 className="h-4 w-4" /> حذف
+                  </Button>
+                  <Button size="sm" onClick={() => { setViewing(null); openEdit(viewed); }}>
+                    <Pencil className="h-4 w-4" /> تعديل
+                  </Button>
+                </>
+              )}
+            </>
+          }
+        >
+          {detailsExtra?.(viewed)}
+        </RecordDetails>
+      )}
 
       {/* حوار الإضافة/التعديل */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
