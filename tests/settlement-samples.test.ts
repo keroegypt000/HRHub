@@ -101,3 +101,23 @@ describe('Vacation In-Advance — FG0050 Reeyanth', () => {
     expect(r.advanceTotal).toBe(260.962);
   });
 });
+
+describe('Opening leave balance (migrated from MenaITech)', () => {
+  it('بلا رصيد افتتاحي: من تاريخ التعيين', async () => {
+    const { accruedBalance } = await import('@/lib/vacation');
+    const r = accruedBalance({ hireDate: '2025-01-01T00:00:00+03:00', asOf: '2025-12-31T00:00:00+03:00', annualQuota: 30, usedDays: 10 });
+    expect(r.accrued).toBe(30);
+    expect(r.balance).toBe(20);
+  });
+  it('رصيد افتتاحي 40.412 في يوم الترك نفسه = 40.412 (FG0033)', async () => {
+    const { accruedBalance } = await import('@/lib/vacation');
+    const r = accruedBalance({ hireDate: '2023-01-12T00:00:00+03:00', asOf: '2026-09-27T00:00:00+03:00', annualQuota: 30, usedDays: 0, opening: { balance: 40.412, date: '2026-09-27T00:00:00+03:00' } });
+    expect(r.balance).toBe(40.412);
+  });
+  it('رصيد افتتاحي 10 + 73 يوم بعده (6 أيام مستحقة) − 2 مستخدم', async () => {
+    const { accruedBalance } = await import('@/lib/vacation');
+    const r = accruedBalance({ hireDate: null, asOf: '2026-03-15T00:00:00+03:00', annualQuota: 30, usedDays: 2, opening: { balance: 10, date: '2026-01-01T00:00:00+03:00' } });
+    expect(r.accrued).toBe(16); // 10 + 30 × 73 ÷ 365
+    expect(r.balance).toBe(14);
+  });
+});

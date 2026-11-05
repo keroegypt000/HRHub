@@ -14,7 +14,8 @@ export interface SettlementPreviewData {
   indemnityFull: number; servicePercent: number; eosAmount: number;
   daysPaid: number; worthSalary: number;
   vacationDays: number; leaveAllowance: number;
-  otherDues: number; deductions: number; loanDeduction: number;
+  otherDues: number; deductions: number; loanDeduction: number; custodyDeduction?: number;
+  custodyItems?: { itemName: string; status: string; amount: number }[];
   totalDue: number;
 }
 
@@ -79,6 +80,7 @@ export function SettlementPreviewBox({ data, error, noHireDate }: { data: Settle
           {data.otherDues > 0 && line('مستحقات أخرى', data.otherDues, '+ ')}
           {data.deductions > 0 && line('استقطاعات', data.deductions, '− ')}
           {data.loanDeduction > 0 && line('أقساط قروض غير مسددة', data.loanDeduction, '− ')}
+          {(data.custodyDeduction || 0) > 0 && line(`عهد غير مسلَّمة: ${(data.custodyItems || []).map((c) => c.itemName).join('، ')}`, data.custodyDeduction!, '− ')}
           <div className="flex justify-between border-t pt-1.5 mt-1">
             <span className="font-bold">صافي التسوية</span>
             <span className="tabular font-extrabold text-emerald-700 text-lg">{fmtKWD(data.totalDue)} د.ك</span>

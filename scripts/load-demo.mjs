@@ -355,6 +355,39 @@ async function loadDemo() {
   }
   console.log('  ✓ 6 سلف تُخصم من الرواتب');
 
+  step('العُهد (أجهزة وسيارات وأدوات وزي)');
+  let cust = 0;
+  for (const e of emps) {
+    const items = [];
+    if (e.unit === 'HOD' || e.lead) items.push(['لابتوب Dell Latitude', 'laptop', `SN-${digits(8)}`, 280]);
+    if (e.unit !== 'Wafra' || e.lead) items.push(['هاتف + شريحة', 'phone', `IMEI-${digits(10)}`, 120]);
+    if (e.position === 'Driver') items.push(['سيارة الشركة', 'vehicle', `DEMO-${digits(5)}`, 0]);
+    if (['Gardener', 'Labor'].includes(e.position)) items.push(['عدة زراعة كاملة', 'tools', null, 45]);
+    if (e.unit === 'Showroom') items.push(['زي موحد ×2', 'uniform', null, 18]);
+    for (const [itemName, category, serialNo, value] of items) {
+      const returned = rnd() < 0.1;
+      await api('/api/custody', 'POST', {
+        employeeId: e.id, itemName, category, serialNo, value, quantity: 1,
+        issuedAt: `2026-${pad(int(1, 9))}-${pad(int(1, 28))}`, status: returned ? 'returned' : 'issued',
+        returnedAt: returned ? '2026-10-20' : null, notes: DEMO,
+      });
+      cust++;
+    }
+  }
+  console.log(`  ✓ ${cust} عهدة`);
+
+  step('الحوافز والجزاءات (أكتوبر 2026)');
+  const adjs = [
+    ['earning', 'bonus', 'مكافأة أفضل بائع', 50, null], ['earning', 'commission', 'عمولة مبيعات', 75, null],
+    ['earning', 'allowance', 'بدل هاتف', 10, '2026-12'], ['deduction', 'penalty', 'جزاء تأخير متكرر', 15, null],
+    ['earning', 'incentive', 'حافز إنجاز مشروع', 100, null], ['deduction', 'deduction', 'خصم تلفيات', 25, null],
+  ];
+  for (const [type, category, name, amount, untilMonth] of adjs) {
+    const e = emps[int(1, 13)];
+    await api('/api/adjustments', 'POST', { employeeId: e.id, type, category, name, amount, month: '2026-10', untilMonth, notes: DEMO });
+  }
+  console.log(`  ✓ ${adjs.length} بند (تظهر في رواتب أكتوبر)`);
+
   step('الطلبات بسلاسل الموافقات (معلقة/معتمدة/مرفوضة/ملغاة)');
   const reqs = [
     ['salary_certificate', { purpose: 'بنك الكويت الوطني' }, 'approve'], ['salary_continuity', { purpose: 'سفارة' }, 'approve'],

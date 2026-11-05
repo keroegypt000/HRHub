@@ -153,6 +153,8 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
             { value: 'default', label: 'افتراضي الشركة (من الإعدادات)' },
             ...EOS_BASIS_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
           ] },
+          { key: 'openingLeaveBalance', label: 'رصيد الإجازة الافتتاحي (يوم)', type: 'number', hint: 'الرصيد المنقول من النظام القديم (MenaITech) — اتركه فارغًا ليُحسب من تاريخ التعيين' },
+          { key: 'openingLeaveDate', label: 'بتاريخ (الرصيد الافتتاحي)', type: 'date' },
           { key: 'otEligible', label: 'يستحق العمل الإضافي (يُصرف في الراتب)', type: 'switch' },
           { key: 'attendanceExempt', label: 'معفى من البصمة (راتب كامل بلا خصم غياب)', type: 'switch' },
           { key: 'pin', label: 'PIN الجهاز (افتراضي = الرقم الوظيفي)', type: 'text' },
@@ -163,10 +165,11 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
         loadOptions={optionLoaders.combine(optionLoaders.departments, optionLoaders.positions)}
         rowToForm={(r) => ({
           ...r,
-          hireDate: fmtDate(r.hireDate), birthDate: fmtDate(r.birthDate),
+          hireDate: r.hireDate ? fmtDate(r.hireDate) : '', birthDate: r.birthDate ? fmtDate(r.birthDate) : '',
           departmentId: r.department?.id || '', positionId: r.position?.id || '',
           weeklyOffDays: r.weeklyOffDays || 'shift', eosBasis: r.eosBasis || 'default',
           otEligible: !!r.otEligible, attendanceExempt: !!r.attendanceExempt,
+          openingLeaveDate: r.openingLeaveDate ? fmtDate(r.openingLeaveDate as string) : '',
         })}
       />
       {profile && (

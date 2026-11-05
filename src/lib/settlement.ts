@@ -5,7 +5,7 @@ import { round3 } from '@/lib/calc';
 import { getSettings } from '@/lib/settings';
 import {
   daysBetween, indemnitySlices, slicesExactTotal, servicePeriodPercent, parseResignTiers, capIndemnity,
-  normalizeEosBasis, eosWage, fullWage, finalMonthSalary, settlementTotal, EosBasis,
+  normalizeEosBasis, eosWage, fullWage, finalMonthSalary, settlementTotal, EosBasis, custodyDeductionOf,
 } from '@/lib/indemnity';
 import { vacationBalance } from '@/lib/vacation';
 import { effectiveWorkDays } from '@/lib/workweek';
@@ -39,6 +39,8 @@ export interface SettlementDetail {
   vacationDays: number;
   vacationAmount: number;
   loanDeduction: number; // أقساط قروض غير مسددة
+  custodyDeduction: number; // عهد غير مسلَّمة/مفقودة
+  custodyItems: { itemName: string; status: string; amount: number }[];
   daysPaid: number; // أيام العمل المدفوعة في شهر الترك
   worthSalary: number; // قيمتها
   servicePercent: number; // نسبة فترة الخدمة (٪) للاستقالة
@@ -105,6 +107,14 @@ export async function buildSettlementDetail(input: SettlementDetailInput): Promi
   const loans = await db.loan.findMany({ where: { employeeId: input.employeeId, status: 'active' } });
   const loanDeduction = round3(loans.reduce((s, l) => s + Math.max(0, l.totalAmount - l.paidAmount), 0));
 
+  // العهد: غير المسلَّمة بقيمتها والمفقودة/التالفة بمبلغ الخصم
+  const custodies = await db.custody.findMany({ where: { employeeId: input.employeeId, status: { in: ['issued', 'lost', 'damaged'] } } });
+  const custodyDeduction = custodyDeductionOf(custodies);
+  const custodyItems = custodies.map((c) => ({
+    itemName: c.itemName, status: c.status,
+    amount: custodyDeductionOf([c]),
+  }));
+
   // راتب شهر الترك بأيام العمل الفعلية
   const { daysPaid, worthSalary } = finalMonthSalary(
     monthlySalary, input.hireDate, input.departureDate, workDays, settings.workDaysPerMonth,
@@ -114,7 +124,7 @@ export async function buildSettlementDetail(input: SettlementDetailInput): Promi
   const otherDues = Math.max(0, Number(input.otherDues) || 0);
   const deductions = Math.max(0, Number(input.deductions) || 0);
 
-  const totalDue = settlementTotal({ worthSalary, eosAmount, leaveAllowance, otherDues, deductions, loanDeduction });
+  const totalDue = settlementTotal({ worthSalary, eosAmount, leaveAllowance, otherDues, deductions, loanDeduction, custodyDeduction });
 
   return {
     slices,
@@ -131,6 +141,8 @@ export async function buildSettlementDetail(input: SettlementDetailInput): Promi
     vacationDays,
     vacationAmount: leaveAllowance,
     loanDeduction,
+    custodyDeduction,
+    custodyItems,
     daysPaid,
     worthSalary,
     servicePercent,

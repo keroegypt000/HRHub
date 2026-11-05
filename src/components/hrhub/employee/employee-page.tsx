@@ -37,6 +37,7 @@ interface Overview {
     requests: { id: string; type: string; status: string; createdAt: string }[];
     settlements: { id: string; reason: string; departureDate: string; totalDue: number; paidAmount: number; status: string }[];
     userAccount?: { username: string; active: boolean } | null;
+    custodies: { id: string; itemName: string; category: string; serialNo?: string | null; quantity: number; value: number; issuedAt: string; returnedAt?: string | null; status: string }[];
   };
   contract: { contractNo: string; endDate?: string | null } | null;
   wage: { basic: number; housing: number; transport: number; other: number; total: number };
@@ -47,6 +48,7 @@ interface Overview {
   documents: { kind: string; no: string; expiry: string; daysLeft: number }[];
   loansOutstanding: number;
   pendingRequests: number;
+  custodyOpenValue: number;
   currentShift: string | null;
 }
 
@@ -171,6 +173,7 @@ export function EmployeePage({ id, open, onClose, canWrite, companyName, account
                 <TabsTrigger value="leaves">الإجازات ({e.leaveRequests.length})</TabsTrigger>
                 <TabsTrigger value="payroll">الرواتب ({e.payslips.length})</TabsTrigger>
                 <TabsTrigger value="requests">الطلبات والسلف</TabsTrigger>
+                <TabsTrigger value="custody">العُهد ({e.custodies.filter((c) => c.status === 'issued').length})</TabsTrigger>
                 <TabsTrigger value="docs">المستندات والملفات</TabsTrigger>
                 <TabsTrigger value="eos">نهاية الخدمة</TabsTrigger>
                 {canWrite && accountPanel && <TabsTrigger value="ess">بوابة الموظف</TabsTrigger>}
@@ -282,6 +285,20 @@ export function EmployeePage({ id, open, onClose, canWrite, companyName, account
                     </div>
                   ))}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="custody" className="pt-3 space-y-2">
+                <p className="text-sm">قيمة العهد غير المُستلمة: <b className={data.custodyOpenValue ? 'text-red-700' : ''}>{fmtKWD(data.custodyOpenValue)} د.ك</b> — تُخصم في تسوية نهاية الخدمة إن لم تُسلَّم. الإضافة والاستلام من قسم «العُهد».</p>
+                {e.custodies.length === 0 && <p className="text-sm text-muted-foreground">لا توجد عهد</p>}
+                {e.custodies.map((c) => (
+                  <div key={c.id} className="rounded-lg border p-2.5 flex flex-wrap items-center gap-3 text-sm">
+                    <span className="font-medium">{c.itemName}{c.quantity > 1 ? ` ×${c.quantity}` : ''}</span>
+                    {c.serialNo && <span className="font-mono text-xs">{c.serialNo}</span>}
+                    <span className="tabular text-muted-foreground">سُلمت {fmtDate(c.issuedAt)}{c.returnedAt ? ` · استُلمت ${fmtDate(c.returnedAt)}` : ''}</span>
+                    <span className="tabular">{fmtKWD(c.value)} د.ك</span>
+                    <StatusBadge status={c.status} />
+                  </div>
+                ))}
               </TabsContent>
 
               <TabsContent value="docs" className="pt-3 space-y-3">

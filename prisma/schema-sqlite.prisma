@@ -142,6 +142,8 @@ model Employee {
   eosBasis         String? // أساس مكافأة نهاية الخدمة: basic=الأساسي فقط | full_wage=الأساسي+البدلات | فارغ=افتراضي الشركة
   otEligible       Boolean               @default(false) // يستحق العمل الإضافي — لا يُصرف إضافي إلا بموافقة صريحة
   attendanceExempt Boolean               @default(false) // معفى من البصمة (مدير/مندوب) — راتب كامل بلا خصم غياب أو تأخير
+  openingLeaveBalance Float?            // رصيد الإجازة السنوية الافتتاحي (منقول من النظام القديم)
+  openingLeaveDate    DateTime?         // تاريخ الرصيد الافتتاحي — الاستحقاق والاستهلاك يُحسبان بعده
   notes            String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
@@ -162,6 +164,8 @@ model Employee {
   settlements      DepartureSettlement[]
   loans            Loan[]
   requests         EmployeeRequest[]
+  custodies        Custody[]
+  adjustments      PayrollAdjustment[]
   userAccount      User?                 @relation("UserEmployee")
 
   @@index([name])
@@ -296,6 +300,7 @@ model DepartureSettlement {
   daysPaid        Float     @default(0) // أيام مدفوعة (شهر التسوية حتى تاريخها)
   worthSalary     Float     @default(0) // قيمة راتب الفترة (Worth Salary)
   loanDeduction   Float     @default(0) // أقساط قروض غير مسددة
+  custodyDeduction Float    @default(0) // قيمة العهد غير المُسلَّمة
   // ===== تفاصيل الحساب المخزنة =====
   slices          String? // JSON شرائح المكافأة: from|to|workingDays|stbDays|percent|amount
   otherDuesDetail String? // JSON مستحقات أخرى مفصلة
@@ -576,4 +581,43 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// ===== العُهد — أصول مسلَّمة للموظف (لابتوب/هاتف/سيارة/أدوات/زي/مفاتيح) =====
+model Custody {
+  id              String    @id @default(cuid())
+  employeeId      String
+  itemName        String // اسم العهدة
+  category        String    @default("other") // laptop|phone|vehicle|tools|uniform|keys|card|other
+  serialNo        String? // رقم تسلسلي / لوحة
+  quantity        Int       @default(1)
+  value           Float     @default(0) // القيمة (تُخصم في التسوية إن لم تُسلَّم)
+  issuedAt        DateTime // تاريخ التسليم للموظف
+  returnedAt      DateTime? // تاريخ الاستلام منه
+  status          String    @default("issued") // issued|returned|lost|damaged
+  deductionAmount Float     @default(0) // مبلغ يُخصم عند الفقد/التلف (افتراضيًا القيمة)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, status])
+}
+
+// ===== الحوافز والجزاءات — بنود تُضاف للراتب تلقائيًا في شهرها (أو كل شهر حتى تاريخ) =====
+model PayrollAdjustment {
+  id         String   @id @default(cuid())
+  employeeId String
+  type       String // earning|deduction
+  category   String   @default("other") // bonus|incentive|commission|allowance|penalty|deduction|other
+  name       String // الوصف كما يظهر في القسيمة
+  amount     Float
+  month      String // YYYY-MM أول شهر
+  untilMonth String? // YYYY-MM آخر شهر (متكرر) — فارغ = مرة واحدة
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, month])
 }

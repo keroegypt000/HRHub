@@ -22,6 +22,7 @@ import { ImportExportSection } from '@/components/hrhub/sections/import-export';
 import { AuditSection, UsersSection, SettingsSection } from '@/components/hrhub/sections/admin';
 import { RequestsSection } from '@/components/hrhub/sections/requests';
 import { EssApp } from '@/components/hrhub/ess';
+import { CustodySection, AdjustmentsSection } from '@/components/hrhub/sections/custody';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type Screen = 'loading' | 'setup' | 'login' | 'app';
@@ -104,6 +105,8 @@ export default function Page() {
       {section === 'employees' && <EmployeesSection canWrite={!!can.employees} companyName={companyName} />}
       {section === 'departments' && <DepartmentsSection canWrite={!!can.departments} />}
       {section === 'contracts' && <ContractsSection canWrite={!!can.contracts} companyName={companyName} />}
+      {section === 'custody' && <CustodySection canWrite={!!can.custody} />}
+      {section === 'adjustments' && <AdjustmentsSection canWrite={!!can.adjustments} />}
       {section === 'alerts' && <AlertsSection canWrite={!!can.passports && !!can.vehicles && !!can.companyContracts} />}
       {section === 'passports' && <PassportsSection canWrite={!!can.passports} />}
       {section === 'iqamas' && <IqamasSection canWrite={!!can.iqamas} />}

@@ -125,6 +125,7 @@ export const STATUS_AR: Record<string, string> = {
   fixed: 'ثابتة', flexible: 'مرنة', auto: 'تلقائي',
   earning: 'مكمل', deduction: 'استقطاع',
   deceased: 'متوفى', partial: 'مدفوع جزئيًا',
+  issued: 'مسلَّمة', returned: 'مُستلمة', lost: 'مفقودة', damaged: 'تالفة',
   resigned: 'استقالة', retired: 'تقاعد', contract_end: 'انتهاء عقد',
   admin: 'مدير النظام', hr: 'موارد بشرية', accountant: 'محاسب', supervisor: 'مشرف', viewer: 'مشاهد',
 };

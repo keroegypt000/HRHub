@@ -12,6 +12,9 @@ function normalizeOptions(data: Record<string, unknown>): Record<string, unknown
     const days = parseDayList(data.weeklyOffDays ? String(data.weeklyOffDays) : null);
     data.weeklyOffDays = days ? JSON.stringify(days) : null; // [] = بلا راحة أسبوعية
   }
+  if (data.openingLeaveBalance !== undefined) {
+    data.openingLeaveBalance = data.openingLeaveBalance === null || data.openingLeaveBalance === '' ? null : Number(data.openingLeaveBalance);
+  }
   if (data.eosBasis !== undefined) {
     data.eosBasis = data.eosBasis === 'basic' || data.eosBasis === 'full_wage' ? data.eosBasis : null;
   }
@@ -29,7 +32,7 @@ export const cfg: CrudConfig = {
     photo: { select: { id: true, fileName: true, mimeType: true } },
     _count: { select: { contracts: true, leaveRequests: true } },
   },
-  dateFields: ['birthDate', 'hireDate'],
+  dateFields: ['birthDate', 'hireDate', 'openingLeaveDate'],
   beforeCreate: async (data) => {
     // pin افتراضي = الرقم الوظيفي
     if (!data.pin && data.code) data.pin = String(data.code);

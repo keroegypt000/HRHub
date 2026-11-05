@@ -153,3 +153,15 @@ export function unpaidHolidayIndexes(days: { s: string; wd: boolean }[]): number
   });
   return out;
 }
+
+/**
+ * أجر الإجازة المرضية حسب ترتيب اليوم في السنة (قانون العمل الكويتي المادة 69):
+ * 15 يومًا بأجر كامل، 10 بثلاثة أرباع، 10 بالنصف، 10 بالربع، ثم بدون أجر
+ */
+export function sickPayFraction(dayNumberInYear: number): number {
+  if (dayNumberInYear <= 15) return 1;
+  if (dayNumberInYear <= 25) return 0.75;
+  if (dayNumberInYear <= 35) return 0.5;
+  if (dayNumberInYear <= 45) return 0.25;
+  return 0;
+}

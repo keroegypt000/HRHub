@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
           stbHousing: calc.stbHousing, stbSocial: calc.stbSocial,
           stbProvident: calc.stbProvident, stbInsurance: calc.stbInsurance,
           daysPaid: calc.daysPaid, worthSalary: calc.worthSalary,
-          loanDeduction: calc.loanDeduction,
+          loanDeduction: calc.loanDeduction, custodyDeduction: calc.custodyDeduction,
           slices: JSON.stringify(calc.slices),
           paidAmount, status,
           paidAt: status === 'paid' ? (st.paidAt || new Date()) : null,

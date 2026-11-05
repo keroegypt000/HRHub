@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Users, Network, FileSignature, Clock4, Fingerprint, CalendarCheck2,
   Plane, Sparkles, MonitorSmartphone, Wallet, SlidersHorizontal, BarChart3,
   FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu, ChevronDown,
-  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList,
+  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList, PackageCheck, BadgePercent,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -32,7 +32,7 @@ export interface NavGroup {
 /** عنصر يظهر لكل الأدوار */
 const visible = (item: NavItem, role: string): boolean => {
   if (item.adminOnly && role !== 'admin') return false;
-  if (['payroll', 'salary-components'].includes(item.key)) {
+  if (['payroll', 'salary-components', 'adjustments'].includes(item.key)) {
     return role === 'admin' || role === 'accountant';
   }
   return true;
@@ -49,6 +49,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'employees', label: 'كل الموظفين', icon: Users },
       { key: 'contracts', label: 'العقود', icon: FileSignature },
+      { key: 'custody', label: 'العُهد', icon: PackageCheck },
       { key: 'departments', label: 'الأقسام والمسميات', icon: Network },
     ],
   },
@@ -70,6 +71,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Wallet,
     items: [
       { key: 'payroll', label: 'الرواتب والقسائم', icon: Wallet, visibleFor: ['accountant'] },
+      { key: 'adjustments', label: 'الحوافز والجزاءات', icon: BadgePercent, visibleFor: ['accountant'] },
       { key: 'end-of-service', label: 'نهاية الخدمة', icon: Hourglass },
       { key: 'departed', label: 'المنصرفون والمستحقات', icon: UserMinus },
       { key: 'deceased', label: 'الموظفون المتوفون', icon: Flower2 },

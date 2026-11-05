@@ -11,6 +11,7 @@ export interface SystemSettings {
   hoursPerDay: number;
   otWeekdayMult: number;
   otHolidayMult: number;
+  otPublicHolidayMult: number; // العمل في عطلة رسمية (المادة 68: ضعف الأجر)
   lateDeductionMode: 'minute' | 'none';
   socialSecurityEnabled: boolean;
   sscEmployeeCitizen: number; // 5.5%
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   hoursPerDay: 8,
   otWeekdayMult: 1.25,
   otHolidayMult: 1.5,
+  otPublicHolidayMult: 2,
   lateDeductionMode: 'minute',
   socialSecurityEnabled: false,
   sscEmployeeCitizen: 5.5,
@@ -132,6 +134,7 @@ export async function getSettings(): Promise<SystemSettings> {
   s.hoursPerDay = numv('hoursPerDay', 8);
   s.otWeekdayMult = numv('otWeekdayMult', 1.25);
   s.otHolidayMult = numv('otHolidayMult', 1.5);
+  s.otPublicHolidayMult = numv('otPublicHolidayMult', 2);
   s.lateDeductionMode = (map.get('lateDeductionMode') as SystemSettings['lateDeductionMode']) || 'minute';
   s.socialSecurityEnabled = bool('socialSecurityEnabled');
   s.sscEmployeeCitizen = numv('sscEmployeeCitizen', 5.5);

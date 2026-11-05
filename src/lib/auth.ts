@@ -112,9 +112,9 @@ const WRITE_MATRIX: Record<string, Set<string>> = {
     'leave-types', 'leaves', 'leave-approve', 'holidays', 'devices', 'files',
     'attendance-logs', 'daily-attendance', 'import', 'employees-photo',
     'passports', 'iqamas', 'vehicles', 'company-contracts',
-    'requests', 'workflow', 'loans',
+    'requests', 'workflow', 'loans', 'custody', 'adjustments',
   ]),
-  accountant: new Set(['payroll-periods', 'salary-components', 'payslips', 'export', 'import', 'settlements', 'loans']),
+  accountant: new Set(['payroll-periods', 'salary-components', 'payslips', 'export', 'import', 'settlements', 'loans', 'adjustments']),
   supervisor: new Set(['leaves']), // طلبات إجازة لفريقه فقط
   viewer: new Set([]),
   employee: new Set([]), // بوابة الموظف تستخدم مسارات /api/ess فقط
@@ -129,7 +129,7 @@ const READ_MATRIX: Record<string, Set<string>> = {
     'leave-types', 'leaves', 'holidays', 'devices', 'attendance-logs', 'daily-attendance',
     'reports', 'export', 'dashboard', 'files',
     'passports', 'iqamas', 'vehicles', 'company-contracts', 'alerts', 'end-of-service', 'settlements',
-    'requests', 'loans',
+    'requests', 'loans', 'custody',
   ]),
   viewer: new Set([
     'employees', 'departments', 'positions', 'contracts', 'shifts', 'shift-assignments',

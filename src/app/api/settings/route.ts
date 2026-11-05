@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest) {
     const admin = await requireWrite(req, 'settings');
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const allowedKeys = [
-      'companyName', 'workDaysPerMonth', 'hoursPerDay', 'otWeekdayMult', 'otHolidayMult',
+      'companyName', 'workDaysPerMonth', 'hoursPerDay', 'otWeekdayMult', 'otHolidayMult', 'otPublicHolidayMult',
       'lateDeductionMode', 'socialSecurityEnabled', 'sscEmployeeCitizen', 'sscEmployerCitizen',
       'sscEmployerExpatriate', 'defaultShiftId', 'autoAcceptDevices', 'admsEnabled',
       'biotimeEnabled', 'biotimeUrl', 'biotimeUsername', 'biotimeAutoSyncMinutes', 'deviceOfflineAlertMinutes',

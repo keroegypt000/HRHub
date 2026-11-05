@@ -309,6 +309,7 @@ export interface FinalSettlementDocData {
   vacationDays: number;
   vacationAmount: number;
   loanDeduction: number;
+  custodyDeduction?: number;
   otherDues: number;
   deductions: number;
   totalDue: number;
@@ -382,10 +383,13 @@ export function finalSettlementDoc(s: FinalSettlementDocData, companyName = 'ش�
 
     <p style="font-weight:800;color:#14523f">إجمالي التسوية</p>
     <table>
+      ${numRow('راتب شهر نهاية الخدمة', s.worthSalary)}
       ${numRow('مكافأة نهاية الخدمة', s.eosAmount)}
       ${numRow('تعويض الإجازات', s.vacationAmount)}
       ${numRow('مستحقات أخرى', s.otherDues)}
-      ${numRow('استقطاعات (قروض/غيرها)', -s.deductions)}
+      ${numRow('أقساط قروض غير مسددة', -s.loanDeduction)}
+      ${(s.custodyDeduction || 0) > 0 ? numRow('عهد غير مسلَّمة / مفقودة', -(s.custodyDeduction || 0)) : ''}
+      ${numRow('استقطاعات أخرى', -s.deductions)}
       <tr class="net"><th>الإجمالي المستحق</th><td class="num">${fmtKWD(s.totalDue)} د.ك</td></tr>
       ${numRow('المدفوع حتى الآن', s.paidAmount)}
       <tr class="net"><th>المتبقي للسداد</th><td class="num">${fmtKWD(Math.max(0, remaining))} د.ك</td></tr>

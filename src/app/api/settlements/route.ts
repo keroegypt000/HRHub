@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           stbHousing: detail.stbHousing, stbSocial: detail.stbSocial,
           stbProvident: detail.stbProvident, stbInsurance: detail.stbInsurance,
           daysPaid: detail.daysPaid, worthSalary: detail.worthSalary,
-          loanDeduction: detail.loanDeduction,
+          loanDeduction: detail.loanDeduction, custodyDeduction: detail.custodyDeduction,
           slices: JSON.stringify(detail.slices),
           paidAmount: Number(body.paidAmount) || 0,
           status: 'pending', notes: body.notes ? String(body.notes) : null,

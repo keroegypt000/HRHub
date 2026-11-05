@@ -223,6 +223,7 @@ export function EndOfServiceSection({ canWrite, companyName }: { canWrite: boole
                           vacationDays: Number(st.vacationDays) || 0,
                           vacationAmount: Number(st.leaveAllowance) || 0,
                           loanDeduction: Number(st.loanDeduction) || 0,
+                          custodyDeduction: Number(st.custodyDeduction) || 0,
                           otherDues: Number(st.otherDues) || 0,
                           deductions: Number(st.deductions) || 0,
                           totalDue: Number(st.totalDue) || 0,

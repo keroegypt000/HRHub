@@ -2,7 +2,8 @@
 // معادلات معلنة + تقريب 3 خانات في كل خطوة + مصدر لكل رقم
 // ترتيب حسم حالة اليوم: عطلة رسمية ← راحة أسبوعية (وردية الموظف) ← إجازة معتمدة ← بصمة اليوم ← غياب
 import { db } from '@/lib/db';
-import { round3, hourRate, otAmount, lateDeductionAmount, attendancePay, unpaidHolidayIndexes } from '@/lib/calc';
+import { round3, hourRate, otAmount, lateDeductionAmount, attendancePay, unpaidHolidayIndexes, sickPayFraction } from '@/lib/calc';
+import { workingDaysBetween } from '@/lib/indemnity';
 import { getSettings } from '@/lib/settings';
 import { dateKey, monthDayKeys, weekdayIndex, kuwaitMidnight } from '@/lib/time';
 import { effectiveWorkDays } from '@/lib/workweek';
@@ -130,6 +131,16 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     arr.push(lv);
   }
 
+  // الحوافز والجزاءات السارية في شهر الفترة
+  const adjustments = await db.payrollAdjustment.findMany({ where: { employeeId: { in: empIds }, month: { lte: period.name } } });
+  const adjustmentsByEmp = new Map<string, typeof adjustments>();
+  for (const a of adjustments) {
+    if ((a.untilMonth || a.month) < period.name) continue;
+    let arr = adjustmentsByEmp.get(a.employeeId);
+    if (!arr) adjustmentsByEmp.set(a.employeeId, (arr = []));
+    arr.push(a);
+  }
+
   // الحضور اليومي المعالج
   const daily = await db.dailyAttendance.findMany({
     where: { employeeId: { in: empIds }, date: { gte: rangeStart, lte: rangeEnd } },
@@ -193,6 +204,17 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     const departKey = emp.departureDate ? dateKey(emp.departureDate) : null;
 
     const empLeaves = leavesByEmp.get(emp.id) || [];
+    // أيام المرضية المعتمدة هذه السنة قبل بداية الفترة (لتحديد درجة الأجر)
+    const yearStart = kuwaitMidnight(`${startKey.slice(0, 4)}-01-01`).getTime();
+    const dayBeforeStart = kuwaitMidnight(startKey).getTime() - 86400_000;
+    let sickBefore = 0;
+    for (const l of empLeaves) {
+      const t = typeById.get(l.leaveTypeId);
+      if (!t || !t.paid || !/sick/i.test(t.code)) continue;
+      const from = Math.max(l.fromDate.getTime(), yearStart);
+      const to = Math.min(l.toDate.getTime(), dayBeforeStart);
+      if (to >= from) sickBefore += workingDaysBetween(new Date(from), new Date(to), workDaysFor(emp, startKey));
+    }
     const empDaily = dailyByEmp.get(emp.id) || new Map();
 
     let workedDays = 0;
@@ -204,7 +226,10 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     let missedPunchDays = 0;
     let lateMinutes = 0;
     let weekdayOtMinutes = 0;
-    let holidayOtMinutes = 0;
+    let holidayOtMinutes = 0; // راحة أسبوعية / أيام إجازة (×1.5)
+    let publicOtMinutes = 0; // عطلة رسمية (×2 افتراضيًا)
+    let sickSeq = 0; // ترتيب أيام المرضية داخل الفترة
+    let sickUnpaidEquiv = 0; // أيام مرضية غير مدفوعة (كسور حسب الدرجة)
     const ledger: { d: string; s: string; wd?: boolean }[] = [];
 
     for (const key of keys) {
@@ -219,7 +244,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
         // 1) عطلة رسمية — مدفوعة بلا خصم
         code = 'ho';
         holidayDays += 1;
-        if (row && row.otMinutes > 0) holidayOtMinutes += row.otMinutes;
+        if (row && row.otMinutes > 0) publicOtMinutes += row.otMinutes;
       } else if (!isWorkday) {
         // 2) راحة أسبوعية حسب وردية الموظف — مدفوعة بلا خصم
         code = 'we';
@@ -233,6 +258,11 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
           const paid = t ? t.paid : true;
           if (paid) { code = 'lp'; paidLeaveDays += 1; }
           else { code = 'lu'; unpaidLeaveDays += 1; }
+          if (paid && t && /sick/i.test(t.code)) {
+            // المرضية بدرجات المادة 69 حسب ترتيب اليوم في السنة
+            sickSeq += 1;
+            sickUnpaidEquiv += 1 - sickPayFraction(sickBefore + sickSeq);
+          }
           if (row && row.otMinutes > 0) holidayOtMinutes += row.otMinutes;
         } else if (emp.attendanceExempt || (attendanceStartKey && key < attendanceStartKey)) {
           // 4) معفى من البصمة، أو يوم قبل بدء احتساب الحضور — يوم مدفوع بلا غياب ولا تأخير
@@ -319,7 +349,9 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     // العمل الإضافي
     const hr = hourRate(basic, rates);
     // الإضافي يُصرف فقط لمن فُعّل له «يستحق العمل الإضافي» — وإلا يظهر في الملاحظات للمراجعة
-    const computedOt = otAmount(basic, weekdayOtMinutes, holidayOtMinutes, rates);
+    // العطلة الرسمية بمعامل مستقل (المادة 68: ضعف الأجر) عن الراحة الأسبوعية (المادة 67: 1.5)
+    const publicOt = round3((publicOtMinutes / 60) * (basic / rates.workDaysPerMonth / rates.hoursPerDay) * settings.otPublicHolidayMult);
+    const computedOt = round3(otAmount(basic, weekdayOtMinutes, holidayOtMinutes, rates) + publicOt);
     const otVal = emp.otEligible ? computedOt : 0;
     const otComp = components.find((c) => c.code === 'OT' && c.type === 'earning');
     if (otVal > 0) {
@@ -328,7 +360,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
         name: 'بدل العمل الإضافي',
         type: 'earning',
         amount: otVal,
-        note: `${(weekdayOtMinutes / 60).toFixed(1)} ساعة ×${rates.otWeekdayMult} + ${(holidayOtMinutes / 60).toFixed(1)} ساعة ×${rates.otHolidayMult} (أجر الساعة ${hr.toFixed(3)})`,
+        note: `${(weekdayOtMinutes / 60).toFixed(1)} ساعة ×${rates.otWeekdayMult} + راحة ${(holidayOtMinutes / 60).toFixed(1)} ساعة ×${rates.otHolidayMult}${publicOtMinutes ? ` + عطلة رسمية ${(publicOtMinutes / 60).toFixed(1)} ساعة ×${settings.otPublicHolidayMult}` : ''} (أجر الساعة ${hr.toFixed(3)})`,
       });
     }
 
@@ -360,9 +392,20 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       });
     }
 
+    // الإجازة المرضية بعد أول 15 يومًا في السنة — خصم الجزء غير المدفوع
+    let remainingPay = pay.payable;
+    const sickDeduction = Math.min(remainingPay, round3(pay.dayValue * sickUnpaidEquiv));
+    if (sickDeduction > 0) {
+      remainingPay = round3(remainingPay - sickDeduction);
+      pushAuto({
+        name: 'خصم إجازة مرضية (المادة 69)', type: 'deduction', amount: sickDeduction,
+        note: `أيام المرضية هذه السنة حتى الآن ${sickBefore + sickSeq} — 15 كاملة ثم 10 بثلاثة أرباع ثم 10 بالنصف ثم 10 بالربع ثم بدون أجر`,
+      });
+    }
+
     // خصم التأخير — لا يُخصم تأخير من موظف لم يتبق له راتب
     const lateComp = components.find((c) => c.code === 'LATE' && c.type === 'deduction');
-    const lateDeduction = Math.min(pay.payable, lateDeductionAmount(basic, lateMinutes, rates));
+    const lateDeduction = Math.min(remainingPay, lateDeductionAmount(basic, lateMinutes, rates));
     if (lateDeduction > 0) {
       pushAuto({
         componentId: lateComp?.id, name: 'خصم التأخير', type: 'deduction', amount: lateDeduction,
@@ -413,6 +456,14 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
       });
     }
 
+    // الحوافز والجزاءات المسجلة لهذا الشهر (مرة واحدة أو متكررة حتى شهر)
+    for (const adj of adjustmentsByEmp.get(emp.id) || []) {
+      pushAuto({
+        name: adj.name, type: adj.type === 'deduction' ? 'deduction' : 'earning', amount: round3(adj.amount),
+        note: adj.untilMonth && adj.untilMonth !== adj.month ? `متكرر ${adj.month} → ${adj.untilMonth}` : 'حافز/جزاء الشهر',
+      });
+    }
+
     // استرجاع البنود اليدوية المحفوظة (تعديلات المحاسب تبقى بعد إعادة الحساب)
     for (const m of manualByEmp.get(emp.id) || []) {
       items.push({ ...m, type: m.type === 'deduction' ? 'deduction' : 'earning', note: m.note ?? undefined, source: 'manual' });
@@ -427,7 +478,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
     const notes: string[] = [];
     if (isRunning) notes.push(`حساب جزئي حتى ${todayKey} — الفترة لم تنتهِ ولا يمكن اعتمادها قبل ${endKey}`);
     if (!emp.otEligible && computedOt > 0) {
-      notes.push(`إضافي غير مصروف: ${((weekdayOtMinutes + holidayOtMinutes) / 60).toFixed(1)} ساعة = ${computedOt.toFixed(3)} د.ك — فعّل «يستحق الإضافي» في ملف الموظف لصرفه`);
+      notes.push(`إضافي غير مصروف: ${((weekdayOtMinutes + holidayOtMinutes + publicOtMinutes) / 60).toFixed(1)} ساعة = ${computedOt.toFixed(3)} د.ك — فعّل «يستحق الإضافي» في ملف الموظف لصرفه`);
     }
     if (emp.attendanceExempt) notes.push('معفى من البصمة — راتب كامل');
     if (missedPunchDays > 0) notes.push(`${missedPunchDays} يوم بصمة ناقصة (missed_punch) بلا خصم — راجعه`);
@@ -450,7 +501,7 @@ export async function computePayrollPeriod(periodId: string): Promise<ComputeRes
         holidayDays,
         weekOffDays,
         dayLedger: JSON.stringify(ledger),
-        otHours: round3((weekdayOtMinutes + holidayOtMinutes) / 60),
+        otHours: round3((weekdayOtMinutes + holidayOtMinutes + publicOtMinutes) / 60),
         otAmount: otVal,
         lateMinutes,
         lateDeduction,

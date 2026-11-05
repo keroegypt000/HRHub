@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
       orderBy: { period: { startDate: 'desc' } },
     });
     const pendingRequests = await db.employeeRequest.count({ where: { employeeId, status: 'pending' } });
+    // العهد المسجلة على الموظف (غير المُستلمة)
+    const custodies = await db.custody.findMany({
+      where: { employeeId, status: { in: ['issued', 'lost', 'damaged'] } },
+      select: { itemName: true, serialNo: true, quantity: true, issuedAt: true, status: true },
+      orderBy: { issuedAt: 'desc' },
+    });
 
     return ok({
       companyName: settings.companyName,
@@ -59,6 +65,7 @@ export async function GET(req: NextRequest) {
       balances,
       lastPayslip: lastSlip ? { id: lastSlip.id, period: lastSlip.period.name, netPay: lastSlip.netPay } : null,
       pendingRequests,
+      custodies,
     });
   });
 }

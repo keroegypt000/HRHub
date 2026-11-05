@@ -324,10 +324,21 @@ export interface SettlementTotalsInput {
   otherDues: number;
   deductions: number;
   loanDeduction: number; // أقساط قروض غير مسددة
+  custodyDeduction?: number; // عهد لم تُسلَّم أو فُقدت
 }
 
-/** صافي التسوية = راتب الشهر + المكافأة + تعويض الإجازات + مستحقات أخرى − استقطاعات − قروض */
+/** صافي التسوية = راتب الشهر + المكافأة + تعويض الإجازات + مستحقات أخرى − استقطاعات − قروض − العهد غير المسلَّمة */
 export function settlementTotal(x: SettlementTotalsInput): number {
-  const t = x.worthSalary + x.eosAmount + x.leaveAllowance + x.otherDues - x.deductions - x.loanDeduction;
+  const t = x.worthSalary + x.eosAmount + x.leaveAllowance + x.otherDues - x.deductions - x.loanDeduction - (x.custodyDeduction || 0);
+  return Math.round(t * 1000) / 1000;
+}
+
+/** خصم العهد في التسوية: المسلَّمة غير المُعادة بقيمتها، والمفقودة/التالفة بمبلغ الخصم (أو قيمتها) */
+export function custodyDeductionOf(items: { status: string; value: number; deductionAmount: number }[]): number {
+  const t = items.reduce((s, c) => {
+    if (c.status === 'issued') return s + (c.value || 0);
+    if (c.status === 'lost' || c.status === 'damaged') return s + (c.deductionAmount > 0 ? c.deductionAmount : c.value || 0);
+    return s;
+  }, 0);
   return Math.round(t * 1000) / 1000;
 }

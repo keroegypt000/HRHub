@@ -9,7 +9,7 @@ import { round3 } from '@/lib/calc';
 import { dateKey, kuwaitMidnight, daysInMonth } from '@/lib/time';
 import { offDaysText } from '@/lib/workweek';
 import {
-  indemnityFullByDays, capIndemnity, servicePeriodPercent, parseResignTiers, eosWage, normalizeEosBasis, fullWage,
+  indemnityFullByDays, capIndemnity, servicePeriodPercent, parseResignTiers, eosWage, normalizeEosBasis, fullWage, custodyDeductionOf,
 } from '@/lib/indemnity';
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -35,6 +35,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
         requests: { orderBy: { createdAt: 'desc' }, take: 30 },
         settlements: true,
         userAccount: { select: { username: true, active: true } },
+        custodies: { orderBy: { issuedAt: 'desc' } },
       },
     });
     if (!emp) throw new HttpError(404, 'الموظف غير موجود');
@@ -109,6 +110,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       documents: docs.map((d) => ({ ...d, daysLeft: daysLeft(d.expiry) })),
       loansOutstanding,
       pendingRequests: emp.requests.filter((r) => r.status === 'pending').length,
+      custodyOpenValue: custodyDeductionOf(emp.custodies),
       currentShift: emp.shiftAssignments[0]?.shift?.name || null,
     });
   });

@@ -15,32 +15,57 @@ export interface VacationBalance {
   annualQuota: number; // حصة السنة
 }
 
-/** رصيد إجازة موظف حتى تاريخ معين (افتراضيًا اليوم) */
+/**
+ * الرصيد المتراكم بقاعدة واحدة (دالة نقية قابلة للاختبار):
+ * بلا رصيد افتتاحي: الحصة × أيام الخدمة ÷ 365 − المستخدم
+ * مع رصيد افتتاحي بتاريخ: الرصيد الافتتاحي + الحصة × الأيام بعد تاريخه ÷ 365 − المستخدم بعده
+ */
+export function accruedBalance(input: {
+  hireDate: Date | string | null | undefined;
+  asOf: Date | string;
+  annualQuota: number;
+  usedDays: number; // الإجازات المستهلكة داخل نطاق الحساب
+  opening?: { balance: number; date: Date | string } | null;
+}): { accrued: number; balance: number } {
+  if (input.opening) {
+    const after = Math.max(0, daysBetween(input.opening.date, input.asOf) - 1); // الأيام بعد تاريخ الرصيد
+    const accrued = round3(input.opening.balance + (input.annualQuota * after) / 365);
+    return { accrued, balance: round3(accrued - input.usedDays) };
+  }
+  if (!input.hireDate) return { accrued: 0, balance: 0 };
+  const accrued = round3((input.annualQuota * Math.max(0, daysBetween(input.hireDate, input.asOf))) / 365);
+  return { accrued, balance: round3(accrued - input.usedDays) };
+}
+
+/** رصيد إجازة موظف حتى تاريخ معين (افتراضيًا اليوم) — يراعي الرصيد الافتتاحي إن وُجد */
 export async function vacationBalance(
   employeeId: string,
   hireDate: Date | string | null | undefined,
   annualQuota: number,
   asOf: Date | string = new Date(),
 ): Promise<VacationBalance> {
-  if (!hireDate) return { accrued: 0, used: 0, balance: 0, annualQuota };
-  const servedDays = daysBetween(hireDate, asOf);
-  const accrued = round3((annualQuota * Math.max(0, servedDays)) / 365);
-  const usedRows = await db.leaveRequest.findMany({
-    where: { employeeId, status: 'approved', leaveType: { paid: true, code: { in: ['annual', 'ANNUAL'] } } },
+  const emp = await db.employee.findUnique({
+    where: { id: employeeId },
+    select: { openingLeaveBalance: true, openingLeaveDate: true },
+  });
+  const opening = emp?.openingLeaveDate && emp.openingLeaveBalance !== null
+    ? { balance: Number(emp.openingLeaveBalance), date: emp.openingLeaveDate } : null;
+  if (!opening && !hireDate) return { accrued: 0, used: 0, balance: 0, annualQuota };
+
+  // الإجازات السنوية المعتمدة (بعد تاريخ الرصيد الافتتاحي إن وُجد)
+  const after = opening ? { fromDate: { gt: new Date(opening.date) } } : {};
+  const annualRows = await db.leaveRequest.findMany({
+    where: { employeeId, status: 'approved', leaveType: { paid: true, code: { in: ['annual', 'ANNUAL'] } }, ...after },
     select: { days: true },
   });
-  // إن لم توجد نوع سنوي بالكود المحدد اعتبر كل الإجازات المدفوعة مستهلكة من الرصيد
-  let used: number;
-  if (usedRows.length) {
-    used = round3(usedRows.reduce((s, r) => s + Number(r.days), 0));
-  } else {
-    const paidRows = await db.leaveRequest.findMany({
-      where: { employeeId, status: 'approved', leaveType: { paid: true } },
-      select: { days: true },
-    });
-    used = round3(paidRows.reduce((s, r) => s + Number(r.days), 0));
-  }
-  return { accrued, used, balance: round3(accrued - used), annualQuota };
+  // إن لم يوجد نوع سنوي بالكود المحدد تُعتبر كل الإجازات المدفوعة مستهلكة من الرصيد
+  const rows = annualRows.length ? annualRows : await db.leaveRequest.findMany({
+    where: { employeeId, status: 'approved', leaveType: { paid: true }, ...after },
+    select: { days: true },
+  });
+  const used = round3(rows.reduce((s, r) => s + Number(r.days), 0));
+  const { accrued, balance } = accruedBalance({ hireDate, asOf, annualQuota, usedDays: used, opening });
+  return { accrued, used, balance, annualQuota };
 }
 
 export interface VacationMonthRow {

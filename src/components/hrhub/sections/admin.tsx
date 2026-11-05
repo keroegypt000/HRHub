@@ -141,7 +141,7 @@ export function UsersSection() {
 // ============================================================
 interface SettingsData {
   companyName: string; workDaysPerMonth: number; hoursPerDay: number;
-  otWeekdayMult: number; otHolidayMult: number; lateDeductionMode: string;
+  otWeekdayMult: number; otHolidayMult: number; otPublicHolidayMult: number; lateDeductionMode: string;
   socialSecurityEnabled: boolean; sscEmployeeCitizen: number; sscEmployerCitizen: number; sscEmployerExpatriate: number;
   defaultShiftId: string | null; autoAcceptDevices: boolean; admsEnabled: boolean;
   biotimeEnabled: boolean; biotimeUrl: string; biotimeUsername: string;
@@ -259,8 +259,13 @@ export function SettingsSection() {
             <Input type="number" step="0.05" value={s.otWeekdayMult} onChange={(e) => set('otWeekdayMult', parseFloat(e.target.value) || 1.25)} />
           </div>
           <div>
-            <Label className="mb-1.5">مضاعف الإضافي (عطلة/راحة)</Label>
+            <Label className="mb-1.5">مضاعف الإضافي — يوم الراحة الأسبوعية</Label>
             <Input type="number" step="0.05" value={s.otHolidayMult} onChange={(e) => set('otHolidayMult', parseFloat(e.target.value) || 1.5)} />
+          </div>
+          <div>
+            <Label className="mb-1.5">مضاعف الإضافي — العطلة الرسمية</Label>
+            <Input type="number" step="0.05" value={s.otPublicHolidayMult} onChange={(e) => set('otPublicHolidayMult', parseFloat(e.target.value) || 2)} />
+            <p className="text-[11px] text-muted-foreground mt-1">القانون الكويتي: ضعف الأجر (2) للعمل في العطلة الرسمية</p>
           </div>
           <div>
             <Label className="mb-1.5">الوردية الافتراضية</Label>

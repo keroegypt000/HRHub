@@ -84,3 +84,22 @@ describe('unpaidHolidayIndexes (holiday between absences)', () => {
     expect(unpaidHolidayIndexes([day('lu'), day('ho'), day('lu')])).toEqual([1]);
   });
 });
+
+describe('sickPayFraction (Kuwait Labor Law art. 69)', () => {
+  it('درجات الأجر حسب ترتيب يوم المرضية في السنة', async () => {
+    const { sickPayFraction } = await import('@/lib/calc');
+    expect([1, 15, 16, 25, 26, 35, 36, 45, 46, 75].map(sickPayFraction)).toEqual([1, 1, 0.75, 0.75, 0.5, 0.5, 0.25, 0.25, 0, 0]);
+  });
+});
+
+describe('custodyDeductionOf', () => {
+  it('المسلَّمة بقيمتها، المفقودة بمبلغ الخصم، والمُستلمة لا شيء', async () => {
+    const { custodyDeductionOf } = await import('@/lib/indemnity');
+    expect(custodyDeductionOf([
+      { status: 'issued', value: 250, deductionAmount: 0 },
+      { status: 'lost', value: 120, deductionAmount: 60 },
+      { status: 'damaged', value: 40, deductionAmount: 0 },
+      { status: 'returned', value: 900, deductionAmount: 0 },
+    ])).toBe(350);
+  });
+});

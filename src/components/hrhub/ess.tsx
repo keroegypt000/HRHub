@@ -33,6 +33,7 @@ interface EssHome {
   annual: { accrued: number; used: number; balance: number; annualQuota: number };
   balances: { id: string; name: string; quota: number; used: number; balance: number }[];
   lastPayslip: { id: string; period: string; netPay: number } | null;
+  custodies?: { itemName: string; serialNo: string | null; quantity: number; issuedAt: string; status: string }[];
   pendingRequests: number;
 }
 
@@ -445,6 +446,19 @@ function AccountTab({ home, me }: { home: EssHome | null; me: Me }) {
             <div key={k} className="flex justify-between"><span className="text-muted-foreground">{k}</span><span>{v || '—'}</span></div>
           ))}
           <p className="text-[11px] text-muted-foreground pt-1">لتعديل بياناتك راجع الموارد البشرية</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-4 text-sm space-y-1.5">
+          <p className="font-bold mb-1">العُهد المسجلة عليّ</p>
+          {!home?.custodies?.length && <p className="text-muted-foreground">لا توجد عهد مسجلة</p>}
+          {home?.custodies?.map((c, i) => (
+            <div key={i} className="flex justify-between gap-2">
+              <span>{c.itemName}{c.quantity > 1 ? ` ×${c.quantity}` : ''}{c.serialNo ? ` · ${c.serialNo}` : ''}</span>
+              <span className="text-muted-foreground tabular">{fmtDate(c.issuedAt)} · {STATUS_AR[c.status] || c.status}</span>
+            </div>
+          ))}
+          <p className="text-[11px] text-muted-foreground pt-1">العهدة التي لا تُسلَّم تُخصم قيمتها من مستحقات نهاية الخدمة</p>
         </CardContent>
       </Card>
       <Card>

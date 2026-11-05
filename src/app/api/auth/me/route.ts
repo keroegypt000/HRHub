@@ -38,6 +38,8 @@ export async function GET(req: NextRequest) {
         requests: canWrite(user, 'requests'),
         workflow: canWrite(user, 'workflow'),
         loans: canWrite(user, 'loans'),
+        custody: canWrite(user, 'custody'),
+        adjustments: canWrite(user, 'adjustments'),
       },
     });
   });
