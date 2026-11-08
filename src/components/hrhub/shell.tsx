@@ -30,7 +30,7 @@ export interface NavGroup {
 }
 
 /** عنصر يظهر لكل الأدوار */
-const visible = (item: NavItem, role: string): boolean => {
+export const visible = (item: NavItem, role: string): boolean => {
   if (item.adminOnly && role !== 'admin') return false;
   if (['payroll', 'salary-components', 'adjustments'].includes(item.key)) {
     return role === 'admin' || role === 'accountant';
@@ -166,6 +166,9 @@ function NavList({ me, current, onNavigate }: { me: Me; current: string; onNavig
   const [manualOpen, setManualOpen] = useState<string | null>(null);
   const currentGroupKey = groups.find((gr) => gr.items.some((it) => it.key === current))?.key || '';
   const openKey = manualOpen !== null ? manualOpen : currentGroupKey;
+  // التنقل من خارج القائمة (الوصول السريع في لوحة التحكم) يفتح مجموعة القسم الجديد
+  const [seenCurrent, setSeenCurrent] = useState(current);
+  if (seenCurrent !== current) { setSeenCurrent(current); setManualOpen(null); }
 
   const toggle = (key: string) => setManualOpen(openKey === key ? '' : key);
   const goItem = (k: string) => {

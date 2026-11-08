@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDateTime } from '@/lib/client';
 import { PageHeader } from '@/components/hrhub/common';
+import { NAV_GROUPS, visible } from '@/components/hrhub/shell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,12 +35,19 @@ interface DashboardData {
   isNewDevice: boolean;
 }
 
-function KpiCard({ title, value, sub, icon: Icon, tone }: {
+function KpiCard({ title, value, sub, icon: Icon, tone, onClick }: {
   title: string; value: number | string; sub?: string;
   icon: React.ComponentType<{ className?: string }>; tone: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="border">
+    <Card
+      className={`border ${onClick ? 'cursor-pointer transition hover:border-emerald-400 hover:shadow-md' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick(); } : undefined}
+    >
       <CardContent className="p-4 flex items-center gap-3">
         <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${tone}`}>
           <Icon className="h-5.5 w-5.5" />
@@ -54,7 +62,35 @@ function KpiCard({ title, value, sub, icon: Icon, tone }: {
   );
 }
 
-export function DashboardSection() {
+/** الوصول السريع: كل شاشات النظام المتاحة للمستخدم في مربعات صغيرة — ضغطة واحدة */
+function QuickAccess({ role, onNavigate }: { role: string; onNavigate: (k: string) => void }) {
+  const items = NAV_GROUPS.flatMap((g) => g.items.filter((it) => visible(it, role)));
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-base">الوصول السريع</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2">
+          {items.map((it) => (
+            <button
+              key={it.key}
+              onClick={() => onNavigate(it.key)}
+              title={it.label}
+              className="flex flex-col items-center justify-center gap-1.5 rounded-lg border bg-card px-1.5 py-2.5 text-center text-xs font-medium transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-800"
+            >
+              <span className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <it.icon className="h-4 w-4" />
+              </span>
+              <span className="leading-tight line-clamp-2">{it.label}</span>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function DashboardSection({ role = 'admin', onNavigate = () => {} }: { role?: string; onNavigate?: (k: string) => void }) {
+  const go = (k: string) => () => onNavigate(k);
   const [data, setData] = useState<DashboardData | null>(null);
   const [live, setLive] = useState(true);
   const [expiry, setExpiry] = useState<{ alerts: ExpiryAlert[]; summary: { expired: number; d30: number; d60: number; d90: number } } | null>(null);
@@ -107,24 +143,28 @@ export function DashboardSection() {
         }
       />
 
+      <QuickAccess role={role} onNavigate={onNavigate} />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard title="موظفون نشطون" value={k.activeEmployees} icon={Users} tone="bg-emerald-100 text-emerald-700" />
-        <KpiCard title="حاضرون اليوم" value={k.present} sub={`منهم متأخرون: ${k.late}`} icon={UserCheck} tone="bg-green-100 text-green-700" />
-        <KpiCard title="متأخرون" value={k.late} sub={`نص يوم: ${k.halfDay ?? 0}`} icon={Clock3} tone="bg-amber-100 text-amber-700" />
-        <KpiCard title="غياب اليوم" value={k.absent} sub={`بصمة ناقصة: ${k.missedPunch}`} icon={UserX} tone="bg-red-100 text-red-700" />
-        <KpiCard title="في إجازة" value={k.onLeave} sub={`طلبات معلقة: ${k.pendingLeaves}`} icon={Plane} tone="bg-blue-100 text-blue-700" />
-        <KpiCard title="أجهزة متصلة" value={`${k.devicesOnline}/${k.devicesTotal}`} icon={MonitorSmartphone} tone="bg-teal-100 text-teal-700" />
-        <KpiCard title="عقود تنتهي قريبًا" value={data.alerts.length} sub="خلال 90 يومًا" icon={FileSignature} tone="bg-orange-100 text-orange-700" />
+        <KpiCard title="موظفون نشطون" value={k.activeEmployees} icon={Users} tone="bg-emerald-100 text-emerald-700" onClick={go('employees')} />
+        <KpiCard title="حاضرون اليوم" value={k.present} sub={`منهم متأخرون: ${k.late}`} icon={UserCheck} tone="bg-green-100 text-green-700" onClick={go('daily-attendance')} />
+        <KpiCard title="متأخرون" value={k.late} sub={`نص يوم: ${k.halfDay ?? 0}`} icon={Clock3} tone="bg-amber-100 text-amber-700" onClick={go('daily-attendance')} />
+        <KpiCard title="غياب اليوم" value={k.absent} sub={`بصمة ناقصة: ${k.missedPunch}`} icon={UserX} tone="bg-red-100 text-red-700" onClick={go('daily-attendance')} />
+        <KpiCard title="في إجازة" value={k.onLeave} sub={`طلبات معلقة: ${k.pendingLeaves}`} icon={Plane} tone="bg-blue-100 text-blue-700" onClick={go('leaves')} />
+        <KpiCard title="أجهزة متصلة" value={`${k.devicesOnline}/${k.devicesTotal}`} icon={MonitorSmartphone} tone="bg-teal-100 text-teal-700" onClick={go('devices')} />
+        <KpiCard title="عقود تنتهي قريبًا" value={data.alerts.length} sub="خلال 90 يومًا" icon={FileSignature} tone="bg-orange-100 text-orange-700" onClick={go('contracts')} />
         <KpiCard
           title="تنبيهات نفاذ الجوازات والسيارات وعقود الشركة"
           value={expiry ? (expiry.summary.expired + expiry.summary.d30 + expiry.summary.d60 + expiry.summary.d90) : 0}
           sub={expiry && expiry.summary.expired > 0 ? `منها ${expiry.summary.expired} منتهية الآن!` : 'خلال 90 يومًا'}
           icon={BellRing}
           tone={expiry && expiry.summary.expired > 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}
+          onClick={go('alerts')}
         />
-        <KpiCard title="سجلات حية" value={data.latestLogs.length} sub="آخر السجلات أسفل" icon={Fingerprint} tone="bg-teal-100 text-teal-700" />
+        <KpiCard title="سجلات حية" value={data.latestLogs.length} sub="آخر السجلات أسفل" icon={Fingerprint} tone="bg-teal-100 text-teal-700" onClick={go('attendance-logs')} />
       </div>
+
 
       {/* تنبيهات */}
       {(data.alerts.length > 0 || data.devicesOfflineAlert.length > 0 || data.isNewDevice || (expiry && expiry.alerts.length > 0)) && (
@@ -136,21 +176,21 @@ export function DashboardSection() {
             </div>
           )}
           {data.devicesOfflineAlert.map((d) => (
-            <div key={d.id} className="rounded-lg border border-orange-300 bg-orange-50 p-3 text-sm text-orange-900 flex items-center gap-2">
+            <div key={d.id} onClick={go('devices')} className="cursor-pointer hover:shadow-sm rounded-lg border border-orange-300 bg-orange-50 p-3 text-sm text-orange-900 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               الجهاز «{d.name}» منقطع منذ أكثر من 10 دقائق — آخر ظهور {fmtDateTime(d.lastSeenAt)}
             </div>
           ))}
           {data.alerts.slice(0, 3).map((a) => (
-            <div key={a.contractId} className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-900 flex items-center gap-2">
+            <div key={a.contractId} onClick={go('contracts')} className="cursor-pointer hover:shadow-sm rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-900 flex items-center gap-2">
               <FileSignature className="h-4 w-4 shrink-0" />
               عقد {a.contractNo} للموظف {a.employeeName} ينتهي خلال {a.daysLeft} يومًا ({a.endDate.slice(0, 10)})
             </div>
           ))}
           {expiry && expiry.alerts.slice(0, 4).map((a) => (
-            <div key={`${a.kind}-${a.id}`} className={a.level === 'expired'
+            <div key={`${a.kind}-${a.id}`} onClick={go('alerts')} className={'cursor-pointer hover:shadow-sm ' + (a.level === 'expired'
               ? 'rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900 flex items-center gap-2'
-              : 'rounded-lg border border-orange-200 bg-orange-50/70 p-3 text-sm text-orange-900 flex items-center gap-2'}>
+              : 'rounded-lg border border-orange-200 bg-orange-50/70 p-3 text-sm text-orange-900 flex items-center gap-2')}>
               <BellRing className="h-4 w-4 shrink-0" />
               {a.kindAr}: {a.title} {a.subtitle ? `— ${a.subtitle}` : ''} {' '}
               {a.daysLeft < 0 ? <b>منتهي منذ {Math.abs(a.daysLeft)} يوم</b> : `ينتهي خلال ${a.daysLeft} يومًا`}

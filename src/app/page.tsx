@@ -109,7 +109,7 @@ export default function Page() {
 
   return (
     <AppShell me={me} section={section} onNavigate={setSection} onLogout={logout}>
-      {section === 'dashboard' && <DashboardSection />}
+      {section === 'dashboard' && <DashboardSection role={me.role} onNavigate={setSection} />}
       {section === 'employees' && <EmployeesSection canWrite={!!can.employees} companyName={companyName} />}
       {section === 'departments' && <DepartmentsSection canWrite={!!can.departments} />}
       {section === 'contracts' && <ContractsSection canWrite={!!can.contracts} companyName={companyName} />}
