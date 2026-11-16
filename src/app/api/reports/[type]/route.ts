@@ -17,6 +17,9 @@ function time12(d: Date): string {
   return `${h % 12 || 12}:${mm}:${ss}${h < 12 ? 'ص' : 'م'}`;
 }
 
+/** دقائق → س:د */
+const hmm = (m: number) => `${Math.floor((m || 0) / 60)}:${String((m || 0) % 60).padStart(2, '0')}`;
+
 const STATUS_AR: Record<string, string> = {
   present: 'حاضر', late: 'متأخر', half_day: 'نص يوم', absent: 'غائب',
   leave: 'في إجازة', holiday: 'عطلة رسمية', weekend: 'راحة أسبوعية', missed_punch: 'بصمة ناقصة',
@@ -35,6 +38,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
     const to = url.searchParams.get('to');
     const departmentId = url.searchParams.get('departmentId');
     const employeeId = url.searchParams.get('employeeId');
+    // فلتر الحالة (الحضور اليومي/الغياب): present|late|absent|... مفصولة بفاصلة
+    const statusParam = (url.searchParams.get('status') || '').split(',').map((x) => x.trim()).filter(Boolean);
 
     const dateWhere: Record<string, unknown> = {};
     if (from) dateWhere.gte = kuwaitMidnight(from);
@@ -47,24 +52,24 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
     if (Object.keys(empWhere).length) where.employee = empWhere;
 
     const settings = await getSettings();
-    const workDaysPerMonth = settings.workDaysPerMonth;
+    void settings.workDaysPerMonth;
 
     switch (type) {
       // ===== 1. تقرير الحضور اليومي =====
       case 'daily': {
         const rows = await db.dailyAttendance.findMany({
-          where,
+          where: statusParam.length ? { ...where, status: { in: statusParam } } : where,
           include: { employee: { select: { name: true, code: true, department: true, position: true } }, shift: true },
           orderBy: [{ date: 'desc' }, { employee: { name: 'asc' } }],
           take: 3000,
         });
         return ok({
-          columns: ['التاريخ', 'الموظف', 'الرقم', 'القسم', 'الوردية', 'الحالة', 'الدخول', 'الخروج', 'دقائق العمل', 'تأخير', 'مبكر', 'إضافي'],
+          columns: ['التاريخ', 'الموظف', 'الرقم', 'القسم', 'الوردية', 'الحالة', 'الدخول', 'الخروج', 'ساعات العمل', 'تأخير (د)', 'خروج مبكر (د)', 'إضافي (د)', 'ملاحظة'],
           rows: rows.map((r) => [
             dateKey(r.date), r.employee.name, r.employee.code, r.employee.department?.name || '—',
             r.shift?.name || '—', STATUS_AR[r.status] || r.status,
-            fmtTime(r.firstIn), fmtTime(r.lastOut), r.workedMinutes,
-            r.lateMinutes, r.earlyMinutes, r.otMinutes,
+            fmtTime(r.firstIn), fmtTime(r.lastOut), hmm(r.workedMinutes),
+            r.lateMinutes || '—', r.earlyMinutes || '—', r.otMinutes || '—', r.note || '',
           ]),
         });
       }
@@ -75,12 +80,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           where: Object.keys(empWhere).length ? empWhere : { status: { not: 'terminated' } },
           include: { department: true },
         });
-        const keys = (from && to) ? monthDayKeys(dateKey(kuwaitMidnight(from)).slice(0, 7)) : monthDayKeys(dateKey().slice(0, 7));
-        const startKey = from ? dateKey(kuwaitMidnight(from)) : keys[0];
-        const endKey = to ? dateKey(kuwaitMidnight(to)) : keys[keys.length - 1];
-        const periodKeys = keys.filter((k) => k >= startKey && k <= endKey);
+        // الفترة كما اختارها المستخدم (حتى لو تمتد لأكثر من شهر)
+        const monthKeys = monthDayKeys(dateKey().slice(0, 7));
+        const startKey = from ? dateKey(kuwaitMidnight(from)) : monthKeys[0];
+        const endKey = to ? dateKey(kuwaitMidnight(to)) : monthKeys[monthKeys.length - 1];
         const daily = await db.dailyAttendance.findMany({
-          where: { date: { gte: kuwaitMidnight(startKey), lte: kuwaitMidnight(endKey) } },
+          where: { date: { gte: kuwaitMidnight(startKey), lte: kuwaitMidnight(endKey) }, employeeId: { in: employees.map((e) => e.id) } },
         });
         const byEmp = new Map<string, typeof daily>();
         for (const d of daily) {
@@ -102,7 +107,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
             Math.round((lateMinutes / 60) * 10) / 10,
             Math.round((otMinutes / 60) * 10) / 10,
             Math.round((workedMinutes / 60) * 10) / 10,
-            `${Math.round(((periodKeys.length) / workDaysPerMonth) * 100)}%`,
+            // نسبة الدوام = أيام الحضور ÷ أيام العمل المطلوبة (بدون العطل والراحات والإجازات)
+            (() => {
+              const required = rows.filter((r) => !['holiday', 'weekend', 'leave'].includes(r.status)).length;
+              const present = (c.present || 0) + (c.late || 0) + (c.half_day || 0);
+              return required ? `${Math.round((present / required) * 100)}%` : '—';
+            })(),
           ];
         });
         return ok({
@@ -155,7 +165,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
       // ===== 5. الغياب =====
       case 'absence': {
         const rows = await db.dailyAttendance.findMany({
-          where: { ...where, status: { in: ['absent', 'missed_punch'] } },
+          where: { ...where, status: { in: statusParam.length ? statusParam.filter((x) => ['absent', 'missed_punch'].includes(x)) : ['absent', 'missed_punch'] } },
           include: { employee: { select: { name: true, code: true, department: true } } },
           orderBy: [{ date: 'desc' }],
           take: 3000,
@@ -178,7 +188,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
         });
         const types = await db.leaveType.findMany({ where: { active: true } });
         const approved = await db.leaveRequest.findMany({
-          where: { status: 'approved', ...(Object.keys(empWhere).length ? { employee: empWhere } : {}) },
+          where: {
+            status: 'approved', ...(Object.keys(empWhere).length ? { employee: empWhere } : {}),
+            // الإجازات التي تتقاطع مع الفترة المختارة
+            ...(from ? { toDate: { gte: kuwaitMidnight(from) } } : {}),
+            ...(to ? { fromDate: { lte: kuwaitMidnight(to) } } : {}),
+          },
           include: { leaveType: true },
         });
         const rows = employees.map((e) => {

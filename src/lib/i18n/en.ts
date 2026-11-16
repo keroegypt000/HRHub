@@ -1598,10 +1598,80 @@ export const EN_EXACT: Record<string, string> = {
 "(يدوي)": "(manual)",
 "طباعة كروت كل الموظفين": "Print cards for all employees",
 "طباعة كروت القسم": "Print department cards",
-"أقر بصحة بيانات الحضور الموضحة أعلاه": "I confirm the attendance data above is correct"
+"أقر بصحة بيانات الحضور الموضحة أعلاه": "I confirm the attendance data above is correct",
+"بالصور": "With photos",
+"الملخص": "Summary",
+"الحركات": "Punches",
+"الحالات": "Cases",
+"هذا الشهر": "This month",
+"هذه السنة": "This year",
+"إضافي (د)": "OT (min)",
+"هذا الأسبوع": "This week",
+"أيام الغياب": "Absence days",
+"أيام الحضور": "Present days",
+"كل الحاضرين": "All present",
+"أيام التأخير": "Late days",
+"أيام الإجازة": "Leave days",
+"الشهر الماضي": "Last month",
+"ساعات التأخير": "Late hours",
+"خروج مبكر (د)": "Early leave (min)",
+"ساعات الإضافي": "Overtime hours",
+"إجمالي التأخير": "Total lateness",
+"إجمالي لكل موظف": "Subtotal per employee",
+"بحث داخل التقرير": "Search in report",
+"متوسط نسبة الدوام": "Average attendance rate",
+"غياب + بصمة ناقصة": "Absent + missed punch",
+"تصدير Excel (CSV)": "Export Excel (CSV)",
+"لا يوجد موظف مطابق": "No matching employee",
+"إجمالي أيام الإجازة": "Total leave days",
+"إجمالي الخروج المبكر": "Total early leave",
+"القيمة المقترحة (د.ك)": "Suggested value (KWD)",
+"بحث بالاسم أو الرقم...": "Search by name or number...",
+"اسم، رقم، تاريخ، حالة...": "Name, number, date, status...",
+"لا توجد بيانات بهذه الفلاتر": "No data for these filters",
+"أمس": "Yesterday",
+"اختر التقرير، حدد الفلاتر، وراجع الملخص والإجماليات قبل الطباعة أو التصدير": "Choose a report, set the filters, and review the summary and totals before printing or exporting",
+"اختر الموظف لعرض كشف الوقت التفصيلي — أو اضغط «طباعة كروت كل الموظفين» لطباعة كارت لكل موظف.": "Select an employee to view the detailed time card — or click «Print cards for all employees» to print a card for each employee.",
+"عدد الصفوف:": "Rows:"
 };
 
 export const EN_PATTERNS: [string, string][] = [
+[
+"^\\(من (.+?)\\)$",
+"(of $1)"
+],
+[
+"^بحث: (.+?)$",
+"Search: $1"
+],
+[
+"^القسم: (.+?)$",
+"Department: $1"
+],
+[
+"^الموظف: (.+?)$",
+"Employee: $1"
+],
+[
+"^الحالة: (.+?)$",
+"Status: $1"
+],
+[
+"^إجمالي (.+?) \\((.+?)\\)$",
+"Total $1 ($2)"
+],
+[
+"^الفترة: (.+?) → (.+?)$",
+"Period: $1 → $2"
+],
+[
+"^عدد الصفوف: (.+?)$",
+"Rows: $1"
+],
+[
+"^(.+?) · (\\d+) صف$",
+"$1 · $2 rows"
+],
 [
 "^الإجمالي \\((.+?)\\)$",
 "Total ($1)"

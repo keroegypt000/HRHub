@@ -44,3 +44,11 @@ describe('الاستثناءات والإجمالي', () => {
     expect(tr('استثناء HR: مأمورية (تأخير مُبرَّر)')).toBe('HR exception: مأمورية (Late excused)'.replace('مأمورية (Late excused)', tr('مأمورية (تأخير مُبرَّر)')));
   });
 });
+
+describe('شاشة التقارير', () => {
+  it('ترجمات الفلاتر والإجماليات', () => {
+    expect(tr('إجمالي Ali (3)')).toBe('Total Ali (3)');
+    expect(tr('الفترة: 2026-11-01 → 2026-11-16')).toBe('Period: 2026-11-01 → 2026-11-16');
+    expect(tr('هذا الشهر')).toBe('This month');
+  });
+});
