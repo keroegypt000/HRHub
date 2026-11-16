@@ -2,7 +2,7 @@
 // يستخدمه زر «سحب الآن» في صفحة الأجهزة + السحب التلقائي في النسخة المكتبية
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
-import { pullFromLocalDevice, getLocalDeviceUsers, LocalDeviceError } from '@/lib/zk/local';
+import { pullFromLocalDevice, getLocalDeviceUsers, getLocalDeviceInfo, LocalDeviceError } from '@/lib/zk/local';
 import { pullFromActatek, getActatekUsers, ActatekError } from '@/lib/actatek';
 import { linkPunchesToEmployees } from '@/lib/link-punches';
 import { savePunchPhoto, punchPhotoKey } from '@/lib/zk/photos';
@@ -19,7 +19,21 @@ export interface DevicePullResult {
   durationMs: number; message: string; api?: string;
 }
 
+/** يسجل نتيجة آخر اتصال على الجهاز (تظهر في الجدول: متصل/غير متصل + السبب) */
+async function markDevice(id: string, error: string | null) {
+  await db.device.update({ where: { id }, data: error ? { status: 'offline', lastError: error } : { status: 'online', lastError: null, lastSeenAt: new Date() } }).catch(() => {});
+}
+
 export async function pullDevice(deviceId: string, userId?: string | null): Promise<DevicePullResult> {
+  try {
+    return await pullDeviceOnce(deviceId, userId);
+  } catch (e) {
+    if (e instanceof DevicePullError) await markDevice(deviceId, e.message);
+    throw e;
+  }
+}
+
+async function pullDeviceOnce(deviceId: string, userId?: string | null): Promise<DevicePullResult> {
   const started = Date.now();
   const device = await db.device.findUnique({ where: { id: deviceId } });
   if (!device) throw new DevicePullError('الجهاز غير موجود');
@@ -57,6 +71,7 @@ export async function pullDevice(deviceId: string, userId?: string | null): Prom
       sn = r.info.sn?.trim() || device.sn;
     } catch (e) {
       if (e instanceof LocalDeviceError) throw new DevicePullError(e.message);
+      console.warn('[device-pull]', e);
       throw new DevicePullError(`تعذر الاتصال بالجهاز المحلي ${device.ipAddress} — تأكد أن هذا الجهاز يصل إليه على المنفذ ${device.port || 4370}`);
     }
   }
@@ -96,7 +111,7 @@ export async function pullDevice(deviceId: string, userId?: string | null): Prom
   await db.device.update({
     where: { id: device.id },
     data: {
-      lastPullAt: new Date(), lastSeenAt: new Date(), status: 'online',
+      lastPullAt: new Date(), lastSeenAt: new Date(), status: 'online', lastError: null,
       sn: sn !== device.sn && !(await db.device.findUnique({ where: { sn } })) ? sn : device.sn,
     },
   });
@@ -122,7 +137,6 @@ export async function pullAllLocalDevices(): Promise<void> {
   const devices = await db.device.findMany({ where: { enabled: true, mode: 'local', ipAddress: { not: null } }, select: { id: true, name: true } });
   for (const d of devices) {
     try { await pullDevice(d.id); } catch (e) {
-      await db.device.update({ where: { id: d.id }, data: { status: 'offline' } }).catch(() => {});
       console.warn(`[auto-pull] ${d.name}: ${e instanceof Error ? e.message : e}`);
     }
   }
@@ -184,4 +198,54 @@ export async function importDeviceUsers(deviceId: string, userId?: string | null
       ? `تمت إضافة ${created} موظف من الجهاز وربط ${linkedPunches} بصمة — أكمل بياناتهم (الراتب، القسم، تاريخ التعيين) من صفحة الموظفين`
       : `كل موظفي الجهاز (${unique.size}) موجودون في النظام — رُبطت ${linkedPunches} بصمة`,
   };
+}
+
+export interface DeviceTestResult {
+  ok: boolean; message: string; kind: string;
+  info?: { model?: string; sn?: string; users?: number; logs?: number; capacity?: number; protocol?: string; firmware?: string };
+  admsGuide?: string[];
+}
+
+/** اختبار الاتصال: يتصل بالجهاز ويقرأ بياناته فقط (بدون سحب أو تعديل) */
+export async function testDevice(deviceId: string, serverHint: string): Promise<DeviceTestResult> {
+  const device = await db.device.findUnique({ where: { id: deviceId } });
+  if (!device) throw new DevicePullError('الجهاز غير موجود');
+  if (device.mode === 'push') {
+    const seen = device.lastSeenAt && Date.now() - device.lastSeenAt.getTime() < 10 * 60_000;
+    return {
+      ok: !!seen, kind: 'zk-push',
+      message: seen ? `الجهاز يرسل للبرنامج — آخر اتصال ${device.lastSeenAt?.toISOString()}` : 'الجهاز لم يتصل بالبرنامج بعد — اضبط إعدادات السيرفر على الجهاز كالتالي:',
+      admsGuide: [
+        'من قائمة الجهاز: Comm ← Cloud Server Setting (أو ADMS)',
+        `Server Address: ${serverHint.split(':')[0]}`,
+        `Server Port: ${serverHint.split(':')[1] || '3000'}`,
+        'فعّل Enable Domain Name = لا، ثم احفظ وأعد تشغيل الجهاز',
+        'الجهاز يتصل خلال دقيقة ويظهر «متصل» هنا',
+      ],
+    };
+  }
+  if (!device.ipAddress) throw new DevicePullError('لم يُسجَّل عنوان IP للجهاز');
+  try {
+    if (device.vendor === 'actatek') {
+      if (!device.apiUser || !device.apiPassword) throw new DevicePullError('أدخل اسم مستخدم وكلمة سر جهاز ACTAtek');
+      const users = await getActatekUsers({
+        ip: device.ipAddress, port: device.port && device.port !== 4370 ? device.port : null, https: device.useHttps,
+        username: device.apiUser, password: decryptSecret(device.apiPassword),
+      });
+      await markDevice(device.id, null);
+      return { ok: true, kind: 'actatek', message: `تم الاتصال بجهاز ACTAtek بنجاح — عليه ${users.length} موظف`, info: { users: users.length } };
+    }
+    const info = await getLocalDeviceInfo({ ip: device.ipAddress, port: device.port || 4370, commKey: device.commKey || undefined });
+    await markDevice(device.id, null);
+    if (info.sn && device.sn.startsWith('LOCAL-') && !(await db.device.findUnique({ where: { sn: info.sn } }))) {
+      await db.device.update({ where: { id: device.id }, data: { sn: info.sn } }).catch(() => {});
+    }
+    return { ok: true, kind: 'zk-local', message: `تم الاتصال بالجهاز بنجاح — عليه ${info.logs ?? '?'} بصمة و${info.users ?? '?'} موظف`, info };
+  } catch (e) {
+    const known = e instanceof DevicePullError || e instanceof ActatekError || e instanceof LocalDeviceError;
+    if (!known) console.warn('[device-test]', e);
+    const msg = known ? (e as Error).message : `تعذر الاتصال بالجهاز ${device.ipAddress} (${e instanceof Error ? e.message : String(e)})`;
+    await markDevice(device.id, msg);
+    return { ok: false, kind: device.vendor === 'actatek' ? 'actatek' : 'zk-local', message: msg };
+  }
 }

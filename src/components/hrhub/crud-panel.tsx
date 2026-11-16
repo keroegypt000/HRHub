@@ -32,8 +32,13 @@ export interface FieldDef {
   type: FieldType;
   required?: boolean;
   options?: { value: string; label: string }[]; // ثابتة أو من loader
-  hint?: string;
+  hint?: string | ((form: Record<string, unknown>) => string);
   span?: 1 | 2;
+  /** يظهر الحقل فقط عند تحقق الشرط (نماذج تتغير حسب النوع) — الحقل المخفي لا يُرسل */
+  showIf?: (form: Record<string, unknown>) => boolean;
+  /** إلزامي حسب الحالة */
+  requiredIf?: (form: Record<string, unknown>) => boolean;
+  placeholder?: string;
 }
 
 export interface CrudPanelProps<T extends { id: string }> {
@@ -124,7 +129,10 @@ export function CrudPanel<T extends { id: string }>({
       // تجهيز الـpayload حسب نوع الحقل: الأرقام أرقام فعلية، الاختيارات الفارغة والمدات = null
       // (Prisma يرفض '' في الحقول الرقمية/المرتبطة — وتسبب خطأ خادم إن أُرسلت كما هي)
       const payload: Record<string, unknown> = {};
+      const missing = fields.filter((f) => (!f.showIf || f.showIf(form)) && (f.required || f.requiredIf?.(form)) && (form[f.key] === undefined || form[f.key] === null || String(form[f.key]).trim() === ''));
+      if (missing.length) { toast.error(`أكمل: ${missing.map((f) => f.label).join('، ')}`); setSaving(false); return; }
       for (const f of fields) {
+        if (f.showIf && !f.showIf(form)) continue;
         const v = form[f.key];
         if (f.type === 'date' || f.type === 'select') {
           payload[f.key] = v === '' || v === null || v === undefined ? null : v;
@@ -180,6 +188,7 @@ export function CrudPanel<T extends { id: string }>({
     const colFor = (f: FieldDef) => dataCols.find((c) => !used.has(c.key) && (sameKey(c.key, f.key) || c.header === f.label));
     const items: DetailItem[] = [];
     for (const f of fields) {
+      if (f.showIf && !f.showIf(values)) continue;
       const col = f.type === 'textarea' ? undefined : colFor(f);
       if (col) { used.add(col.key); items.push({ label: f.label, value: cellValue(col, row) }); continue; }
       const v = values[f.key];
@@ -291,10 +300,10 @@ export function CrudPanel<T extends { id: string }>({
             <DialogTitle>{editing ? `تعديل ${entityLabel}` : `إضافة ${entityLabel}`}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            {fields.map((f) => (
+            {fields.filter((f) => !f.showIf || f.showIf(form)).map((f) => (
               <div key={f.key} className={f.span === 2 ? 'sm:col-span-2' : ''}>
                 <Label className="mb-1.5 block">
-                  {f.label} {f.required && <span className="text-red-500">*</span>}
+                  {f.label} {(f.required || f.requiredIf?.(form)) && <span className="text-red-500">*</span>}
                 </Label>
                 {f.type === 'select' ? (
                   <Select
@@ -327,9 +336,11 @@ export function CrudPanel<T extends { id: string }>({
                     step={f.type === 'number' ? 'any' : undefined}
                     value={String(form[f.key] ?? '')}
                     onChange={(e) => setVal(f.key, e.target.value)}
+                    placeholder={f.placeholder}
+                    dir={f.type === 'number' || f.key.toLowerCase().includes('ip') ? 'ltr' : undefined}
                   />
                 )}
-                {f.hint && <p className="text-xs text-muted-foreground mt-1">{f.hint}</p>}
+                {f.hint && <p className="text-xs text-muted-foreground mt-1">{typeof f.hint === 'function' ? f.hint(form) : f.hint}</p>}
               </div>
             ))}
           </div>

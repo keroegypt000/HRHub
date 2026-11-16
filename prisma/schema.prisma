@@ -381,6 +381,7 @@ model Device {
   apiUser        String? // مستخدم واجهة ACTAtek (REST/SOAP)
   apiPassword    String? // كلمة سر ACTAtek — مشفرة AES-GCM
   useHttps       Boolean         @default(false) // ACTAtek عبر HTTPS
+  lastError      String? // سبب آخر فشل اتصال/سحب (يظهر في صفحة الأجهزة)
   lastSeenAt     DateTime?
   lastIp         String?
   lastPullAt     DateTime? // آخر سحب ناجح للسجلات من جهاز محلي
