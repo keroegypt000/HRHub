@@ -7,6 +7,9 @@ import { StatusBadge } from '@/components/hrhub/common';
 import { api, fmtKWD, fmtDate, STATUS_AR } from '@/lib/client';
 import { use, useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Users } from 'lucide-react';
+import { ShiftMembersDialog } from '@/components/hrhub/shift-members';
 
 interface Named { id: string; name: string; notes?: string | null }
 
@@ -67,28 +70,37 @@ export function DepartmentsSection({ canWrite }: { canWrite: boolean }) {
 interface ShiftRow extends Record<string, unknown> {
   id: string; name: string; type: string; startTime: string; endTime: string;
   crossDay: boolean; graceMinutes: number; earlyGraceMinutes: number; otEnabled: boolean;
-  otRoundMinutes: number; halfDayMinutes: number; workDays: string; active: boolean;
+  otRoundMinutes: number; halfDayMinutes: number; workDays: string; active: boolean; members?: number;
   _count?: { assignments: number };
 }
 
 const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 export function ShiftsSection({ canWrite }: { canWrite: boolean }) {
+  const [membersOf, setMembersOf] = useState<ShiftRow | null>(null);
+  const membersBtn = (r: ShiftRow) => (
+    <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs text-emerald-700"
+      onClick={(e) => { e.stopPropagation(); setMembersOf(r); }}>
+      <Users className="h-3.5 w-3.5" /> الموظفون ({r.members ?? 0})
+    </Button>
+  );
   return (
+    <>
     <CrudPanel<ShiftRow>
       entityPath="/api/shifts"
       entityLabel="وردية"
       title="الورديات"
-      subtitle="ورديات ثابتة/مرنة/ليلية تعبر منتصف الليل — سماحيات وتقريب إضافي معلن"
+      subtitle="اعمل الوردية، وبعدين اضغط «الموظفون» جنبها علشان تختار الموظفين اللي عليها"
       canWrite={canWrite}
       searchPlaceholder="بحث باسم الوردية..."
       columns={[
         { key: 'name', header: 'الوردية' },
+        { key: '__members', header: 'الموظفون', render: membersBtn },
         { key: 'time', header: 'الوقت', render: (r) => <span className="tabular">{r.startTime} — {r.endTime}{r.crossDay ? ' (+1ي)' : ''}</span> },
         { key: 'type', header: 'النوع', render: (r) => <StatusBadge status={r.type} /> },
         { key: 'grace', header: 'سماحية', render: (r) => <span className="tabular">{r.graceMinutes}د / {r.earlyGraceMinutes}د</span> },
         { key: 'ot', header: 'الإضافي', render: (r) => r.otEnabled ? <span className="text-emerald-700">مفعّل ({r.otRoundMinutes}د تقريب)</span> : <span className="text-muted-foreground">معطل</span> },
-        { key: 'days', header: 'أيام العمل', render: (r) => { try { return (JSON.parse(r.workDays) as number[]).map((d) => WEEKDAYS[d]).join('، '); } catch { return r.workDays; } }, hideOnMobile: true },
+        { key: 'days', header: 'أيام العمل', render: (r) => { try { const d = JSON.parse(r.workDays) as number[]; return d.length === 7 ? 'كل الأيام' : d.map((x) => WEEKDAYS[x]).join('، '); } catch { return r.workDays; } }, hideOnMobile: true, className: 'whitespace-normal min-w-40' },
         { key: 'active', header: 'الحالة', render: (r) => <StatusBadge status={r.active ? 'active' : 'offline'} /> },
       ]}
       fields={[
@@ -112,7 +124,10 @@ export function ShiftsSection({ canWrite }: { canWrite: boolean }) {
         ...r,
         workDaysText: (() => { try { return (JSON.parse(r.workDays) as number[]).join(','); } catch { return '0,1,2,3,4'; } })(),
       })}
+      detailsExtra={(r) => <div>{membersBtn(r)}</div>}
     />
+    {membersOf && <ShiftMembersDialog shiftId={membersOf.id} shiftName={membersOf.name} canWrite={canWrite} onClose={() => setMembersOf(null)} />}
+    </>
   );
 }
 

@@ -1,4 +1,5 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { activeAssignments } from '@/lib/shift-members';
 import { requireRead, requireWrite, handle } from '@/lib/api';
 import { crudList, crudCreate, crudUpdate, crudDelete, CrudConfig } from '@/lib/crud';
 import { num } from '@/lib/calc';
@@ -44,7 +45,14 @@ export const cfg: CrudConfig = {
 export async function GET(req: NextRequest) {
   return handle(async () => {
     const user = await requireRead(req, 'shifts');
-    return crudList(req, user, cfg);
+    const res = await crudList(req, user, cfg);
+    // عدد الموظفين المربوطين بكل وردية الآن
+    const data = (await res.json()) as { rows: Array<{ id: string; members?: number }> };
+    const current = await activeAssignments();
+    const counts = new Map<string, number>();
+    for (const a of current.values()) counts.set(a.shiftId, (counts.get(a.shiftId) || 0) + 1);
+    for (const r of data.rows || []) r.members = counts.get(r.id) || 0;
+    return NextResponse.json(data, { status: res.status });
   });
 }
 

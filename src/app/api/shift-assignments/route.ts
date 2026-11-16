@@ -7,6 +7,7 @@ import { logAudit } from '@/lib/audit';
 import { createRestorePoint } from '@/lib/restores';
 import { recomputeRange } from '@/lib/attendance';
 import { dateKey } from '@/lib/time';
+import { assignEmployees } from '@/lib/shift-members';
 
 const cfg: CrudConfig = {
   model: 'shiftAssignment',
@@ -54,14 +55,10 @@ export async function POST(req: NextRequest) {
     const from = new Date(`${body.fromDate}T00:00:00.000+03:00`);
     const to = body.toDate ? new Date(`${body.toDate}T00:00:00.000+03:00`) : null;
 
-    const created: string[] = [];
-    for (const employeeId of employeeIds) {
-      const row = await db.shiftAssignment.create({
-        data: { employeeId, shiftId: body.shiftId, fromDate: from, toDate: to },
-        include: { employee: true, shift: true },
-      });
-      created.push(row.id);
-    }
+    // نفس قاعدة شاشة الوردية: وردية واحدة سارية لكل موظف — السابقة تنتهي تلقائيًا
+    void from; void to;
+    const r = await assignEmployees(body.shiftId, employeeIds, body.fromDate, body.toDate || null);
+    const created = [String(r.added)];
 
     // إعادة معالجة الحضور من تاريخ السريان حتى اليوم (أو نهاية السريان)
     const today = dateKey();
@@ -75,7 +72,7 @@ export async function POST(req: NextRequest) {
       changes: { employeeIds, shiftId: body.shiftId, fromDate: body.fromDate, toDate: body.toDate },
     });
     await createRestorePoint(user.id, `توزيع وردية ${shift.name} على ${employeeIds.length} موظفًا`);
-    return ok({ created: created.length, ids: created }, 201);
+    return ok({ created: r.added, unchanged: r.unchanged, moved: r.moved }, 201);
   });
 }
 

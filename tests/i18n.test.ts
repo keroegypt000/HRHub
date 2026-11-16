@@ -30,3 +30,10 @@ describe('أجزاء ملاصقة لقيم', () => {
     expect(tr('د تقريب)')).toBe('m rounding)');
   });
 });
+
+describe('موظفو الوردية', () => {
+  it('رسائل الربط', () => {
+    expect(tr('تم ربط 3 موظف بالوردية — 2 نُقلوا من ورديات أخرى')).toBe('3 employees assigned to the shift — 2 moved from other shifts');
+    expect(tr('حاليًا: الوردية الصباحية')).toBe('Current: Morning shift');
+  });
+});

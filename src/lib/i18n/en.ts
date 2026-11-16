@@ -1537,10 +1537,54 @@ export const EN_EXACT: Record<string, string> = {
 "العناصر القريبة من النفاذ أو المنتهية (": "Items near expiry or expired (",
 "د.ك · العملة: دينار كويتي ثلاث خانات عشرية.": "KWD · Currency: Kuwaiti dinar, three decimals.",
 "د.ك ويعاد حساب الصافي. العملية مسجلة في سجل التدقيق.": "KWD and the net is recalculated. The operation is recorded in the audit log.",
-"— تُحسب المكافأة نصف شهر لكل سنة من أول 5 سنوات وشهرًا لكل سنة بعدها، وتُصرف بالكامل عند إنهاء الخدمة أو الوفاة وعلى درجات عند الاستقالة حسب المادة 49.": "— Indemnity is half a month per year for the first 5 years and a month per year after, paid in full on termination or death and in tiers on resignation per Article 49."
+"— تُحسب المكافأة نصف شهر لكل سنة من أول 5 سنوات وشهرًا لكل سنة بعدها، وتُصرف بالكامل عند إنهاء الخدمة أو الوفاة وعلى درجات عند الاستقالة حسب المادة 49.": "— Indemnity is half a month per year for the first 5 years and a month per year after, paid in full on termination or death and in tiers on resignation per Article 49.",
+"إخراج": "Remove",
+"كل الأيام": "Every day",
+"بدون قسم": "No department",
+"بدون وردية": "No shift",
+"الموظفون (": "Employees (",
+"تحديد الكل (": "Select all (",
+"موظفو وردية «": "Employees on shift «",
+"بدون وردية فقط": "Without a shift only",
+"تبدأ الوردية من": "Shift starts on",
+"على الوردية الآن (": "On the shift now (",
+"لا يوجد موظفون مطابقون": "No matching employees",
+"بحث بالاسم أو الرقم الوظيفي...": "Search by name or employee no....",
+"لا يوجد موظفون على هذه الوردية — اضغط «إضافة موظفين»": "No employees on this shift — click «Add employees»",
+"اعمل الوردية، وبعدين اضغط «الموظفون» جنبها علشان تختار الموظفين اللي عليها": "Create the shift, then click «Employees» next to it to choose who works on it",
+"الموظف اللي على وردية تانية بيتنقل للوردية دي من التاريخ ده، وحضوره القديم بيفضل محسوب على ورديته السابقة.": "Employees on another shift move to this shift from this date; their past attendance stays on their previous shift.",
+"إضافة موظفين": "Add employees"
 };
 
 export const EN_PATTERNS: [string, string][] = [
+[
+"^حاليًا: (.+?)$",
+"Current: $1"
+],
+[
+"^ربط (.+?) موظف بالوردية$",
+"Assign $1 employees to the shift"
+],
+[
+"^تم ربط (.+?) موظف بالوردية$",
+"$1 employees assigned to the shift"
+],
+[
+"^(.+?) نُقلوا من ورديات أخرى$",
+"$1 moved from other shifts"
+],
+[
+"^أُخرج (.+?) من الوردية من اليوم$",
+"$1 removed from the shift as of today"
+],
+[
+"^إخراج موظف من الوردية من (.+?)$",
+"Remove employee from the shift as of $1"
+],
+[
+"^ربط (.+?) موظف بوردية «(.+?)» من (.+?)$",
+"Assign $1 employees to shift «$2» from $3"
+],
 [
 "^تعذّر\\ تنفيذ\\ الطلب\\ عبر\\ خدمة\\ Prisma\\ Postgres/Accelerate\\ \\(كود\\ (.+?)\\)\\ —\\ راجع\\ حالة\\ الحصة\\ والمشروع\\ في\\ console\\.prisma\\.io\\ أو\\ تحقق\\ من\\ DATABASE_URL\\ على\\ Vercel\\ ثم\\ أعد\\ المحاولة$",
 "Could not complete the request via Prisma Postgres/Accelerate (code $1) — check the quota and project status at console.prisma.io or verify DATABASE_URL on Vercel then try again"
