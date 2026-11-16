@@ -2,6 +2,7 @@
 
 // القائمة الجانبية اليمنى + الهيدر + درج الموبايل
 // الملاحة في مجموعات منسدلة لتقليل الازدحام + جرس تنبيهات النفاذ في الهيدر
+import { LanguageToggle } from '@/components/hrhub/language';
 import { useCallback, useEffect, useState } from 'react';
 import { Me, api } from '@/lib/client';
 import { Button } from '@/components/ui/button';
@@ -349,9 +350,10 @@ export function AppShell({
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-lg truncate">{currentLabel}</h2>
             </div>
+            <LanguageToggle />
             <AlertsBell onNavigate={go} />
             <Button variant="outline" size="sm" className="gap-1.5 hover:bg-red-50 hover:text-red-700 hover:border-red-200" onClick={onLogout}>
-              <LogOut className="h-4 w-4" /> خروج
+              <LogOut className="h-4 w-4" /> تسجيل الخروج
             </Button>
           </header>
 

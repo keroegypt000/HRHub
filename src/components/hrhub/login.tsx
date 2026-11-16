@@ -1,6 +1,7 @@
 'use client';
 
 // HRHub — شاشات الدخول والإعداد الأول (تصميم مقسوم: هوية + نموذج)
+import { LanguageToggle } from '@/components/hrhub/language';
 import { useState } from 'react';
 import { api, setToken } from '@/lib/client';
 import { Button } from '@/components/ui/button';
@@ -102,7 +103,8 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 lg:grid lg:grid-cols-2">
       <BrandPanel />
-      <div className="flex flex-1 items-center justify-center p-4 sm:p-8 lg:p-10">
+      <div className="relative flex flex-1 items-center justify-center p-4 sm:p-8 lg:p-10">
+        <LanguageToggle className="absolute top-4 end-4" />
         <div className="w-full max-w-md">{children}</div>
       </div>
     </div>

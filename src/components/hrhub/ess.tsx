@@ -2,6 +2,7 @@
 
 // بوابة الموظف (Employee Self Service) — واجهة موبايل أولًا لحساب role=employee
 // الرئيسية (ملفي + أرصدة الإجازات + آخر قسيمة) · طلباتي · قسائمي · حضوري · موافقاتي · حسابي
+import { LanguageToggle } from '@/components/hrhub/language';
 import { useCallback, useEffect, useState } from 'react';
 import { api, fmtKWD, fmtDate, fmtTime, fmtMinutes, STATUS_AR, Me } from '@/lib/client';
 import { REQUEST_TYPES, requestTypeLabel, REQUEST_STATUS_AR, parseSteps } from '@/lib/requests';
@@ -92,9 +93,12 @@ export function EssApp({ me, onLogout }: { me: Me; onLogout: () => void }) {
             <p className="text-[11px] opacity-80">{home?.companyName || 'بوابة الموظف'}</p>
             <p className="font-bold">أهلًا، {home?.employee.name.split(' ')[0] || me.name}</p>
           </div>
-          <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700" onClick={onLogout}>
-            <LogOut className="h-4 w-4" /> خروج
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <LanguageToggle className="border-emerald-400 bg-emerald-700 text-white hover:bg-emerald-800" />
+            <Button variant="ghost" size="sm" className="text-white hover:bg-emerald-700" onClick={onLogout}>
+              <LogOut className="h-4 w-4" /> تسجيل الخروج
+            </Button>
+          </div>
         </div>
       </header>
 

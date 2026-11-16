@@ -1,0 +1,32 @@
+import { describe, it, expect } from 'vitest';
+import { tr } from '@/lib/i18n';
+
+describe('الترجمة الإنجليزية', () => {
+  it('نصوص ثابتة', () => {
+    expect(tr('لوحة التحكم')).toBe('Dashboard');
+    expect(tr('  إضافة جهاز ')).not.toMatch(/[\u0600-\u06FF]/);
+    expect(tr('أجهزة البصمة')).toBe('Fingerprint devices');
+  });
+  it('قوالب بقيم متغيرة', () => {
+    expect(tr('تم الاتصال بالجهاز بنجاح — عليه 10152 بصمة و14 موظف')).toBe('Connected to the device — it has 10152 punches and 14 employees');
+    expect(tr('انتهت مهلة الاتصال بالجهاز 192.168.1.199')).toBe('Connection to device 192.168.1.199 timed out');
+    expect(tr('تم إنشاء وردية')).toBe('Shift created');
+  });
+  it('النص غير العربي يبقى كما هو', () => {
+    expect(tr('192.168.1.200:4370')).toBe('192.168.1.200:4370');
+  });
+});
+
+describe('حالات خاصة', () => {
+  it('الأحرف الأولى للاسم لا تتشوه، والدقائق تُترجم', () => {
+    expect(tr('مد')).toBe('مد');
+    expect(tr('15د')).toBe('15m');
+  });
+});
+
+describe('أجزاء ملاصقة لقيم', () => {
+  it('سماحية الوردية والإضافي', () => {
+    expect(tr('د / ')).toBe('m / ');
+    expect(tr('د تقريب)')).toBe('m rounding)');
+  });
+});

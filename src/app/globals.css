@@ -183,3 +183,9 @@
     width: 100%;
   }
 }
+
+/* الواجهة الإنجليزية (يسار ← يمين) */
+html[data-i18n="pending"] body { opacity: 0; }
+html[dir="ltr"] [dir="rtl"] { direction: ltr; }
+html[dir="ltr"] .text-right { text-align: left; }
+html[dir="ltr"] .text-left { text-align: right; }
