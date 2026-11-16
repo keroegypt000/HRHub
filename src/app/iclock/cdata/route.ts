@@ -11,6 +11,7 @@ import { getSettings } from '@/lib/settings';
 import { resolveEmployeeByPin, recomputeDayForEmployees } from '@/lib/attendance';
 import { dateKey } from '@/lib/time';
 import { logAudit } from '@/lib/audit';
+import { parseAttPhoto, parseUserPhotos, savePunchPhoto, saveUserPhotos, linkPendingPhotos } from '@/lib/zk/photos';
 
 // rate limit بسيط لكل SN على مسار ADMS (منع الإغراق)
 const admsHits = new Map<string, { count: number; windowStart: number }>();
@@ -136,7 +137,25 @@ export async function POST(req: NextRequest) {
     if (!accepted) return new Response('SN NOT REGISTERED', { status: 403 });
   }
 
+  // ===== ATTPHOTO: صورة لحظة البصمة (بيانات ثنائية) =====
+  if (table === 'ATTPHOTO' || req.nextUrl.pathname.endsWith('/fdata')) {
+    const buf = Buffer.from(await req.arrayBuffer().catch(() => new ArrayBuffer(0)));
+    const photo = parseAttPhoto(buf);
+    if (photo) await savePunchPhoto(sn, photo).catch(() => {});
+    return new Response('OK', { status: 200 });
+  }
+
   const body = await req.text().catch(() => '');
+
+  // ===== صور الموظفين المسجلة على الجهاز (USERPIC/BIOPHOTO) — تأتي ضمن OPERLOG/USERINFO =====
+  if (/Content=/.test(body)) {
+    const saved = await saveUserPhotos(parseUserPhotos(body)).catch(() => 0);
+    if (saved) {
+      await logAudit({ action: 'sync', entity: 'device', entityId: sn, description: `استلام ${saved} صورة موظف من الجهاز ${sn}` });
+    }
+    if (table !== 'USERINFO' && table !== 'ATTLOG') return new Response('OK', { status: 200 });
+  }
+  if (table === 'OPERLOG' || table === 'USERPIC' || table === 'BIOPHOTO') return new Response('OK', { status: 200 });
 
   // ===== USERINFO: مزامنة أسماء وربط pin بموظف =====
   if (table === 'USERINFO' || table === 'FP') {
@@ -188,6 +207,9 @@ export async function POST(req: NextRequest) {
       duplicates++;
     }
   }
+
+  // صور وصلت قبل سجلاتها
+  if (inserted > 0) await linkPendingPhotos(sn, punches).catch(() => {});
 
   // إعادة معالجة الحضور للأيام المتأثرة فورًا
   const today = dateKey();

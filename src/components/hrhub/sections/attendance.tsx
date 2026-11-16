@@ -18,7 +18,7 @@ import { downloadFile } from '@/lib/client';
 
 interface LogRow extends Record<string, unknown> {
   id: string; sn: string; pin: string; punchTime: string; status: number; verify: number;
-  source: string; statusAr: string; verifyAr: string;
+  source: string; statusAr: string; verifyAr: string; photoId?: string | null;
   employee?: { id: string; name: string; code: string } | null;
   device?: { sn: string; name: string } | null;
 }
@@ -154,6 +154,14 @@ export function AttendanceLogsSection({ canWrite, isAdmin }: { canWrite: boolean
   };
 
   const columns: Column<LogRow>[] = [
+    {
+      key: 'photo', header: 'الصورة',
+      render: (r) => r.photoId ? (
+        <a href={`/api/files/${r.photoId}`} target="_blank" rel="noreferrer" title="صورة لحظة البصمة — اضغط للتكبير">
+          <img src={`/api/files/${r.photoId}`} alt="صورة البصمة" loading="lazy" className="h-10 w-10 rounded-md object-cover border" />
+        </a>
+      ) : <span className="text-muted-foreground text-xs">—</span>,
+    },
     { key: 'time', header: 'الوقت', render: (r) => <span className="tabular">{fmtDate(r.punchTime)} {fmtTime(r.punchTime)}</span> },
     { key: 'emp', header: 'الموظف', render: (r) => r.employee ? `${r.employee.name} (${r.employee.code})` : <span className="text-amber-700 font-medium">Pin غير معروف: {r.pin}</span> },
     { key: 'device', header: 'الجهاز', render: (r) => r.device?.name || r.sn, hideOnMobile: true },

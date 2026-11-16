@@ -21,6 +21,7 @@ const REPORTS = [
   { key: 'absence', label: 'الغياب', desc: 'أيام الغياب والبصمة الناقصة' },
   { key: 'leaves', label: 'رصيد الإجازات', desc: 'الأرصدة المستهلكة لكل نوع' },
   { key: 'time-card', label: 'كشف الوقت الشهري', desc: 'يوم-باليوم لموظف مع الإحصائيات (Total Time Card)' },
+  { key: 'punches', label: 'حركات البصمة بالصور', desc: 'كل دخول/خروج بوقته وصورته والجهاز وعنوانه' },
 ] as const;
 
 type ReportKey = (typeof REPORTS)[number]['key'];
@@ -48,7 +49,7 @@ export function ReportsSection() {
     try {
       const params = new URLSearchParams({ from, to });
       if (departmentId !== 'all') params.set('departmentId', departmentId);
-      if (type === 'time-card' && employeeId !== 'all') params.set('employeeId', employeeId);
+      if ((type === 'time-card' || type === 'punches') && employeeId !== 'all') params.set('employeeId', employeeId);
       const data = await api<{ columns: string[]; rows: (string | number)[][]; period?: string; statistics?: Record<string, string | number> }>(`/api/reports/${type}?${params}`);
       setColumns(data.columns.map((c, i) => ({ key: String(i), header: c })));
       setRows(data.rows);
@@ -73,9 +74,26 @@ export function ReportsSection() {
   const tableColumns: Column<{ id: string } & Record<string, unknown>>[] = columns.map((c, i) => ({
     key: c.key,
     header: c.header,
-    hideOnMobile: i > 3,
+    hideOnMobile: i > 3 && c.header !== 'الصورة',
     className: i > 0 ? 'tabular' : '',
+    // خلية الصورة: «photo:<id>» → صورة مصغرة تُكبَّر بالضغط
+    render: (r) => {
+      const v = String(r[c.key] ?? '—');
+      if (!v.startsWith('photo:')) return v;
+      const src = `/api/files/${v.slice(6)}`;
+      return (
+        <a href={src} target="_blank" rel="noreferrer" title="تكبير الصورة">
+          <img src={src} alt="صورة البصمة" loading="lazy" className="h-12 w-12 rounded-md object-cover border" />
+        </a>
+      );
+    },
   }));
+
+  /** خلية للطباعة: الصورة كـ img بعنوان كامل */
+  const printCell = (cell: string | number) => {
+    const v = String(cell);
+    return v.startsWith('photo:') ? `<img src="${location.origin}/api/files/${v.slice(6)}" style="width:56px;height:56px;object-fit:cover;border-radius:4px">` : v;
+  };
 
   const exportReport = () => {
     // نصدّر عبر واجهة CSV جاهزة (بيانات التقرير نفسها) — Excel فوري
@@ -90,22 +108,49 @@ export function ReportsSection() {
   const printReport = () => {
     const w = window.open('', '_blank');
     if (!w) return;
+    if (type === 'punches') { printPunches(w); return; }
     w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير ${REPORTS.find((r) => r.key === type)?.label}</title>
       <style>body{font-family:system-ui,sans-serif;padding:20px}h1{color:#1F8A70;font-size:18px}table{width:100%;border-collapse:collapse;font-size:12px}
       th,td{border:1px solid #cde3dc;padding:6px 8px;text-align:right}th{background:#eef7f4}.meta{color:#666;font-size:12px;margin-bottom:12px}</style></head>
       <body><h1>ADMS FOR HR MANAGMENT — ${REPORTS.find((r) => r.key === type)?.label}</h1>
       <p class="meta">الفترة: ${from} → ${to}${meta ? ` · ${meta}` : ''} · تاريخ الطباعة: ${new Date().toISOString().slice(0, 10)}</p>
       <table><thead><tr>${columns.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r) => `<tr>${r.map((cell) => `<td>${String(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`);
+      <tbody>${rows.map((r) => `<tr>${r.map((cell) => `<td>${printCell(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 400);
+  };
+
+  /** طباعة «حركات البصمة بالصور» بنفس شكل نموذج العميل: صفحة لكل موظف برقمه واسمه ثم جدول الحركات */
+  const printPunches = (w: Window) => {
+    const groups = new Map<string, { name: string; rows: (string | number)[][] }>();
+    for (const r of rows) {
+      const code = String(r[1]);
+      if (!groups.has(code)) groups.set(code, { name: String(r[2]), rows: [] });
+      groups.get(code)!.rows.push(r);
+    }
+    const head = ['م', 'التاريخ', 'اليوم', 'وقت الحركة', 'نوع العملية', 'الصورة', 'وصف الجهاز', 'عنوان الشبكة'];
+    const pick = (r: (string | number)[]) => [r[0], r[3], r[4], r[5], r[6], r[7], r[8], r[9]];
+    const sections = [...groups.entries()].map(([code, g]) => `
+      <section>
+        <table class="emp"><tr><th>رقم الموظف</th><td>${code}</td><th>الاسم</th><td>${g.name}</td><th>الفترة</th><td>${from} → ${to}</td></tr></table>
+        <table><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${g.rows.map((r) => `<tr>${pick(r).map((c) => `<td>${printCell(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      </section>`).join('');
+    w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>حركات البصمة بالصور</title>
+      <style>body{font-family:system-ui,sans-serif;padding:16px}h1{color:#1F8A70;font-size:17px;margin:0 0 10px}
+      table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}th,td{border:1px solid #cfcfcf;padding:4px 6px;text-align:center;vertical-align:middle}
+      th{background:#eee}.emp th{background:#e8f3ef;width:12%}.emp td{font-weight:bold}
+      section{page-break-after:always}section:last-child{page-break-after:auto}tr{page-break-inside:avoid}</style></head>
+      <body><h1>حركات البصمة بالصور</h1>${sections || '<p>لا توجد حركات في الفترة</p>'}</body></html>`);
+    w.document.close();
+    setTimeout(() => w.print(), 1200);
   };
 
   return (
     <div>
       <PageHeader
         title="التقارير"
-        subtitle="ستة تقارير شاملة بفلاتر — تصدير وطباعة فورية"
+        subtitle="ثمانية تقارير بفلاتر — تصدير وطباعة فورية (منها حركات البصمة بالصور)"
         actions={
           <>
             <Button variant="outline" size="sm" onClick={exportReport}><Download className="h-4 w-4" /> تصدير CSV</Button>
@@ -115,7 +160,7 @@ export function ReportsSection() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
         {REPORTS.map((r) => (
           <button
             key={r.key}
@@ -138,11 +183,11 @@ export function ReportsSection() {
             {departments.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        {type === 'time-card' && (
+        {(type === 'time-card' || type === 'punches') && (
           <Select value={employeeId} onValueChange={setEmployeeId} dir="rtl">
             <SelectTrigger className="w-56"><SelectValue placeholder="اختر الموظف" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" disabled>اختر الموظف</SelectItem>
+              <SelectItem value="all" disabled={type === 'time-card'}>{type === 'punches' ? 'كل الموظفين' : 'اختر الموظف'}</SelectItem>
               {employees.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
             </SelectContent>
           </Select>

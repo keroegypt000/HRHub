@@ -30,6 +30,9 @@ export function handshakeResponse(serverTime: Date): string {
     `INFORM=0`,
     `ATTLOGInterval=0`,
     `RealTime=1`,
+    // اطلب من الجهاز رفع صور البصمة وصور الموظفين مع السجلات
+    `TransFlag=TransData AttLog OpLog AttPhoto EnrollUser ChgUser UserPic`,
+    `TransInterval=1`,
     `ServerVer=2.4.0`,
     `~Date=${t}`,
   ].join('\n');

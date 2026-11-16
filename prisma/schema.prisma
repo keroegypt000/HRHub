@@ -398,6 +398,7 @@ model AttendanceLog {
   verify     Int       @default(1) // 1 بصمة|3 كلمة سر|4 بطاقة|15 وجه
   workCode   String?
   source     String    @default("adms") // adms|biotime|excel|manual
+  photoId    String? // صورة لحظة البصمة من الجهاز (FileUpload — ownerTag=punch_photo)
   createdAt  DateTime  @default(now())
   device     Device    @relation(fields: [sn], references: [sn], onDelete: Cascade)
   employee   Employee? @relation(fields: [employeeId], references: [id])

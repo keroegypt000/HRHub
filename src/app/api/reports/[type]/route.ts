@@ -4,6 +4,18 @@ import { requireRead, ok, handle, HttpError } from '@/lib/api';
 import { getSettings } from '@/lib/settings';
 import { kuwaitMidnight, monthDayKeys, dateKey, weekdayIndex, hmToMinutes, fmtTime } from '@/lib/time';
 import { effectiveWorkDays } from '@/lib/workweek';
+import { STATUS_AR as PUNCH_AR } from '@/lib/zk/protocol';
+
+const DAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+/** وقت الحركة بنظام 12 ساعة بتوقيت الكويت: 7:22:16ص */
+function time12(d: Date): string {
+  const t = new Date(d.getTime() + 3 * 3600_000);
+  const h = t.getUTCHours();
+  const mm = String(t.getUTCMinutes()).padStart(2, '0');
+  const ss = String(t.getUTCSeconds()).padStart(2, '0');
+  return `${h % 12 || 12}:${mm}:${ss}${h < 12 ? 'ص' : 'م'}`;
+}
 
 const STATUS_AR: Record<string, string> = {
   present: 'حاضر', late: 'متأخر', half_day: 'نص يوم', absent: 'غائب',
@@ -330,6 +342,36 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
             lateMinutes: stats.lateM, earlyMinutes: stats.earlyM,
             absenceHours: hm(stats.absH), leaveHours: hm(stats.leaveH), presentDays: stats.presentDays,
           },
+        });
+      }
+
+      // ===== 8. حركات البصمة بالصور (نموذج العميل): كل حركة بصورتها والجهاز وعنوانه =====
+      case 'punches': {
+        const timeWhere: Record<string, unknown> = {};
+        if (from) timeWhere.gte = kuwaitMidnight(from);
+        if (to) timeWhere.lt = new Date(kuwaitMidnight(to).getTime() + 24 * 3600_000);
+        const logs = await db.attendanceLog.findMany({
+          where: {
+            ...(from || to ? { punchTime: timeWhere } : {}),
+            ...(Object.keys(empWhere).length ? { employee: empWhere } : { employeeId: { not: null } }),
+          },
+          include: { employee: { select: { code: true, name: true } }, device: { select: { name: true, model: true, ipAddress: true, lastIp: true } } },
+          orderBy: [{ employee: { code: 'asc' } }, { punchTime: 'asc' }],
+          take: 5000,
+        });
+        const serial = new Map<string, number>();
+        return ok({
+          columns: ['م', 'رقم الموظف', 'الاسم', 'التاريخ', 'اليوم', 'وقت الحركة', 'نوع العملية', 'الصورة', 'وصف الجهاز', 'عنوان الشبكة'],
+          rows: logs.map((l) => {
+            const code = l.employee?.code || l.pin;
+            serial.set(code, (serial.get(code) || 0) + 1);
+            return [
+              serial.get(code) as number, code, l.employee?.name || '—',
+              dateKey(l.punchTime).replace(/-/g, '/'), DAYS_AR[weekdayIndex(l.punchTime)], time12(l.punchTime),
+              PUNCH_AR[l.status] || 'حركة', l.photoId ? `photo:${l.photoId}` : '—',
+              l.device?.model || l.device?.name || '—', l.device?.ipAddress || l.device?.lastIp || '—',
+            ];
+          }),
         });
       }
 
