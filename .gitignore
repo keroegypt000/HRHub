@@ -65,3 +65,7 @@ server.log
 /upload/
 /agent-ctx/
 /tmp/
+# النسخة المكتبية (مخرجات البناء)
+/desktop/node_modules
+/desktop/dist
+/desktop/app

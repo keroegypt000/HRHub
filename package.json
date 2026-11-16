@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desktop:build": "node scripts/build-desktop.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
