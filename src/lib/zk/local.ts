@@ -159,11 +159,37 @@ export interface PullOptions {
 
 export class LocalDeviceError extends Error {}
 
+/**
+ * جلسة واحدة لكل جهاز في نفس الوقت + مهلة قصيرة بين الجلسات:
+ * أجهزة UDP القديمة ترد بلا بيانات لو فُتحت جلسة جديدة فور إغلاق السابقة (السحب التلقائي + زر يدوي مثلًا)
+ */
+const deviceQueue = new Map<string, Promise<unknown>>();
+const lastSession = new Map<string, number>();
+const SESSION_GAP_MS = 2500;
+async function withDevice<T>(ip: string, fn: () => Promise<T>): Promise<T> {
+  const prev = deviceQueue.get(ip) || Promise.resolve();
+  const run = prev.catch(() => {}).then(async () => {
+    const wait = (lastSession.get(ip) || 0) + SESSION_GAP_MS - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    try {
+      return await fn();
+    } catch (e) {
+      // محاولة ثانية واحدة بعد مهلة — الجهاز كان مشغولًا غالبًا
+      await new Promise((r) => setTimeout(r, SESSION_GAP_MS));
+      try { return await fn(); } catch { throw e; }
+    } finally {
+      lastSession.set(ip, Date.now());
+    }
+  });
+  deviceQueue.set(ip, run);
+  try { return await run; } finally { if (deviceQueue.get(ip) === run) deviceQueue.delete(ip); }
+}
+
 /** إجبار إغلاق المقبس — المكتبة لا تُجهز مهلة SYN للعناوين غير القابلة للوصول */
 function destroySocket(zk: ZkLibInstance): void {
   try {
-    (zk.zklibTcp as unknown as { socket?: { destroy(): void } }).socket?.destroy();
-    (zk.zklibUdp as unknown as { socket?: { close(): void } }).socket?.close();
+    // TCP فقط: إغلاق UDP مرتين يُسقط مكتبة node-zklib (closeSocket تستدعي timer قبل تعريفه)
+    if (zk.connectionType !== 'udp') (zk.zklibTcp as unknown as { socket?: { destroy(): void } }).socket?.destroy();
   } catch { /* تجاهل */ }
 }
 
@@ -173,6 +199,10 @@ function destroySocket(zk: ZkLibInstance): void {
  * لأن مكتبة النقل لا تُجهز محاولة TCP المعلقة لعناوين لا تستجيب.
  */
 export async function pullFromLocalDevice(opts: PullOptions): Promise<LocalPullResult> {
+  return withDevice(opts.ip, () => pullOnce(opts));
+}
+
+async function pullOnce(opts: PullOptions): Promise<LocalPullResult> {
   const started = Date.now();
   const timeout = Math.min(Math.max(opts.timeoutMs ?? 8000, 3000), 15000);
   const port = opts.port || 4370;
@@ -238,5 +268,37 @@ export async function pullFromLocalDevice(opts: PullOptions): Promise<LocalPullR
     throw err;
   } finally {
     if (hardTimer) clearTimeout(hardTimer);
+  }
+}
+
+/** قراءة قائمة المستخدمين فقط من جهاز ZKTeco (لاستيراد الموظفين) — بدون سحب السجلات */
+export async function getLocalDeviceUsers(opts: PullOptions): Promise<{ pin: string; name: string }[]> {
+  return withDevice(opts.ip, () => usersOnce(opts));
+}
+
+async function usersOnce(opts: PullOptions): Promise<{ pin: string; name: string }[]> {
+  const port = opts.port || 4370;
+  const zk = new ZKLib(opts.ip, port, Math.min(Math.max(opts.timeoutMs ?? 8000, 3000), 15000), 5200);
+  const work = async () => {
+    await zk.createSocket().catch((e: Error) => {
+      throw new LocalDeviceError(`تعذر الوصول إلى الجهاز ${opts.ip}:${port} (${e.message})`);
+    });
+    const t = zk.connectionType === 'udp' ? zk.zklibUdp : zk.zklibTcp;
+    const info = await zk.getInfo().catch(() => ({ userCounts: undefined }));
+    await t.freeData().catch(() => {});
+    const res = await t.readWithBuffer(REQUEST_DATA.GET_USERS);
+    await t.freeData().catch(() => {});
+    if (!res.data) throw new LocalDeviceError('الجهاز لم يرسل قائمة المستخدمين — أعد المحاولة بعد دقيقة');
+    return decodeUserRecords(res.data, info.userCounts).map(({ pin, name }) => ({ pin, name }));
+  };
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([work(), new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new LocalDeviceError(`انتهت مهلة الاتصال بالجهاز ${opts.ip}`)), 20000); })]);
+  } catch (err) {
+    destroySocket(zk);
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+    await zk.disconnect().catch(() => {});
   }
 }

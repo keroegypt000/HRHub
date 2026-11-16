@@ -1,4 +1,5 @@
-import { NextRequest } from 'next/server';
+import { linkPunchesToEmployees } from '@/lib/link-punches';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, requireWrite, handle, ok } from '@/lib/api';
 import { crudUpdate, crudDelete } from '@/lib/crud';
@@ -31,7 +32,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   return handle(async () => {
     const user = await requireWrite(req, 'employees');
     const { id } = await ctx.params;
-    return crudUpdate(req, user, cfg, id);
+    const res = await crudUpdate(req, user, cfg, id);
+    // ربط بصماته السابقة المسجلة برقمه (لو أضيف بعد سحب البصمات من الجهاز)
+    if (res.status >= 300) return res;
+    // نقرأ الرد مرة واحدة ونعيد إرساله (نسخ الرد clone يُفرغ جسمه في سيرفر Next)
+    const row = (await res.json().catch(() => null)) as { id?: string } | null;
+    if (row?.id) await linkPunchesToEmployees([row.id]).catch(() => 0);
+    return NextResponse.json(row, { status: res.status });
   });
 }
 

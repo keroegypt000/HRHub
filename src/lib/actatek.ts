@@ -188,3 +188,38 @@ export async function pullFromActatek(cfg: ActatekConfig, from: Date, to: Date):
   for (const [a, b] of windows) punches.push(...await soapPull(cfg, a, b));
   return { punches, api: 'soap' };
 }
+
+interface ActaUser { userID?: string; firstName?: string; lastName?: string; otherName?: string }
+const fullName = (u: ActaUser) => [u.firstName, u.otherName, u.lastName].map((x) => (x || '').trim()).filter(Boolean).join(' ');
+
+/** قائمة الموظفين المسجلين على جهاز ACTAtek (REST ثم SOAP) */
+export async function getActatekUsers(cfg: ActatekConfig): Promise<{ pin: string; name: string }[]> {
+  const sid = await restLogin(cfg);
+  if (sid) {
+    try {
+      const res = await request(cfg, 'GET', `/cgi-bin/restapi/user/${sid}/`);
+      if (res.status >= 400) throw new ActatekError(`خطأ من جهاز ACTAtek (${res.status}) أثناء قراءة الموظفين`);
+      let rows: ActaUser[] = [];
+      try { const j = JSON.parse(res.body); rows = Array.isArray(j) ? j : j ? [j] : []; } catch { rows = []; }
+      return rows.filter((u) => u.userID).map((u) => ({ pin: String(u.userID).trim(), name: fullName(u) }));
+    } finally {
+      await request(cfg, 'DELETE', `/cgi-bin/restapi/logout/${sid}`).catch(() => {});
+    }
+  }
+  const loginXml = await soap(cfg, `<ns:login><username>${xmlEsc(cfg.username)}</username><password>${xmlEsc(cfg.password)}</password></ns:login>`);
+  const soapSid = tag(loginXml, 'sessionID') || tag(loginXml, 'return');
+  if (!soapSid || !/^\d+$/.test(soapSid)) throw new ActatekError('رفض جهاز ACTAtek تسجيل الدخول — راجع اسم المستخدم وكلمة السر');
+  try {
+    const xml = await soap(cfg, `<ns:getUsers><sessionID>${soapSid}</sessionID><getUsersCriteria><userID></userID><partialUserID></partialUserID><lastName></lastName><firstName></firstName><otherName></otherName><departmentID>0</departmentID></getUsersCriteria></ns:getUsers>`);
+    return parseSoapUsers(xml);
+  } finally {
+    await soap(cfg, `<ns:logout><sessionID>${soapSid}</sessionID></ns:logout>`).catch(() => {});
+  }
+}
+
+export function parseSoapUsers(xml: string): { pin: string; name: string }[] {
+  return xml.split(/<(?:\w+:)?userID[^>]*>/).slice(1).map((chunk) => {
+    const pin = chunk.split('<')[0].trim();
+    return { pin, name: fullName({ firstName: tag(chunk, 'firstName'), lastName: tag(chunk, 'lastName'), otherName: tag(chunk, 'otherName') }) };
+  }).filter((u) => u.pin);
+}

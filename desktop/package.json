@@ -1,7 +1,7 @@
 {
   "name": "hrhub-desktop",
   "productName": "HRHub",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "HRHub — نظام الموارد البشرية والرواتب والحضور (نسخة مكتبية بقاعدة بيانات محلية)",
   "author": "HRHub",
   "main": "main.js",

@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/hrhub/common';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { PlugZap, Fingerprint } from 'lucide-react';
+import { PlugZap, Fingerprint, UserPlus } from 'lucide-react';
 
 interface DeviceRow extends Record<string, unknown> {
   id: string; sn: string; name: string; model?: string | null; location?: string | null;
@@ -16,6 +16,11 @@ interface DeviceRow extends Record<string, unknown> {
   lastSeenAt?: string | null; lastIp?: string | null; lastPullAt?: string | null;
   status: string; enabled: boolean; pushVersion?: string | null;
   _count?: { attendanceLogs: number };
+}
+
+interface ImportResult {
+  onDevice: number; created: number; existing: number; linkedPunches: number;
+  createdList: { code: string; name: string }[]; message: string;
 }
 
 interface TestResult {
@@ -41,6 +46,24 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
       toast.success(res.online ? 'الجهاز متصل — أُصدر أمر CHECKIN' : 'أُصدر الأمر — سيُستلم عند عودة الاتصال');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'فشل الاختبار');
+    }
+  };
+
+  const [importing, setImporting] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
+  /** استيراد موظفي الجهاز إلى النظام + ربط بصماتهم السابقة */
+  const importUsers = async (row: DeviceRow) => {
+    setImporting(row.id);
+    try {
+      const res = await api<ImportResult>(`/api/devices/${row.id}/import-users`, { method: 'POST' });
+      setImportResult(res);
+      toast.success(res.message);
+      window.dispatchEvent(new Event('hrhub:refresh'));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'فشل استيراد الموظفين من الجهاز');
+    } finally {
+      setImporting(null);
     }
   };
 
@@ -72,6 +95,13 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
         </Button>
       ) : (
         <span className="text-xs text-muted-foreground px-1.5" title="جهاز موثق من استيراد USB — أدخل IP له لتفعيل السحب">USB</span>
+      )}
+      {r.mode === 'local' && r.ipAddress && (
+        <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs text-teal-700" title="إضافة موظفي الجهاز للنظام وربط بصماتهم"
+          disabled={importing === r.id}
+          onClick={(e) => { e.stopPropagation(); importUsers(r); }}>
+          <UserPlus className={`h-3.5 w-3.5 ${importing === r.id ? 'animate-pulse' : ''}`} /> استيراد الموظفين
+        </Button>
       )}
     </>
   );
@@ -180,6 +210,28 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPullResult(null)}>إغلاق</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!importResult} onOpenChange={(o) => !o && setImportResult(null)}>
+        <DialogContent className="max-w-lg" dir="rtl">
+          <DialogHeader><DialogTitle>استيراد الموظفين من الجهاز</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="font-medium">{importResult?.message}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+              <div className="rounded-lg border p-2.5"><p className="text-xs text-muted-foreground">على الجهاز</p><p className="tabular font-bold">{importResult?.onDevice ?? 0}</p></div>
+              <div className="rounded-lg border p-2.5"><p className="text-xs text-muted-foreground">أضيفوا</p><p className="tabular font-bold text-emerald-700">{importResult?.created ?? 0}</p></div>
+              <div className="rounded-lg border p-2.5"><p className="text-xs text-muted-foreground">موجودون</p><p className="tabular font-bold">{importResult?.existing ?? 0}</p></div>
+              <div className="rounded-lg border p-2.5"><p className="text-xs text-muted-foreground">بصمات رُبطت</p><p className="tabular font-bold text-teal-700">{importResult?.linkedPunches ?? 0}</p></div>
+            </div>
+            {!!importResult?.createdList.length && (
+              <div className="max-h-48 overflow-y-auto rounded-lg border">
+                <table className="w-full text-xs"><thead className="bg-muted/60"><tr><th className="p-1.5 text-right">الرقم</th><th className="p-1.5 text-right">الاسم</th></tr></thead>
+                  <tbody>{importResult.createdList.map((u) => <tr key={u.code} className="border-t"><td className="p-1.5 tabular">{u.code}</td><td className="p-1.5">{u.name}</td></tr>)}</tbody></table>
+              </div>
+            )}
+            <p className="text-xs text-amber-700">الموظفون الجدد أضيفوا براتب 0 — أكمل الراتب والقسم وتاريخ التعيين ويوم الراحة من صفحة الموظفين قبل حساب الرواتب.</p>
+          </div>
+          <DialogFooter><Button onClick={() => setImportResult(null)}>تم</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </>

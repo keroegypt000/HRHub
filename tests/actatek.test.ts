@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'http';
 import type { AddressInfo } from 'net';
-import { pullFromActatek, triggerToStatus, parseActaTime, parseSoapLogs } from '@/lib/actatek';
+import { pullFromActatek, getActatekUsers, triggerToStatus, parseActaTime, parseSoapLogs } from '@/lib/actatek';
 
 const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(150, 3)]).toString('base64');
 let mode: 'rest' | 'soap' = 'rest';
@@ -29,9 +29,16 @@ beforeAll(async () => {
           ]));
         }
         if (req.url.startsWith('/cgi-bin/restapi/logout/')) return res.end('{"status":"success"}');
+        if (req.url === '/cgi-bin/restapi/user/1607225982/') return res.end(JSON.stringify([
+          { userID: '10', firstName: 'Ahmed', lastName: 'Ali', adminLevel: 'PERSONALUSER' },
+          { userID: '11', firstName: 'Sara', lastName: '' },
+        ]));
       }
       if (req.url === '/cgi-bin/rpcrouter') {
         if (body.includes('<ns:login>')) return res.end('<Envelope><Body><ns:loginResponse><sessionID>777</sessionID></ns:loginResponse></Body></Envelope>');
+        if (body.includes('<ns:getUsers>')) {
+          return res.end('<Envelope><Body><ns:getUsersResponse><users><user><userID>22</userID><lastName>Hassan</lastName><firstName>Sara</firstName></user><user><userID>23</userID><firstName>Omar</firstName></user></users></ns:getUsersResponse></Body></Envelope>');
+        }
         if (body.includes('<ns:getFullLogs>')) {
           return res.end(`<Envelope><Body><ns:getFullLogsResponse><logs>
 <log><logID>9</logID><userID>22</userID><userName>Sara</userName><timestamp>2025-02-02T07:46:27</timestamp><trigger>IN</trigger><terminalSN>X1</terminalSN><jpegPhoto>${jpeg}</jpegPhoto></log>
@@ -81,5 +88,12 @@ describe('ACTAtek', () => {
     expect(r.api).toBe('soap');
     expect(r.punches.map((p) => [p.pin, p.status, !!p.photo])).toEqual([['22', 0, true], ['22', 1, false]]);
     expect(parseSoapLogs('<x></x>')).toEqual([]);
+  });
+
+  it('قائمة الموظفين: REST ثم SOAP', async () => {
+    mode = 'rest';
+    expect(await getActatekUsers(cfg())).toEqual([{ pin: '10', name: 'Ahmed Ali' }, { pin: '11', name: 'Sara' }]);
+    mode = 'soap';
+    expect(await getActatekUsers(cfg())).toEqual([{ pin: '22', name: 'Sara Hassan' }, { pin: '23', name: 'Omar' }]);
   });
 });
