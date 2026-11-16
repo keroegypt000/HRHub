@@ -229,7 +229,7 @@ export function AttendanceLogsSection({ canWrite, isAdmin }: { canWrite: boolean
 
       <div className="mt-4">
         <DataTable columns={columns} rows={rows} loading={loading} page={page} total={total} limit={100} onPage={setPage}
-          emptyText={unknown ? 'لا توجد سجلات غير معروفة — كل السجلات مربوطة بموظفين 🎉' : 'لا توجد سجلات — اضبط جهاز ZKTeco على ADMS'} />
+          emptyText={unknown ? 'لا توجد سجلات غير معروفة — كل السجلات مربوطة بموظفين' : 'لا توجد سجلات — اضبط جهاز ZKTeco على ADMS'} />
       </div>
 
       {/* حوار سجل يدوي */}

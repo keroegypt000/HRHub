@@ -1,6 +1,6 @@
 'use client';
 
-// ADMS FOR HR MANAGMENT — شاشات الدخول والإعداد الأول (تصميم مقسوم: هوية + نموذج)
+// HRHub — شاشات الدخول والإعداد الأول (تصميم مقسوم: هوية + نموذج)
 import { useState } from 'react';
 import { api, setToken } from '@/lib/client';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ function BrandPanel() {
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold tracking-wide text-white sm:text-base">
-            ADMS FOR HR MANAGMENT
+            HRHub
           </p>
           <p className="text-[11px] text-emerald-100/80 sm:text-xs">إدارة الموارد البشرية</p>
         </div>
@@ -70,7 +70,7 @@ function BrandPanel() {
 
         <div>
           <h1 className="text-3xl font-black leading-tight tracking-wide text-white xl:text-4xl">
-            ADMS FOR HR MANAGMENT
+            HRHub
           </h1>
           <p className="mt-3 text-base text-emerald-100/85 xl:text-lg">
             نظام إدارة الموارد البشرية والحضور والرواتب
@@ -147,7 +147,7 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
         body: JSON.stringify({ username, password }),
       });
       setToken(data.token);
-      toast.success('مرحبًا بك 👋');
+      toast.success('مرحبًا بك');
       onLogin(data.user);
     } catch (err) {
       const m = err instanceof Error ? err.message : 'فشل تسجيل الدخول';
@@ -236,12 +236,12 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
               </button>
               {dbOk === true && (
                 <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">
-                  ✅ القاعدة متصلة الآن — سجّل دخولك من جديد
+                  القاعدة متصلة الآن — سجّل دخولك من جديد
                 </span>
               )}
               {dbOk === false && (
                 <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-800">
-                  ❌ ما زالت غير متاحة — نفّذ خطوة الاستعادة أعلاه ثم أعد الفحص
+                  ما زالت غير متاحة — نفّذ خطوة الاستعادة أعلاه ثم أعد الفحص
                 </span>
               )}
             </div>
@@ -255,7 +255,7 @@ export function LoginScreen({ onLogin }: { onLogin: (me: unknown) => void }) {
       </div>
 
       <p className="mt-5 text-center text-[11px] text-slate-400">
-        ADMS FOR HR MANAGMENT · نسخة 1.0 · صُمّم لإدارة الموارد البشرية في دولة الكويت
+        HRHub · نسخة 1.0 · صُمّم لإدارة الموارد البشرية في دولة الكويت
       </p>
     </AuthShell>
   );
@@ -282,7 +282,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
           username: form.username,
           name: form.name || 'مدير النظام',
           password: form.password,
-          companyName: form.companyName || 'شركة ADMS',
+          companyName: form.companyName || 'الشركة',
         }),
       });
       toast.success('تم تهيئة النظام — سجّل دخولك الآن');
@@ -343,7 +343,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
               <Input
                 id="su-company" value={form.companyName}
                 onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-                placeholder="شركة ADMS" className={setupInputCls}
+                placeholder="اسم شركتك" className={setupInputCls}
               />
             </div>
           </div>
@@ -383,7 +383,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
       </div>
 
       <p className="mt-5 text-center text-[11px] text-slate-400">
-        ADMS FOR HR MANAGMENT · نظام إدارة الموارد البشرية والحضور بالبصمة والرواتب
+        HRHub · نظام إدارة الموارد البشرية والحضور بالبصمة والرواتب
       </p>
     </AuthShell>
   );

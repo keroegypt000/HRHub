@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       await sendMail({
         to: [to],
         subject: `رسالة تجربة — ${s.companyName}`,
-        html: `<div dir="rtl" style="font-family:Tahoma,Arial">إعدادات البريد في ${s.companyName} تعمل بنجاح ✅</div>`,
+        html: `<div dir="rtl" style="font-family:Tahoma,Arial">إعدادات البريد في ${s.companyName} تعمل بنجاح</div>`,
       }, { force: true });
     } catch (err) {
       throw new HttpError(400, `فشل الإرسال: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}`);

@@ -17,7 +17,7 @@ export function StatusBadge({ status, className }: { status: string; className?:
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-xl">📋</div>
+      <div className="h-12 w-12 rounded-full bg-muted" />
       <p className="font-medium text-muted-foreground">{title}</p>
       {hint && <p className="text-sm text-muted-foreground/70">{hint}</p>}
     </div>

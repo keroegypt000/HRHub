@@ -246,7 +246,7 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
       <span className="tabular">
         {r._count?.payslips ?? 0}
         {r.status !== 'draft' && typeof r.activeEmployees === 'number' && (r._count?.payslips ?? 0) < r.activeEmployees && (
-          <span className="text-amber-700 text-xs" title="عدد القسائم أقل من الموظفين النشطين — أعد فتح الفترة ثم أعد الحساب"> ⚠️ ناقص</span>
+          <span className="text-amber-700 text-xs" title="عدد القسائم أقل من الموظفين النشطين — أعد فتح الفترة ثم أعد الحساب"> ناقص</span>
         )}
       </span>
     ) },
@@ -346,7 +346,7 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
           </CardHeader>
           <CardContent>
             {['approved', 'paid'].includes(selected.status) && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-2">🔒 الفترة مقفولة نهائيًا — لتعديل الكشوفات: «إعادة فتح» (مدير فقط) ثم «إعادة حساب».</p>
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-2">الفترة مقفولة نهائيًا — لتعديل الكشوفات: «إعادة فتح» (مدير فقط) ثم «إعادة حساب».</p>
             )}
             <DataTable columns={slipColumns} rows={slips} onRowClick={setViewSlip} emptyText="لا قسائم — احسب الفترة أولًا" maxBodyHeight="50vh" />
           </CardContent>
@@ -428,11 +428,11 @@ export function PayrollSection({ canWrite, role, companyName }: { canWrite: bool
 
               {!canEditSlip && canWrite && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                  🔒 تعديل البنود متاح قبل اعتماد الفترة فقط — أعد فتح الفترة (مدير) للتعديل على فترة معتمدة.
+                  تعديل البنود متاح قبل اعتماد الفترة فقط — أعد فتح الفترة (مدير) للتعديل على فترة معتمدة.
                 </p>
               )}
 
-              {viewSlip.notes && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">⚠️ {viewSlip.notes}</p>}
+              {viewSlip.notes && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">{viewSlip.notes}</p>}
               <div className="flex justify-end gap-2">
                 <Button onClick={() => printOne(viewSlip)}><Printer className="h-4 w-4" /> طباعة القسيمة</Button>
               </div>

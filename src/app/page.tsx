@@ -1,6 +1,6 @@
 'use client';
 
-// ADMS FOR HR MANAGMENT — المكوّن الرئيسي الوحيد: التنقل عبر Section state
+// HRHub — المكوّن الرئيسي الوحيد: التنقل عبر Section state
 import { useEffect, useState } from 'react';
 import { api, setToken, getToken, Me } from '@/lib/client';
 import { LoginScreen, SetupScreen } from '@/components/hrhub/login';
@@ -32,7 +32,7 @@ export default function Page() {
   const [screen, setScreen] = useState<Screen>('loading');
   const [me, setMe] = useState<Me | null>(null);
   const [section, setSection] = useState('dashboard');
-  const [companyName, setCompanyName] = useState('شركة ADMS');
+  const [companyName, setCompanyName] = useState('الشركة');
   // ملف الموظف من أي شاشة (زر «ملف الموظف» في نافذة التفاصيل)
   const [profileId, setProfileId] = useState<string | null>(null);
   useEffect(() => {

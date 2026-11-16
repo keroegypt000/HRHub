@@ -3,7 +3,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "ADMS FOR HR MANAGMENT | إدارة الموارد البشرية",
+  title: "HRHub",
   description: "نظام إدارة الموارد البشرية والحضور بالبصمة والرواتب",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "بوابة الموظف", statusBarStyle: "default" },

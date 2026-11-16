@@ -24,7 +24,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'switch' | 'textarea' | 'time';
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'switch' | 'textarea' | 'time' | 'weekdays';
+
+const WEEKDAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 export interface FieldDef {
   key: string;
@@ -194,6 +196,7 @@ export function CrudPanel<T extends { id: string }>({
       const v = values[f.key];
       let shown: React.ReactNode = v === null || v === undefined || v === '' ? '—' : String(v);
       if (f.type === 'switch') shown = v ? 'نعم' : 'لا';
+      else if (f.type === 'weekdays') shown = String(v ?? '').split(',').filter(Boolean).map((x) => WEEKDAY_NAMES[Number(x)]).filter(Boolean).join('، ') || '—';
       else if (f.type === 'select' && shown !== '—') shown = (f.options || options[f.key] || []).find((o) => o.value === String(v))?.label ?? String(v);
       else if (f.type === 'date' && shown !== '—') shown = <span className="tabular">{fmtDate(String(v))}</span>;
       else if (f.type === 'number' && shown !== '—') shown = <span className="tabular">{String(v)}</span>;
@@ -317,6 +320,20 @@ export function CrudPanel<T extends { id: string }>({
                       ))}
                     </SelectContent>
                   </Select>
+                ) : f.type === 'weekdays' ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {WEEKDAY_NAMES.map((d, i) => {
+                      const sel = String(form[f.key] ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+                      const on = sel.includes(String(i));
+                      return (
+                        <button key={i} type="button"
+                          onClick={() => setVal(f.key, (on ? sel.filter((x) => x !== String(i)) : [...sel, String(i)]).map(Number).sort().join(','))}
+                          className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition ${on ? 'border-emerald-600 bg-emerald-600 text-white' : 'bg-background text-muted-foreground hover:border-emerald-400'}`}>
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : f.type === 'switch' ? (
                   <div className="flex items-center justify-between gap-2 h-9 rounded-lg border bg-muted/40 px-3">
                     <span className={`text-sm font-bold ${form[f.key] ? 'text-emerald-700' : 'text-muted-foreground'}`}>

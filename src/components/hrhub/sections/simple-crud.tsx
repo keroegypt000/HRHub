@@ -96,15 +96,15 @@ export function ShiftsSection({ canWrite }: { canWrite: boolean }) {
         { key: 'type', label: 'النوع', type: 'select', options: [
           { value: 'fixed', label: 'ثابتة' }, { value: 'flexible', label: 'مرنة' }, { value: 'auto', label: 'تلقائية' },
         ] },
-        { key: 'startTime', label: 'بداية (HH:MM)', type: 'text', required: true },
-        { key: 'endTime', label: 'نهاية (HH:MM)', type: 'text', required: true },
-        { key: 'crossDay', label: 'تعبر منتصف الليل (وردية ليلية)', type: 'switch' },
+        { key: 'startTime', label: 'بداية الوردية', type: 'time', required: true },
+        { key: 'endTime', label: 'نهاية الوردية', type: 'time', required: true },
+        { key: 'crossDay', label: 'وردية ليلية (تنتهي في اليوم التالي)', type: 'switch', hint: 'فقط لو الوردية تبدأ بالليل وتخلص الصبح، مثل 22:00 ← 06:00' },
         { key: 'otEnabled', label: 'العمل الإضافي مفعّل', type: 'switch' },
         { key: 'graceMinutes', label: 'سماحية التأخير (دقيقة)', type: 'number' },
         { key: 'earlyGraceMinutes', label: 'سماحية الخروج المبكر', type: 'number' },
         { key: 'otRoundMinutes', label: 'تقريب الإضافي (دقيقة)', type: 'number' },
         { key: 'halfDayMinutes', label: 'عتبة نص يوم (دقيقة)', type: 'number' },
-        { key: 'workDaysText', label: 'أيام العمل (0=الأحد، مفصولة بفاصلة)', type: 'text', hint: 'مثال: 0,1,2,3,4' },
+        { key: 'workDaysText', label: 'أيام العمل', type: 'weekdays', span: 2, hint: 'اضغط على الأيام لتحديدها — الأيام غير المحددة راحة' },
         { key: 'active', label: 'الوردية نشطة', type: 'switch' },
       ]}
       defaultValues={{ type: 'fixed', startTime: '08:00', endTime: '17:00', graceMinutes: 10, earlyGraceMinutes: 10, otRoundMinutes: 15, halfDayMinutes: 240, workDaysText: '0,1,2,3,4', crossDay: false, otEnabled: true, active: true }}

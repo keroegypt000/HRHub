@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireRead, requireWrite, handle } from '@/lib/api';
 import { crudList, crudCreate, crudUpdate, crudDelete, CrudConfig } from '@/lib/crud';
 import { num } from '@/lib/calc';
+import { parseWorkDays } from '@/lib/excel';
 
 export const cfg: CrudConfig = {
   model: 'shift',
@@ -10,22 +11,32 @@ export const cfg: CrudConfig = {
   searchFields: ['name'],
   orderBy: { name: 'asc' },
   include: { _count: { select: { assignments: true } } },
+  // تجهيز بيانات الوردية قبل الحفظ (يعمل قبل الإنشاء والتعديل)
   validate: (data) => {
-    if (data.startTime && !/^\d{2}:\d{2}$/.test(String(data.startTime))) return 'صيغة بداية الوردية HH:MM';
-    if (data.endTime && !/^\d{2}:\d{2}$/.test(String(data.endTime))) return 'صيغة نهاية الوردية HH:MM';
-    if (data.workDays !== undefined) {
-      try {
-        const arr = JSON.parse(String(data.workDays));
-        if (!Array.isArray(arr)) return 'أيام العمل مصفوفة أرقام 0=الأحد';
-      } catch { return 'أيام العمل مصفوفة أرقام 0=الأحد'; }
+    // أيام العمل تأتي من النموذج نصًا "0,1,2,3,4" → تُخزَّن مصفوفة JSON
+    if (data.workDaysText !== undefined) {
+      const days = [...new Set(parseWorkDays(data.workDaysText, []))].filter((d) => d >= 0 && d <= 6).sort();
+      delete data.workDaysText;
+      if (!days.length) return 'اختر يوم عمل واحد على الأقل';
+      data.workDays = JSON.stringify(days);
+    }
+    for (const f of ['startTime', 'endTime']) {
+      if (data[f] !== undefined && data[f] !== null) {
+        const v = String(data[f]).trim().replace(/^(\d):/, '0$1:');
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) return f === 'startTime' ? 'وقت بداية الوردية غير صحيح (مثال 08:00)' : 'وقت نهاية الوردية غير صحيح (مثال 17:00)';
+        data[f] = v;
+      }
+    }
+    if (data.startTime && data.endTime) {
+      const later = String(data.endTime) > String(data.startTime);
+      if (data.crossDay && later) return 'الوردية تنتهي بعد بدايتها في نفس اليوم — ألغِ اختيار «تعبر منتصف الليل» (تُستخدم للورديات الليلية فقط مثل 22:00 ← 06:00)';
+      if (!data.crossDay && !later) data.crossDay = true; // نهاية قبل البداية = وردية ليلية تلقائيًا
+    }
+    for (const f of ['graceMinutes', 'earlyGraceMinutes', 'otRoundMinutes', 'halfDayMinutes']) {
+      if (data[f] !== undefined && data[f] !== null && data[f] !== '') data[f] = Math.max(0, Math.round(num(data[f])));
+      else if (data[f] === '' || data[f] === null) delete data[f];
     }
     return null;
-  },
-  beforeCreate: (data) => {
-    for (const f of ['graceMinutes', 'earlyGraceMinutes', 'otRoundMinutes', 'halfDayMinutes']) {
-      if (data[f] !== undefined) data[f] = Math.round(num(data[f]));
-    }
-    return data;
   },
   describe: (row) => `${row.name} (${row.startTime}-${row.endTime})`,
 };

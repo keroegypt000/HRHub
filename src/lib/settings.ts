@@ -41,7 +41,7 @@ export interface SystemSettings {
 }
 
 export const DEFAULT_SETTINGS: SystemSettings = {
-  companyName: 'شركة ADMS',
+  companyName: 'الشركة',
   companyLogoFileId: null,
   workDaysPerMonth: 26,
   hoursPerDay: 8,

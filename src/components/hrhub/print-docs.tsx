@@ -1,6 +1,6 @@
 'use client';
 
-// print-docs — نظام المستندات المطبوعة: قالب موحد voucherDocHtml بهوية ADMS FOR HR MANAGMENT
+// print-docs — نظام المستندات المطبوعة: قالب موحد voucherDocHtml بهوية HRHub
 // قسيمة راتب، شهادة راتب، خطاب تعريف، كشف شهري، إشعار إنهاء/تجديد عقد
 import { tafqit } from '@/lib/tafqit-client';
 import { fmtKWD, fmtDate } from '@/lib/client';
@@ -20,7 +20,7 @@ function esc(s: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
-/** القالب الموحد — يفتح نافذة طباعة بهوية ADMS FOR HR MANAGMENT */
+/** القالب الموحد — يفتح نافذة طباعة بهوية HRHub */
 export function voucherDocHtml(spec: DocSpec, companyName: string): string {
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -53,7 +53,7 @@ export function voucherDocHtml(spec: DocSpec, companyName: string): string {
 <body>
   <div class="doc">
     <div class="head">
-      <div class="logo"><div class="mark">AD</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">ADMS FOR HR MANAGMENT — الموارد البشرية والحضور والرواتب</div></div></div>
+      <div class="logo"><div class="mark">AD</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">HRHub — الموارد البشرية والحضور والرواتب</div></div></div>
       <div class="meta">رقم المرجع: <b>${esc(spec.refNo)}</b><br>التاريخ: <b>${esc(spec.date)}</b></div>
     </div>
     <div class="title">${esc(spec.title)}</div>
@@ -61,7 +61,7 @@ export function voucherDocHtml(spec: DocSpec, companyName: string): string {
     <div class="signs">
       ${(spec.signatures || ['الموظف', 'المسؤول المباشر', 'الموارد البشرية']).map((s) => `<div class="sign"><b>${esc(s)}</b><div class="line">الاسم والتوقيع</div></div>`).join('')}
     </div>
-    <div class="foot">${esc(spec.footer || 'هذا المستند صادر آليًا من نظام ADMS FOR HR MANAGMENT — دولة الكويت')}${spec.footer ? '' : ` · مرجع ${esc(spec.refNo)}`}</div>
+    <div class="foot">${esc(spec.footer || 'هذا المستند صادر آليًا من نظام HRHub — دولة الكويت')}${spec.footer ? '' : ` · مرجع ${esc(spec.refNo)}`}</div>
   </div>
 </body>
 </html>`;
@@ -216,7 +216,7 @@ export function contractNoticeDoc(
   newContract?: { contractNo: string; startDate: string; endDate?: string | null; basicSalary: number } | null,
   kind: 'renew' | 'terminate' = 'renew',
   reason?: string,
-  companyName = 'شركة ADMS'
+  companyName = 'الشركة'
 ): string {
   const title = kind === 'renew' ? 'إشعار تجديد عقد' : 'إشعار إنهاء عقد';
   const body = `
@@ -259,7 +259,7 @@ export interface SettlementDocData {
   law: string;
 }
 
-export function indemnityDoc(s: SettlementDocData, companyName = 'شركة ADMS'): string {
+export function indemnityDoc(s: SettlementDocData, companyName = 'الشركة'): string {
   const remaining = Math.round((s.totalDue - s.paidAmount) * 1000) / 1000;
   const row = (label: string, value: number, cls = '') =>
     `<tr><th>${esc(label)}</th><td class="num ${cls}">${fmtKWD(value)} د.ك</td></tr>`;
@@ -316,7 +316,7 @@ export interface FinalSettlementDocData {
   paidAmount: number;
 }
 
-export function finalSettlementDoc(s: FinalSettlementDocData, companyName = 'شركة ADMS'): string {
+export function finalSettlementDoc(s: FinalSettlementDocData, companyName = 'الشركة'): string {
   const remaining = Math.round((s.totalDue - s.paidAmount) * 1000) / 1000;
   const pct = (p: number) => `${(p * 100).toFixed(3)}%`;
   const sliceRows = s.slices.map((x) =>
@@ -421,7 +421,7 @@ export interface VacationSettlementDocData {
   notes?: string | null;
 }
 
-export function vacationSettlementDoc(s: VacationSettlementDocData, companyName = 'شركة ADMS'): string {
+export function vacationSettlementDoc(s: VacationSettlementDocData, companyName = 'الشركة'): string {
   const esc2 = esc;
   const monthName = (m: string) => {
     const [y, mm] = m.split('-');

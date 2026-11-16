@@ -288,7 +288,7 @@ function BrandBox({ small = false }: { small?: boolean }) {
         <span className={cn('font-black leading-none text-white', small ? 'text-base' : 'text-lg')}>A</span>
       </div>
       <div className="min-w-0">
-        <p className={cn('truncate font-extrabold leading-tight tracking-wide text-white', small ? 'text-[12px]' : 'text-[13px]')}>ADMS FOR HR MANAGMENT</p>
+        <p className={cn('truncate font-extrabold leading-tight tracking-wide text-white', small ? 'text-[12px]' : 'text-[13px]')}>HRHub</p>
         <p className="truncate text-xs text-sidebar-foreground/60">إدارة الموارد البشرية</p>
       </div>
     </>
@@ -358,7 +358,7 @@ export function AppShell({
           <main className="flex-1 p-4 pb-16 max-w-full">{children}</main>
 
           <footer className="mt-auto border-t py-3 px-4 text-center text-xs text-muted-foreground bg-background">
-            ADMS FOR HR MANAGMENT — إدارة الموارد البشرية والحضور والرواتب · دولة الكويت · العملة: دينار كويتي (د.ك)
+            HRHub — إدارة الموارد البشرية والحضور والرواتب · دولة الكويت · العملة: دينار كويتي (د.ك)
           </footer>
         </div>
       </div>
