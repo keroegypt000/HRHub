@@ -4,7 +4,7 @@ import { requireRead, ok, handle, HttpError } from '@/lib/api';
 import { getSettings } from '@/lib/settings';
 import { kuwaitMidnight, monthDayKeys, dateKey, weekdayIndex, hmToMinutes, fmtTime } from '@/lib/time';
 import { effectiveWorkDays } from '@/lib/workweek';
-import { STATUS_AR as PUNCH_AR } from '@/lib/zk/protocol';
+import { labelLogs } from '@/lib/punch-types';
 
 const DAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
@@ -377,6 +377,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           take: 5000,
         });
         const serial = new Map<string, number>();
+        const kinds = labelLogs(logs, dateKey);
         return ok({
           columns: ['م', 'رقم الموظف', 'الاسم', 'التاريخ', 'اليوم', 'وقت الحركة', 'نوع العملية', 'الصورة', 'وصف الجهاز', 'عنوان الشبكة'],
           rows: logs.map((l) => {
@@ -385,7 +386,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
             return [
               serial.get(code) as number, code, l.employee?.name || '—',
               dateKey(l.punchTime).replace(/-/g, '/'), DAYS_AR[weekdayIndex(l.punchTime)], time12(l.punchTime),
-              PUNCH_AR[l.status] || 'حركة', l.photoId ? `photo:${l.photoId}` : '—',
+              kinds.get(l) || 'حركة', l.photoId ? `photo:${l.photoId}` : '—',
               l.device?.model || l.device?.name || '—', l.device?.ipAddress || l.device?.lastIp || '—',
             ];
           }),
