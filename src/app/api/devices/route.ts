@@ -3,6 +3,18 @@ import { db } from '@/lib/db';
 import { requireRead, requireWrite, handle } from '@/lib/api';
 import { crudList, crudCreate, crudUpdate, crudDelete, CrudConfig } from '@/lib/crud';
 import { num } from '@/lib/calc';
+import { encryptSecret } from '@/lib/settings';
+
+/** كلمة سر ACTAtek: تُشفَّر عند الحفظ، والفارغ عند التعديل = إبقاء القديمة */
+const SECRET_MASK = '••••••';
+function prepSecret(data: Record<string, unknown>, existing?: Record<string, unknown>) {
+  const v = data.apiPassword;
+  if (v === undefined || v === null || v === '' || v === SECRET_MASK) {
+    if (existing) delete data.apiPassword; else data.apiPassword = null;
+  } else data.apiPassword = encryptSecret(String(v));
+  if (data.vendor === 'actatek') data.mode = 'local'; // ACTAtek يُسحب من الشبكة دائمًا
+  return data;
+}
 
 export const cfg: CrudConfig = {
   model: 'device',
@@ -13,7 +25,11 @@ export const cfg: CrudConfig = {
   include: { _count: { select: { attendanceLogs: true } } },
   beforeCreate: (data) => {
     if (data.port !== undefined && data.port !== null && data.port !== '') data.port = Math.round(num(data.port));
-    return data;
+    return prepSecret(data);
+  },
+  beforeUpdate: (data, existing) => {
+    if (data.port !== undefined && data.port !== null && data.port !== '') data.port = Math.round(num(data.port));
+    return prepSecret(data, existing);
   },
   describe: (row) => `${row.name} (${row.sn})`,
 };
@@ -23,9 +39,10 @@ export async function GET(req: NextRequest) {
   return handle(async () => {
     const user = await requireRead(req, 'devices');
     const res = await crudList(req, user, cfg);
-    const data = (await res.json()) as { rows: Array<{ id: string; lastSeenAt: string | null; status: string }> };
+    const data = (await res.json()) as { rows: Array<{ id: string; lastSeenAt: string | null; status: string; apiPassword?: string | null }> };
     const now = Date.now();
     for (const row of data.rows || []) {
+      row.apiPassword = row.apiPassword ? SECRET_MASK : ''; // لا تُرسل كلمة السر المشفرة للمتصفح
       row.status = row.lastSeenAt && now - new Date(row.lastSeenAt).getTime() < 90_000 ? 'online' : 'offline';
     }
     return new NextResponse(JSON.stringify(data), {

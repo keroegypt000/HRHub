@@ -12,7 +12,7 @@ import { PlugZap, Fingerprint } from 'lucide-react';
 
 interface DeviceRow extends Record<string, unknown> {
   id: string; sn: string; name: string; model?: string | null; location?: string | null;
-  ipAddress?: string | null; port?: number | null; mode?: string;
+  ipAddress?: string | null; port?: number | null; mode?: string; vendor?: string; apiUser?: string | null; useHttps?: boolean;
   lastSeenAt?: string | null; lastIp?: string | null; lastPullAt?: string | null;
   status: string; enabled: boolean; pushVersion?: string | null;
   _count?: { attendanceLogs: number };
@@ -26,7 +26,7 @@ interface TestResult {
 interface PullResult {
   pulled: boolean; inserted: number; duplicates: number; totalOnDevice: number;
   daysRecomputed: number; matchedUsers: number; deviceSn: string; durationMs: number;
-  message: string;
+  message: string; photos?: number; api?: string;
 }
 
 export function DevicesSection({ canWrite }: { canWrite: boolean }) {
@@ -81,15 +81,15 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
       <CrudPanel<DeviceRow>
         entityPath="/api/devices"
         entityLabel="جهاز"
-        title="أجهزة البصمة ZKTeco"
-        subtitle="وضعان: أونلاين (ADMS Push — الجهاز يرسل فورًا) أو محلي (النظام يسحب من IP الجهاز عبر منفذ 4370) + استيراد ملف USB"
+        title="أجهزة البصمة"
+        subtitle="ZKTeco (أونلاين ADMS أو محلي 4370) و ACTAtek (سحب الحركات بالصور من IP الجهاز) + استيراد ملف USB"
         canWrite={canWrite}
         searchPlaceholder="بحث بالاسم أو SN أو الموقع..."
         columns={[
           { key: 'name', header: 'الجهاز', render: (r) => <div><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground font-mono">{r.sn}</p></div> },
           { key: 'mode', header: 'النوع', render: (r) => (
             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border ${r.mode === 'local' ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-              {r.mode === 'local' ? 'محلي (سحب 4370)' : 'أونلاين (ADMS Push)'}
+              {r.vendor === 'actatek' ? 'ACTAtek (سحب بالصور)' : r.mode === 'local' ? 'ZKTeco محلي (4370)' : 'ZKTeco أونلاين (ADMS)'}
             </span>
           ), hideOnMobile: true },
           { key: 'ip', header: 'IP:المنفذ', render: (r) => r.ipAddress ? <span className="font-mono text-xs">{r.ipAddress}{r.port ? `:${r.port}` : ''}</span> : '—', hideOnMobile: true },
@@ -102,18 +102,25 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
         fields={[
           { key: 'name', label: 'اسم الجهاز', type: 'text', required: true },
           { key: 'sn', label: 'الرقم التسلسلي SN', type: 'text', required: true, hint: 'من قائمة الجهاز: Device Info (في الوضع المحلي يُستكشف تلقائيًا عند أول سحب)' },
+          { key: 'vendor', label: 'نوع الجهاز (الشركة)', type: 'select', options: [
+            { value: 'zkteco', label: 'ZKTeco' },
+            { value: 'actatek', label: 'ACTAtek' },
+          ], hint: 'ACTAtek يُسحب دائمًا من الشبكة (بالاسم والصورة) — أدخل IP ومستخدم الجهاز' },
           { key: 'mode', label: 'نوع الاتصال', type: 'select', options: [
             { value: 'push', label: 'أونلاين — ADMS Push (الجهاز يرسل إلى النظام)' },
             { value: 'local', label: 'محلي — سحب من الشبكة (النظام يتصل بالجهاز)' },
           ] },
           { key: 'ipAddress', label: 'IP الجهاز (للوضع المحلي)', type: 'text', hint: 'مثال: 192.168.1.201 — من قائمة الجهاز: Comm → Ethernet' },
           { key: 'port', label: 'المنفذ (4370 افتراضيًا)', type: 'number' },
-          { key: 'commKey', label: 'مفتاح الاتصال CommKey (اختياري)', type: 'text', hint: 'إن عُدّل من قائمة الجهاز — الافتراضي 0' },
+          { key: 'commKey', label: 'مفتاح الاتصال CommKey — ZKTeco (اختياري)', type: 'text', hint: 'إن عُدّل من قائمة الجهاز — الافتراضي 0' },
+          { key: 'apiUser', label: 'مستخدم الجهاز — ACTAtek', type: 'text', hint: 'مستخدم بصلاحية مدير على الجهاز (نفس دخول صفحة الجهاز على المتصفح)' },
+          { key: 'apiPassword', label: 'كلمة سر الجهاز — ACTAtek', type: 'text', hint: 'تُحفظ مشفرة — اتركها كما هي للإبقاء على الحالية' },
+          { key: 'useHttps', label: 'الاتصال عبر HTTPS — ACTAtek', type: 'switch' },
           { key: 'model', label: 'الموديل', type: 'text' },
           { key: 'location', label: 'الموقع', type: 'text' },
           { key: 'enabled', label: 'الجهاز مفعّل', type: 'switch' },
         ]}
-        defaultValues={{ enabled: true, mode: 'push', port: 4370 }}
+        defaultValues={{ enabled: true, mode: 'push', port: 4370, vendor: 'zkteco', useHttps: false }}
         rowActions={canWrite ? renderRowActions : undefined}
       />
 

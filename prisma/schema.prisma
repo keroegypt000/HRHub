@@ -377,6 +377,10 @@ model Device {
   port           Int?
   mode           String          @default("push") // push=ADMS أونلاين | local=محلي سحب عبر منفذ 4370
   commKey        String? // مفتاح الاتصال للوضع المحلي (إن عُدّل من الجهاز)
+  vendor         String          @default("zkteco") // zkteco | actatek
+  apiUser        String? // مستخدم واجهة ACTAtek (REST/SOAP)
+  apiPassword    String? // كلمة سر ACTAtek — مشفرة AES-GCM
+  useHttps       Boolean         @default(false) // ACTAtek عبر HTTPS
   lastSeenAt     DateTime?
   lastIp         String?
   lastPullAt     DateTime? // آخر سحب ناجح للسجلات من جهاز محلي
