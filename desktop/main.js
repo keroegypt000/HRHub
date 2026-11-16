@@ -20,6 +20,8 @@ const DB_FILE = path.join(DATA, 'hrhub.db');
 const LOG_DIR = path.join(DATA, 'logs');
 const BACKUP_DIR = path.join(DATA, 'backups');
 const ICON = path.join(__dirname, 'icon.png');
+const VERSION = app.getVersion();
+const TITLE = `HRHub — الإصدار ${VERSION}`;
 
 let win = null; let tray = null; let server = null; let quitting = false;
 let config = null;
@@ -127,10 +129,12 @@ function lanAddresses() {
 function createWindow() {
   win = new BrowserWindow({
     width: 1366, height: 860, minWidth: 1000, minHeight: 640, show: false,
-    title: 'HRHub', icon: ICON, autoHideMenuBar: true,
+    title: TITLE, icon: ICON, autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: false },
   });
-  win.loadFile(path.join(__dirname, 'splash.html'));
+  win.loadFile(path.join(__dirname, 'splash.html'), { query: { v: VERSION } });
+  // عنوان النافذة يظل يحمل رقم الإصدار حتى بعد تحميل النظام
+  win.on('page-title-updated', (e) => { e.preventDefault(); win.setTitle(TITLE); });
   win.once('ready-to-show', () => win.show());
   // نوافذ الطباعة (window.open فارغة) تُفتح داخل البرنامج، والروابط الخارجية في المتصفح
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -156,9 +160,11 @@ function showWindow() { if (!win) createWindow(); win.show(); win.focus(); }
 
 function buildTray() {
   tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
-  tray.setToolTip('HRHub — نظام الموارد البشرية');
+  tray.setToolTip(`HRHub ${VERSION} — نظام الموارد البشرية`);
   const login = app.getLoginItemSettings().openAtLogin;
   tray.setContextMenu(Menu.buildFromTemplate([
+    { label: `HRHub — الإصدار ${VERSION}`, enabled: false },
+    { type: 'separator' },
     { label: 'فتح HRHub', click: showWindow },
     { label: 'فتح في المتصفح', click: () => shell.openExternal(`http://127.0.0.1:${config.port}`) },
     { label: 'عناوين الشبكة (للأجهزة والموظفين)', click: () => dialog.showMessageBox({ type: 'info', title: 'HRHub', message: 'افتح النظام من أي جهاز على نفس الشبكة:', detail: `${lanAddresses().join('\n') || 'لا توجد شبكة'}\n\nوعنوان سيرفر ADMS لأجهزة ZKTeco: نفس الـ IP والمنفذ ${config.port}` }) },
