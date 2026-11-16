@@ -75,6 +75,8 @@ export async function GET(req: NextRequest) {
     const user = await requireRead(req, 'devices');
     const res = await crudList(req, user, cfg);
     const data = (await res.json()) as { rows: Array<{ id: string; lastSeenAt: string | null; lastPullAt?: string | null; status: string; mode?: string; vendor?: string; kind?: string; apiPassword?: string | null }> };
+    // جهاز البصمات اليدوية (الموارد البشرية) داخلي — لا يظهر في قائمة الأجهزة
+    data.rows = (data.rows || []).filter((r) => (r as { sn?: string }).sn !== 'MANUAL-HR');
     const now = Date.now();
     for (const row of data.rows || []) {
       row.kind = deviceKind(row);

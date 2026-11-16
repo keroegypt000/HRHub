@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Download, Link2, RefreshCcw, Plus, Fingerprint, XCircle, Usb, Upload } from 'lucide-react';
+import { Download, Link2, RefreshCcw, Plus, Fingerprint, XCircle, Usb, Upload, ShieldCheck } from 'lucide-react';
+import { AttendanceExceptionDialog } from '@/components/hrhub/attendance-exception';
 import { downloadFile } from '@/lib/client';
 
 interface LogRow extends Record<string, unknown> {
@@ -353,6 +354,7 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
   const [sourceLogs, setSourceLogs] = useState<DailyRow | null>(null);
   const [sourceData, setSourceData] = useState<{ rows: LogRow[] } | null>(null);
   const [recomputing, setRecomputing] = useState(false);
+  const [exceptionFor, setExceptionFor] = useState<DailyRow | null>(null);
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
@@ -403,21 +405,29 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
   const columns: Column<DailyRow>[] = [
     { key: 'date', header: 'التاريخ', render: (r) => <span className="tabular">{fmtDate(r.date)}</span> },
     { key: 'emp', header: 'الموظف', render: (r) => <div><p className="font-medium">{r.employee?.name}</p><p className="text-xs text-muted-foreground">{r.employee?.department?.name}</p></div> },
+    {
+      key: '__ops', header: 'تعديل',
+      render: (r) => (
+        <div className="flex gap-1">
+          {canWrite && (
+            <Button variant="outline" size="sm" className="h-7 text-xs text-emerald-700" onClick={() => setExceptionFor(r)}>
+              <ShieldCheck className="h-3 w-3" /> {r.note?.includes('استثناء HR') ? 'تعديل الاستثناء' : 'استثناء'}
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => showSources(r)}>
+            <Fingerprint className="h-3 w-3" /> السجلات
+          </Button>
+        </div>
+      ),
+    },
     { key: 'shift', header: 'الوردية', render: (r) => r.shift ? `${r.shift.name}` : 'افتراضية', hideOnMobile: true },
     { key: 'status', header: 'الحالة', render: (r) => <StatusBadge status={r.status} /> },
     { key: 'in', header: 'دخول', render: (r) => <span className="tabular">{r.firstIn ? fmtTime(r.firstIn) : '—'}</span> },
     { key: 'out', header: 'خروج', render: (r) => <span className="tabular">{r.lastOut ? fmtTime(r.lastOut) : '—'}</span> },
     { key: 'work', header: 'عمل', render: (r) => <span className="tabular">{fmtMinutes(r.workedMinutes)}</span>, hideOnMobile: true },
-    { key: 'late', header: 'تأخير', render: (r) => r.lateMinutes ? <span className="text-amber-700 tabular font-medium">{r.lateMinutes}د</span> : <span className="text-muted-foreground">—</span> },
+    { key: 'late', header: 'تأخير', render: (r) => r.lateMinutes ? <span className="text-amber-700 tabular font-medium">{r.lateMinutes}د</span> : r.note?.includes('تأخير مُبرَّر') ? <span className="text-xs text-emerald-700">مُبرَّر</span> : <span className="text-muted-foreground">—</span> },
+    { key: 'note', header: 'ملاحظة', render: (r) => r.note ? <span className="block max-w-56 whitespace-normal text-xs text-muted-foreground">{r.note}</span> : '', hideOnMobile: true },
     { key: 'ot', header: 'إضافي', render: (r) => r.otMinutes ? <span className="text-teal-700 tabular font-medium">{r.otMinutes}د</span> : <span className="text-muted-foreground">—</span>, hideOnMobile: true },
-    {
-      key: 'src', header: '',
-      render: (r) => (
-        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => showSources(r)}>
-          <Fingerprint className="h-3 w-3" /> السجلات المصدرية
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -462,6 +472,14 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
       <div className="mt-4">
         <DataTable columns={columns} rows={rows} loading={loading} page={page} total={total} limit={200} onPage={setPage} maxBodyHeight="65vh" />
       </div>
+
+      {exceptionFor?.employee && (
+        <AttendanceExceptionDialog
+          employeeId={exceptionFor.employee.id} employeeName={exceptionFor.employee.name}
+          date={new Date(new Date(exceptionFor.date).getTime() + 3 * 3600_000).toISOString().slice(0, 10)}
+          onClose={() => setExceptionFor(null)} onSaved={() => load()}
+        />
+      )}
 
       {/* السجلات المصدرية — الشفافية أساس ثقة المحاسب */}
       <Dialog open={!!sourceLogs} onOpenChange={(o) => !o && setSourceLogs(null)}>

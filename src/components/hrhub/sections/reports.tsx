@@ -1,7 +1,8 @@
 'use client';
 
 // التقارير السبعة: حضور يومي، ملخص شهري، تأخير/مبكر، إضافي، غياب، رصيد إجازات، كشف الوقت الشهري
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { reportTotals } from '@/lib/report-totals';
 import { api, downloadFile } from '@/lib/client';
 import { DataTable, Column } from '@/components/hrhub/data-table';
 import { PageHeader } from '@/components/hrhub/common';
@@ -26,7 +27,7 @@ const REPORTS = [
 
 type ReportKey = (typeof REPORTS)[number]['key'];
 
-export function ReportsSection() {
+export function ReportsSection({ companyName = '' }: { companyName?: string }) {
   const [type, setType] = useState<ReportKey>('daily');
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
@@ -64,9 +65,12 @@ export function ReportsSection() {
 
   useEffect(() => { load(); }, [load]);  
 
-  // نحوّل الصفوف إلى بنية DataTable
-  const tableRows = rows.map((r, idx) => {
-    const obj: Record<string, unknown> = { id: String(idx) };
+  // صف الإجمالي أسفل التقرير
+  const totals = useMemo(() => reportTotals(columns.map((c) => c.header), rows), [columns, rows]);
+
+  // نحوّل الصفوف إلى بنية DataTable (+ صف الإجمالي في الآخر)
+  const tableRows = [...rows, ...(totals ? [totals] : [])].map((r, idx) => {
+    const obj: Record<string, unknown> = { id: totals && idx === rows.length ? '__total' : String(idx) };
     r.forEach((cell, i) => { obj[String(i)] = cell; });
     return obj as { id: string } & Record<string, unknown>;
   });
@@ -79,6 +83,7 @@ export function ReportsSection() {
     // خلية الصورة: «photo:<id>» → صورة مصغرة تُكبَّر بالضغط
     render: (r) => {
       const v = String(r[c.key] ?? '—');
+      if (r.id === '__total') return <span className="font-bold text-emerald-800">{v}</span>;
       if (!v.startsWith('photo:')) return v;
       const src = `/api/files/${v.slice(6)}`;
       return (
@@ -97,7 +102,7 @@ export function ReportsSection() {
 
   const exportReport = () => {
     // نصدّر عبر واجهة CSV جاهزة (بيانات التقرير نفسها) — Excel فوري
-    const csv = [columns.map((c) => c.header).join(','), ...rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const csv = [columns.map((c) => c.header).join(','), ...[...rows, ...(totals ? [totals] : [])].map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -109,15 +114,76 @@ export function ReportsSection() {
     const w = window.open('', '_blank');
     if (!w) return;
     if (type === 'punches') { printPunches(w); return; }
+    if (type === 'time-card') { w.close(); printTimeCards(false); return; }
     w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير ${REPORTS.find((r) => r.key === type)?.label}</title>
       <style>body{font-family:system-ui,sans-serif;padding:20px}h1{color:#1F8A70;font-size:18px}table{width:100%;border-collapse:collapse;font-size:12px}
       th,td{border:1px solid #cde3dc;padding:6px 8px;text-align:right}th{background:#eef7f4}.meta{color:#666;font-size:12px;margin-bottom:12px}</style></head>
       <body><h1>HRHub — ${REPORTS.find((r) => r.key === type)?.label}</h1>
       <p class="meta">الفترة: ${from} → ${to}${meta ? ` · ${meta}` : ''} · تاريخ الطباعة: ${new Date().toISOString().slice(0, 10)}</p>
       <table><thead><tr>${columns.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r) => `<tr>${r.map((cell) => `<td>${printCell(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`);
+      <tbody>${rows.map((r) => `<tr>${r.map((cell) => `<td>${printCell(cell)}</td>`).join('')}</tr>`).join('')}</tbody>
+      ${totals ? `<tfoot><tr>${totals.map((cell) => `<th>${cell}</th>`).join('')}</tr></tfoot>` : ''}</table></body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 400);
+  };
+
+  /**
+   * كارت دوام الموظف المطبوع: بيانات الموظف، جدول الأيام، الإجمالي، الإحصائيات، وأماكن التوقيع
+   * all=true: كارت لكل موظف (في القسم المختار) — صفحة لكل موظف
+   */
+  const printTimeCards = async (all: boolean) => {
+    const w = window.open('', '_blank');
+    if (!w) { toast.error('اسمح بالنوافذ المنبثقة للطباعة'); return; }
+    w.document.write('<p style="font-family:system-ui;padding:20px">جارٍ تجهيز كروت الدوام...</p>');
+    try {
+      let ids: string[];
+      if (!all && employeeId !== 'all') ids = [employeeId];
+      else {
+        const list = await api<{ rows: { id: string; status: string; department?: { id: string } | null }[] }>('/api/employees?limit=2000');
+        ids = list.rows.filter((e) => e.status === 'active' && (departmentId === 'all' || e.department?.id === departmentId)).map((e) => e.id);
+      }
+      if (!ids.length) { w.close(); toast.error('اختر الموظف أولًا'); return; }
+      const esc = (v: unknown) => String(v ?? '').replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] as string));
+      const sections: string[] = [];
+      for (const id of ids) {
+        const d = await api<{ employee: { code: string; name: string; department: string; position: string }; period: string; columns: string[]; rows: (string | number)[][]; statistics: Record<string, string | number> }>(
+          `/api/reports/time-card?from=${from}&to=${to}&employeeId=${id}`);
+        const tot = reportTotals(d.columns, d.rows);
+        const st = d.statistics || {};
+        sections.push(`<section>
+          <div class="top"><div><b>${esc(companyName || 'HRHub')}</b><br><span>كارت دوام الموظف</span></div><div class="per">الفترة: ${esc(d.period)}</div></div>
+          <table class="emp"><tr><th>الرقم الوظيفي</th><td>${esc(d.employee.code)}</td><th>الاسم</th><td>${esc(d.employee.name)}</td></tr>
+          <tr><th>القسم</th><td>${esc(d.employee.department)}</td><th>المسمى</th><td>${esc(d.employee.position)}</td></tr></table>
+          <table class="grid"><thead><tr>${d.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+          <tbody>${d.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+          ${tot ? `<tfoot><tr>${tot.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></tfoot>` : ''}</table>
+          <table class="stats"><tr>
+            <th>أيام حضور</th><td>${esc(st.presentDays)}</td><th>ساعات العمل</th><td>${esc(st.workedHours)}</td>
+            <th>تأخير (دقيقة)</th><td>${esc(st.lateMinutes)}</td><th>خروج مبكر (دقيقة)</th><td>${esc(st.earlyMinutes)}</td>
+            <th>غياب (ساعة)</th><td>${esc(st.absenceHours)}</td><th>إجمالي الإضافي</th><td>${esc(st.otTotal)}</td></tr></table>
+          <div class="sign"><div>توقيع الموظف<span></span></div><div>مسؤول القسم<span></span></div><div>الموارد البشرية<span></span></div></div>
+          <p class="foot">أقر بصحة بيانات الحضور الموضحة أعلاه · تاريخ الطباعة: ${new Date().toISOString().slice(0, 10)}</p>
+        </section>`);
+      }
+      w.document.open();
+      w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كروت الدوام</title>
+        <style>@page{size:A4 landscape;margin:10mm}body{font-family:Tahoma,system-ui,sans-serif;margin:0;color:#111}
+        section{page-break-after:always}section:last-child{page-break-after:auto}
+        .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1F8A70;padding-bottom:6px;margin-bottom:8px}
+        .top b{font-size:15px}.top span{color:#1F8A70;font-weight:bold}.per{font-size:12px}
+        table{width:100%;border-collapse:collapse;margin-bottom:8px}th,td{border:1px solid #bbb;padding:3px 4px;text-align:center}
+        .emp th{background:#e8f3ef;width:12%;font-size:11px}.emp td{font-weight:bold;font-size:12px}
+        .grid{font-size:9.5px}.grid th{background:#eee}.grid tfoot th{background:#e8f3ef}tr{page-break-inside:avoid}
+        .stats{font-size:10.5px}.stats th{background:#f5f5f5}
+        .sign{display:flex;gap:24px;margin-top:18px}.sign div{flex:1;text-align:center;font-size:12px;font-weight:bold}
+        .sign span{display:block;border-bottom:1px solid #333;height:38px;margin-top:4px}
+        .foot{font-size:10px;color:#555;margin-top:10px}</style></head><body>${sections.join('')}</body></html>`);
+      w.document.close();
+      setTimeout(() => w.print(), 500);
+    } catch (e) {
+      w.close();
+      toast.error(e instanceof Error ? e.message : 'فشل تجهيز الكروت');
+    }
   };
 
   /** طباعة «حركات البصمة بالصور» بنفس شكل نموذج العميل: صفحة لكل موظف برقمه واسمه ثم جدول الحركات */
@@ -154,7 +220,14 @@ export function ReportsSection() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={exportReport}><Download className="h-4 w-4" /> تصدير CSV</Button>
-            <Button variant="outline" size="sm" onClick={printReport}><Printer className="h-4 w-4" /> طباعة</Button>
+            {type === 'time-card' ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => printTimeCards(false)} disabled={employeeId === 'all'}><Printer className="h-4 w-4" /> طباعة كارت الموظف</Button>
+                <Button variant="outline" size="sm" onClick={() => printTimeCards(true)}><Printer className="h-4 w-4" /> طباعة كروت {departmentId === 'all' ? 'كل الموظفين' : 'القسم'}</Button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" onClick={printReport}><Printer className="h-4 w-4" /> طباعة</Button>
+            )}
             <Button size="sm" onClick={load}><BarChart3 className="h-4 w-4" /> تحديث</Button>
           </>
         }

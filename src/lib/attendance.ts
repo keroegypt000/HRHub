@@ -263,6 +263,34 @@ export async function computeDay(employeeId: string, key: string): Promise<DayCo
     }
   }
 
+  // استثناء الموارد البشرية لهذا اليوم (يُطبق دائمًا بعد الحساب الآلي)
+  const exception = await db.attendanceException.findUnique({ where: { employeeId_date: { employeeId, date: from } } });
+  if (exception) {
+    const applied: string[] = [];
+    if (exception.excuseLate && lateMinutes > 0) {
+      lateMinutes = 0;
+      applied.push('تأخير مُبرَّر');
+      if (status === 'late') status = 'present';
+    }
+    if (exception.excuseEarly && earlyMinutes > 0) {
+      earlyMinutes = 0;
+      applied.push('خروج مبكر مُبرَّر');
+    }
+    if (exception.markPresent && baseStatus === 'work' && ['absent', 'missed_punch', 'half_day'].includes(status)) {
+      status = 'present';
+      lateMinutes = exception.excuseLate ? 0 : lateMinutes;
+      if (shift) {
+        const s0 = hmToMinutes(shift.startTime); let e0 = hmToMinutes(shift.endTime);
+        if (shift.crossDay || e0 < s0) e0 += 1440;
+        workedMinutes = Math.max(workedMinutes, e0 - s0);
+      } else {
+        workedMinutes = Math.max(workedMinutes, 8 * 60);
+      }
+      applied.push('اعتُبر حاضرًا');
+    }
+    note = [note, `استثناء HR: ${exception.reason}${applied.length ? ` (${applied.join('، ')})` : ''}`].filter(Boolean).join(' — ');
+  }
+
   const data = {
     employeeId,
     date: from,

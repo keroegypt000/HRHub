@@ -164,6 +164,7 @@ model Employee {
   loans            Loan[]
   requests         EmployeeRequest[]
   custodies        Custody[]
+  attendanceExceptions AttendanceException[]
   adjustments      PayrollAdjustment[]
   userAccount      User?                 @relation("UserEmployee")
 
@@ -626,4 +627,22 @@ model PayrollAdjustment {
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId, month])
+}
+
+// استثناءات الحضور من الموارد البشرية (تبرير تأخير/خروج مبكر، اعتبار اليوم حضورًا) — تُطبق عند كل إعادة حساب
+model AttendanceException {
+  id          String   @id @default(cuid())
+  employeeId  String
+  date        DateTime // منتصف ليل اليوم بتوقيت الكويت
+  excuseLate  Boolean  @default(false)
+  excuseEarly Boolean  @default(false)
+  markPresent Boolean  @default(false)
+  reason      String
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([date])
 }

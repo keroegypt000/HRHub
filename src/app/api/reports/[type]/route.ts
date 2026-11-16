@@ -308,6 +308,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           } else {
             status = 'غياب'; absH = dutyMin;
           }
+          // استثناء الموارد البشرية يظهر في الكارت المطبوع
+          if (r?.note && r.note.includes('استثناء HR: ')) exception = r.note.slice(r.note.indexOf('استثناء HR: ') + 'استثناء HR: '.length);
 
           stats.dutyMin += isWorkday && !isHoliday(key) ? dutyMin : 0;
           stats.workedMin += workedHours;

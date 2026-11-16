@@ -42,7 +42,7 @@ export const EN_EXACT: Record<string, string> = {
 "اختر": "Select",
 "افتح": "Open",
 "بريد": "Email",
-"بصمة": "Fingerprint",
+"بصمة": "Punch",
 "جزاء": "Penalty",
 "جلسة": "Session",
 "جهاز": "Device",
@@ -1553,10 +1553,75 @@ export const EN_EXACT: Record<string, string> = {
 "لا يوجد موظفون على هذه الوردية — اضغط «إضافة موظفين»": "No employees on this shift — click «Add employees»",
 "اعمل الوردية، وبعدين اضغط «الموظفون» جنبها علشان تختار الموظفين اللي عليها": "Create the shift, then click «Employees» next to it to choose who works on it",
 "الموظف اللي على وردية تانية بيتنقل للوردية دي من التاريخ ده، وحضوره القديم بيفضل محسوب على ورديته السابقة.": "Employees on another shift move to this shift from this date; their past attendance stays on their previous shift.",
-"إضافة موظفين": "Add employees"
+"إضافة موظفين": "Add employees",
+"ملاحظة": "Note",
+"السجلات": "Punches",
+"مُبرَّر": "Excused",
+"الوردية:": "Shift:",
+"خروج مبكر": "Early leave",
+"طباعة كروت": "Print cards",
+"استثناء HR": "HR exception",
+"تعديل الاستثناء": "Edit exception",
+"دخول / خروج": "In / Out",
+"مسؤول القسم": "Department manager",
+"كروت الدوام": "Time cards",
+"استثناء HR:": "HR exception:",
+"تبرير تأخير": "Late excused",
+"بصمات اليوم:": "Today's punches:",
+"توقيع الموظف": "Employee signature",
+"تأخير مُبرَّر": "Late excused",
+"نوع الاستثناء": "Exception type",
+"حفظ الاستثناء": "Save exception",
+"اعتُبر حاضرًا": "Counted as present",
+"اعتباره حاضرًا": "Count as present",
+"استثناء حضور —": "Attendance exception —",
+"إلغاء الاستثناء": "Remove exception",
+"تبرير خروج مبكر": "Early leave excused",
+"كارت دوام الموظف": "Employee time card",
+"فشل تجهيز الكروت": "Failed to prepare cards",
+"طباعة كارت الموظف": "Print employee card",
+"خروج مبكر مُبرَّر": "Early leave excused",
+"اكتب سبب الاستثناء": "Write the exception reason",
+"تبرير التأخير (لا يُخصم)": "Excuse lateness (no deduction)",
+"جارٍ تجهيز كروت الدوام...": "Preparing time cards...",
+"إدخال يدوي (الموارد البشرية)": "Manual entry (HR)",
+"اسمح بالنوافذ المنبثقة للطباعة": "Allow pop-ups for printing",
+"تبرير الخروج المبكر (لا يُخصم)": "Excuse early leave (no deduction)",
+"أُلغي الاستثناء وأُعيد حساب اليوم": "Exception removed and the day recalculated",
+"تم حفظ الاستثناء وإعادة حساب اليوم": "Exception saved and the day recalculated",
+"مثال: مأمورية عمل خارجية بموافقة المدير": "Example: external work assignment approved by the manager",
+"اعتباره حاضرًا اليوم (مأمورية / نسي البصمة)": "Count as present today (assignment / forgot to punch)",
+"لو الموظف نسي يبصم دخول أو خروج، أضف الوقت هنا.": "If the employee forgot to punch in or out, add the time here.",
+"اكتب سبب الاستثناء (يظهر في كشف الحضور وسجل التدقيق)": "Write the exception reason (shown in attendance and the audit log)",
+"يظهر السبب في كشف الحضور ويُسجَّل باسمك في سجل التدقيق.": "The reason appears in attendance and is recorded under your name in the audit log.",
+"إضافة بصمة منسية": "Add a forgotten punch",
+"(يدوي)": "(manual)",
+"طباعة كروت كل الموظفين": "Print cards for all employees",
+"طباعة كروت القسم": "Print department cards",
+"أقر بصحة بيانات الحضور الموضحة أعلاه": "I confirm the attendance data above is correct"
 };
 
 export const EN_PATTERNS: [string, string][] = [
+[
+"^الإجمالي \\((.+?)\\)$",
+"Total ($1)"
+],
+[
+"^إلغاء استثناء حضور يوم (.+?)$",
+"Remove attendance exception for $1"
+],
+[
+"^استثناء حضور (.+?) \\((.+?)\\) يوم (.+?): (.+?) — السبب: (.+?)$",
+"Attendance exception $1 ($2) on $3: $4 — reason: $5"
+],
+[
+"^استثناء حضور — (.+?) \\((.+?)\\)$",
+"Attendance exception — $1 ($2)"
+],
+[
+"^استثناء HR: (.+?)$",
+"HR exception: $1"
+],
 [
 "^حاليًا: (.+?)$",
 "Current: $1"

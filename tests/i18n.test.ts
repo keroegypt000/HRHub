@@ -37,3 +37,10 @@ describe('موظفو الوردية', () => {
     expect(tr('حاليًا: الوردية الصباحية')).toBe('Current: Morning shift');
   });
 });
+
+describe('الاستثناءات والإجمالي', () => {
+  it('ترجمات جديدة', () => {
+    expect(tr('الإجمالي (12)')).toBe('Total (12)');
+    expect(tr('استثناء HR: مأمورية (تأخير مُبرَّر)')).toBe('HR exception: مأمورية (Late excused)'.replace('مأمورية (Late excused)', tr('مأمورية (تأخير مُبرَّر)')));
+  });
+});

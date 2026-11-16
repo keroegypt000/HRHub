@@ -130,7 +130,7 @@ export default function Page() {
       {section === 'devices' && <DevicesSection canWrite={!!can.devices} />}
       {section === 'payroll' && <PayrollSection canWrite={!!can.payroll} role={me.role} companyName={companyName} />}
       {section === 'salary-components' && <SalaryComponentsSection canWrite={!!can.salaryComponents} />}
-      {section === 'reports' && <ReportsSection />}
+      {section === 'reports' && <ReportsSection companyName={companyName} />}
       {section === 'import' && <ImportExportSection canWrite={!!can.import} />}
       {section === 'audit' && <AuditSection />}
       {section === 'users' && <UsersSection />}
