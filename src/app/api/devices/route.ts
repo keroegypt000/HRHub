@@ -13,6 +13,10 @@ function prepSecret(data: Record<string, unknown>, existing?: Record<string, unk
     if (existing) delete data.apiPassword; else data.apiPassword = null;
   } else data.apiPassword = encryptSecret(String(v));
   if (data.vendor === 'actatek') data.mode = 'local'; // ACTAtek يُسحب من الشبكة دائمًا
+  // SN اختياري للأجهزة المحلية: رقم مؤقت من الـ IP، ويُستبدل بالحقيقي من الجهاز عند أول سحب
+  if (!existing && (!data.sn || !String(data.sn).trim())) {
+    data.sn = data.ipAddress ? `LOCAL-${String(data.ipAddress).trim()}` : `DEV-${Date.now().toString(36).toUpperCase()}`;
+  }
   return data;
 }
 

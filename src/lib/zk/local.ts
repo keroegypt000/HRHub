@@ -9,16 +9,21 @@ const requireCjs = createRequire(import.meta.url);
 const ZKLib = requireCjs('node-zklib') as new (ip: string, port: number, timeout: number, inport: number) => ZkLibInstance;
 const { REQUEST_DATA } = requireCjs('node-zklib/constants') as { REQUEST_DATA: { GET_ATTENDANCE_LOGS: Buffer; GET_USERS: Buffer } };
 
+interface ZkTransport {
+  readWithBuffer(req: Buffer, cb?: (n: number, t: number) => void): Promise<{ data: Buffer | null; mode?: number; err?: unknown }>;
+  sessionId: number | null;
+  freeData(): Promise<void>;
+}
+
 interface ZkLibInstance {
   createSocket(cbErr?: (e: Error) => void, cbClose?: (t: string) => void): Promise<unknown>;
   disconnect(): Promise<void>;
-  getInfo(): Promise<{ deviceName?: string; serialNumber?: string; userCounts?: number; logCapacity?: number }>;
+  getInfo(): Promise<{ deviceName?: string; serialNumber?: string; userCounts?: number; logCounts?: number; logCapacity?: number }>;
   getSerialNumber(): Promise<{ sn?: string }>;
-  zklibTcp: {
-    readWithBuffer(req: Buffer, cb?: (n: number, t: number) => void): Promise<{ data: Buffer }>;
-    sessionId: number | null;
-    freeData(): Promise<void>;
-  };
+  /** tcp للأجهزة الحديثة — udp للموديلات الأقدم (المنفذ 4370 يرفض TCP) */
+  connectionType: 'tcp' | 'udp' | null;
+  zklibTcp: ZkTransport;
+  zklibUdp: ZkTransport;
 }
 
 export interface LocalPunch {
@@ -53,12 +58,8 @@ const KUWAIT_OFFSET_MS = 3 * 3600 * 1000; // توقيت الكويت UTC+3 — �
  *  31   طريقة التحقق (1 بصمة|3 كلمة سر|4 بطاقة|15 وجه)
  *  32   الحالة (0 دخول|1 خروج|2 خروج استراحة|3 عودة|4 دخول إضافي|5 خروج إضافي)
  */
-function decodeRecord40(buf: Buffer): LocalPunch | null {
-  if (buf.length < 40) return null;
-  const pin = buf.subarray(2, 11).toString('ascii').split('\0').shift()?.trim() || '';
-  if (!pin) return null;
-
-  const packed = buf.readUInt32LE(27);
+/** ترميز وقت ZK (ثوانٍ في تقويم 12×31 منذ 2000، بتوقيت الجهاز) → لحظة */
+export function decodeZkTime(packed: number): Date | null {
   const second = packed % 60;
   let t = (packed - second) / 60;
   const minute = t % 60;
@@ -74,34 +75,74 @@ function decodeRecord40(buf: Buffer): LocalPunch | null {
   // ساعة الجهاز بتوقيت الكويت — نحوّلها إلى لحظة صحيحة
   const punchTime = new Date(Date.UTC(year, month0, day, hour, minute, second) - KUWAIT_OFFSET_MS);
   if (!Number.isFinite(punchTime.getTime()) || punchTime.getFullYear() < 2000 || punchTime.getFullYear() > 2100) return null;
+  return punchTime;
+}
 
+function decodeRecord40(buf: Buffer): LocalPunch | null {
+  if (buf.length < 40) return null;
+  const pin = buf.subarray(2, 11).toString('ascii').split('\0').shift()?.trim() || '';
+  if (!pin) return null;
+  const punchTime = decodeZkTime(buf.readUInt32LE(27));
+  if (!punchTime) return null;
   const verify = buf[31] || 1;
   const status = buf[32] ?? 0;
   return { pin, punchTime, status, verify };
 }
 
-/** فك قائمة المستخدمين (سجل 72 بايت) لمطابقة pin بالاسم */
-function decodeUserRecords(data: Buffer): { pin: string; name: string }[] {
-  const out: { pin: string; name: string }[] = [];
+/**
+ * سجلة 16 بايت (موديلات UDP الأقدم): user_id(4) + الوقت(4) + التحقق(1) + الحالة(1) + محجوز(2) + workcode(4)
+ */
+function decodeRecord16(buf: Buffer): LocalPunch | null {
+  const id = buf.readUInt32LE(0);
+  const punchTime = decodeZkTime(buf.readUInt32LE(4));
+  if (!id || !punchTime) return null;
+  return { pin: String(id), punchTime, verify: buf[8] || 1, status: buf[9] ?? 0 };
+}
+
+/** سجلة 8 بايت (أقدم الموديلات): uid داخلي(2) + الحالة(1) + الوقت(4) + punch(1) — الـ uid يُترجم من قائمة المستخدمين */
+function decodeRecord8(buf: Buffer, uidToPin: Map<number, string>): LocalPunch | null {
+  const uid = buf.readUInt16LE(0);
+  const punchTime = decodeZkTime(buf.readUInt32LE(3));
+  if (!punchTime) return null;
+  return { pin: uidToPin.get(uid) || String(uid), punchTime, verify: 1, status: buf[7] ?? 0 };
+}
+
+/** حجم السجلة: من عدد السجلات المعلن إن وُجد، وإلا بالقسمة */
+function recordSize(total: number, count: number | undefined, sizes: number[]): number {
+  if (count && total % count === 0 && sizes.includes(total / count)) return total / count;
+  return sizes.find((n) => total % n === 0) || sizes[0];
+}
+
+/** فك قائمة المستخدمين (72 بايت للحديث، 28 بايت للقديم) */
+export function decodeUserRecords(data: Buffer, count?: number): { pin: string; name: string; uid: number }[] {
+  const out: { pin: string; name: string; uid: number }[] = [];
   let buf = data.subarray(4); // أول 4 بايت حجم
-  const REC = 72;
+  const REC = recordSize(buf.length, count, [72, 28]);
   while (buf.length >= REC) {
     const rec = buf.subarray(0, REC);
-    const pin = rec.subarray(2, 11).toString('ascii').split('\0').shift()?.trim() || '';
-    const name = rec.subarray(11, 39).toString('utf8').split('\0').shift()?.trim() || '';
-    if (pin) out.push({ pin, name });
+    const uid = rec.readUInt16LE(0);
+    let pin = ''; let name = '';
+    if (REC === 28) {
+      name = rec.subarray(8, 16).toString('utf8').split('\0').shift()?.trim() || '';
+      pin = String(rec.readUInt32LE(24));
+    } else {
+      pin = rec.subarray(48, 72).toString('ascii').split('\0').shift()?.trim() || rec.subarray(2, 11).toString('ascii').split('\0').shift()?.trim() || '';
+      name = rec.subarray(11, 35).toString('utf8').split('\0').shift()?.trim() || '';
+    }
+    if (pin && pin !== '0') out.push({ pin, name, uid });
     buf = buf.subarray(REC);
   }
   return out;
 }
 
-/** فك سجلات الحضور من المخزن الخام (سجلات 40 بايت متتالية) */
-function decodeAttendanceRecords(data: Buffer): LocalPunch[] {
+/** فك سجلات الحضور (40 بايت للحديث، 16 أو 8 بايت للموديلات الأقدم) */
+export function decodeAttendanceRecords(data: Buffer, count?: number, uidToPin: Map<number, string> = new Map()): LocalPunch[] {
   const out: LocalPunch[] = [];
   let buf = data.subarray(4); // أول 4 بايت حجم
-  const REC = 40;
+  const REC = recordSize(buf.length, count, [40, 16, 8]);
   while (buf.length >= REC) {
-    const rec = decodeRecord40(buf.subarray(0, REC));
+    const chunk = buf.subarray(0, REC);
+    const rec = REC === 40 ? decodeRecord40(chunk) : REC === 16 ? decodeRecord16(chunk) : decodeRecord8(chunk, uidToPin);
     if (rec) out.push(rec);
     buf = buf.subarray(REC);
   }
@@ -121,7 +162,8 @@ export class LocalDeviceError extends Error {}
 /** إجبار إغلاق المقبس — المكتبة لا تُجهز مهلة SYN للعناوين غير القابلة للوصول */
 function destroySocket(zk: ZkLibInstance): void {
   try {
-    (zk.zklibTcp as { socket?: { destroy(): void; removeAllListeners(e: string): void } }).socket?.destroy();
+    (zk.zklibTcp as unknown as { socket?: { destroy(): void } }).socket?.destroy();
+    (zk.zklibUdp as unknown as { socket?: { close(): void } }).socket?.close();
   } catch { /* تجاهل */ }
 }
 
@@ -144,26 +186,36 @@ export async function pullFromLocalDevice(opts: PullOptions): Promise<LocalPullR
       throw new LocalDeviceError(`تعذر الوصول إلى الجهاز ${opts.ip}:${port} — تأكد أنه على نفس شبكة السيرفر وأن المنفذ 4370 مفتوح (${e.message})`);
     });
 
+    // الجهاز الحديث يتصل TCP، والأقدم UDP — نفس الأوامر على الناقل المتاح
+    const t = zk.connectionType === 'udp' ? zk.zklibUdp : zk.zklibTcp;
+
     // بيانات الجهاز + رقمه التسلسلي الفعلي
     let info: LocalDeviceInfo = {};
+    let logCounts: number | undefined;
     try {
       const gi = await zk.getInfo();
-      const gsn = await zk.getSerialNumber();
-      info = { deviceName: gi.deviceName, sn: gsn.sn || gi.serialNumber, userCounts: gi.userCounts, logCapacity: gi.logCapacity, sessionId: zk.zklibTcp.sessionId || undefined };
+      logCounts = gi.logCounts;
+      info = { deviceName: gi.deviceName, sn: gi.serialNumber, userCounts: gi.userCounts, logCapacity: gi.logCapacity, sessionId: t.sessionId || undefined };
+      const gsn = await zk.getSerialNumber().catch(() => ({ sn: undefined }));
+      if (gsn.sn) info.sn = gsn.sn;
     } catch { /* بعض الموديلات لا تدعم بعض الاستعلامات — نكمل بالسحب */ }
 
+    // قائمة المستخدمين أولًا (السجلات القديمة 8 بايت تحتاجها لترجمة الرقم الداخلي)
+    let users: { pin: string; name: string; uid: number }[] = [];
+    try {
+      await t.freeData().catch(() => {});
+      const usersRes = await t.readWithBuffer(REQUEST_DATA.GET_USERS);
+      if (usersRes.data) users = decodeUserRecords(usersRes.data, info.userCounts);
+    } catch { /* تجاهل */ }
+
     // سجلات الحضور — عبر readWithBuffer لنستخرج الحالة وطريقة التحقق كاملة
-    const logsRes = await zk.zklibTcp.readWithBuffer(REQUEST_DATA.GET_ATTENDANCE_LOGS).catch((e: Error) => {
+    await t.freeData().catch(() => {});
+    const logsRes = await t.readWithBuffer(REQUEST_DATA.GET_ATTENDANCE_LOGS).catch((e: Error) => {
       throw new LocalDeviceError(`فشل قراءة سجلات الحضور من الجهاز: ${e.message}`);
     });
-    const punches = decodeAttendanceRecords(logsRes.data);
-
-    // قائمة المستخدمين (اختياري — بعض الموديلات ترفضها)
-    let users: { pin: string; name: string }[] = [];
-    try {
-      const usersRes = await zk.zklibTcp.readWithBuffer(REQUEST_DATA.GET_USERS);
-      users = decodeUserRecords(usersRes.data);
-    } catch { /* تجاهل */ }
+    if (!logsRes.data) throw new LocalDeviceError('الجهاز لم يرسل سجلات الحضور — أعد المحاولة بعد دقيقة (قد يكون مشغولًا)');
+    const punches = decodeAttendanceRecords(logsRes.data, logCounts, new Map(users.map((u) => [u.uid, u.pin])));
+    await t.freeData().catch(() => {});
 
     await zk.disconnect().catch(() => {});
     return { punches, users, info, durationMs: Date.now() - started };

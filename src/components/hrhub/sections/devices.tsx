@@ -101,7 +101,7 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
         ]}
         fields={[
           { key: 'name', label: 'اسم الجهاز', type: 'text', required: true },
-          { key: 'sn', label: 'الرقم التسلسلي SN', type: 'text', required: true, hint: 'من قائمة الجهاز: Device Info (في الوضع المحلي يُستكشف تلقائيًا عند أول سحب)' },
+          { key: 'sn', label: 'الرقم التسلسلي SN', type: 'text', hint: 'اختياري للأجهزة المحلية — يُقرأ من الجهاز تلقائيًا عند أول سحب. مطلوب لأجهزة ADMS (من قائمة الجهاز: Device Info)' },
           { key: 'vendor', label: 'نوع الجهاز (الشركة)', type: 'select', options: [
             { value: 'zkteco', label: 'ZKTeco' },
             { value: 'actatek', label: 'ACTAtek' },
