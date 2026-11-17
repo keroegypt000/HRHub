@@ -7,6 +7,14 @@ import path from 'path';
 export interface SystemSettings {
   companyName: string;
   companyLogoFileId: string | null;
+  companyNameEn: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyCrNo: string;
+  reportStyle: 'classic' | 'modern' | 'minimal'; // شكل ترويسة التقارير
+  reportColor: string; // لون الهوية في المطبوعات
+  reportShowLogo: boolean;
   workDaysPerMonth: number;
   hoursPerDay: number;
   otWeekdayMult: number;
@@ -43,6 +51,14 @@ export interface SystemSettings {
 export const DEFAULT_SETTINGS: SystemSettings = {
   companyName: 'الشركة',
   companyLogoFileId: null,
+  companyNameEn: '',
+  companyAddress: '',
+  companyPhone: '',
+  companyEmail: '',
+  companyCrNo: '',
+  reportStyle: 'classic',
+  reportColor: '#1F8A70',
+  reportShowLogo: true,
   workDaysPerMonth: 26,
   hoursPerDay: 8,
   otWeekdayMult: 1.25,
@@ -130,6 +146,15 @@ export async function getSettings(): Promise<SystemSettings> {
   };
   s.companyName = map.get('companyName') || s.companyName;
   s.companyLogoFileId = map.get('companyLogoFileId') || null;
+  s.companyNameEn = map.get('companyNameEn') || '';
+  s.companyAddress = map.get('companyAddress') || '';
+  s.companyPhone = map.get('companyPhone') || '';
+  s.companyEmail = map.get('companyEmail') || '';
+  s.companyCrNo = map.get('companyCrNo') || '';
+  const rs = map.get('reportStyle');
+  s.reportStyle = rs === 'modern' || rs === 'minimal' ? rs : 'classic';
+  s.reportColor = /^#[0-9a-fA-F]{6}$/.test(map.get('reportColor') || '') ? String(map.get('reportColor')) : '#1F8A70';
+  s.reportShowLogo = map.get('reportShowLogo') !== 'false';
   s.workDaysPerMonth = numv('workDaysPerMonth', 26);
   s.hoursPerDay = numv('hoursPerDay', 8);
   s.otWeekdayMult = numv('otWeekdayMult', 1.25);

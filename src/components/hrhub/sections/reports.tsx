@@ -3,6 +3,7 @@
 // التقارير: 8 تقارير بفلاتر كاملة (فترة سريعة/مخصصة، قسم، موظف بالبحث، حالة، بحث داخل التقرير)
 // + بطاقات ملخص أعلى التقرير + إجمالي لكل موظف + صف الإجمالي العام — والطباعة/التصدير بنفس ما يظهر على الشاشة
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getBranding, brandCss, letterhead, docTitle, brandFooter } from '@/lib/branding';
 import { reportTotals } from '@/lib/report-totals';
 import { reportKpis, groupByEmployee, employeeColumn, type Cell } from '@/lib/report-summary';
 import { api } from '@/lib/client';
@@ -168,6 +169,8 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
     return v.startsWith('photo:') ? `<img src="${location.origin}/api/files/${v.slice(6)}" style="width:56px;height:56px;object-fit:cover;border-radius:4px">` : v;
   };
   const esc = (v: unknown) => String(v ?? '').replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] as string));
+  /** هوية الشركة للطباعة (من الإعدادات) */
+  const brand = () => { const b = getBranding(); return companyName && (!b.companyName || b.companyName === 'الشركة') ? { ...b, companyName } : b; };
 
   const exportReport = () => {
     const lines: Cell[][] = [[reportLabel], [filtersText], [], headers, ...display.map((d) => d.row), ...(totals ? [totals] : [])];
@@ -187,19 +190,19 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
     if (type === 'time-card') { w.close(); printTimeCards(false); return; }
     const kpiHtml = kpis.length ? `<table class="kpi"><tr>${kpis.map((k) => `<td><span>${esc(k.label)}</span><b>${esc(k.value)}</b></td>`).join('')}</tr></table>` : '';
     w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${esc(reportLabel)}</title>
-      <style>@page{size:A4 ${headers.length > 8 ? 'landscape' : 'portrait'};margin:10mm}body{font-family:Tahoma,system-ui,sans-serif;margin:0;color:#111}
+      <style>${brandCss(brand())}@page{size:A4 ${headers.length > 8 ? 'landscape' : 'portrait'};margin:10mm}body{margin:0;color:#111}
       .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1F8A70;padding-bottom:6px;margin-bottom:6px}
       .top b{font-size:15px}.top span{color:#1F8A70;font-weight:bold;font-size:14px}.meta{font-size:11px;color:#444;margin:4px 0 8px}
       table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:4px 5px;text-align:center;font-size:11px}
       thead th{background:#eef7f4}.sub td{background:#f4f4f4;font-weight:bold}tfoot th{background:#e2f1ec;font-size:11.5px}tr{page-break-inside:avoid}
       .kpi{margin-bottom:8px}.kpi td{border:1px solid #cde3dc;background:#f6fbf9}.kpi span{display:block;font-size:10px;color:#555}.kpi b{font-size:13px}
       .foot{font-size:10px;color:#666;margin-top:8px}</style></head>
-      <body><div class="top"><div><b>${esc(companyName || 'HRHub')}</b><br><span>${esc(reportLabel)}</span></div><div class="meta">تاريخ الطباعة: ${new Date().toISOString().slice(0, 10)}</div></div>
+      <body>${letterhead(brand())}${docTitle(reportLabel)}
       <p class="meta">${esc(filtersText)}${meta ? ` · ${esc(meta)}` : ''}</p>${kpiHtml}
       <table><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
       <tbody>${display.map((d) => `<tr${d.subtotal ? ' class="sub"' : ''}>${d.row.map((cell) => `<td>${printCell(cell)}</td>`).join('')}</tr>`).join('')}</tbody>
       ${totals ? `<tfoot><tr>${totals.map((cell) => `<th>${esc(cell)}</th>`).join('')}</tr></tfoot>` : ''}</table>
-      <p class="foot">عدد الصفوف: ${visibleRows.length}</p></body></html>`);
+      <p class="foot">عدد الصفوف: ${visibleRows.length}</p>${brandFooter(brand())}</body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 400);
   };
@@ -228,7 +231,7 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
         const tot = reportTotals(d.columns, d.rows);
         const st = d.statistics || {};
         sections.push(`<section>
-          <div class="top"><div><b>${esc(companyName || 'HRHub')}</b><br><span>كارت دوام الموظف</span></div><div class="per">الفترة: ${esc(d.period)}</div></div>
+          ${letterhead(brand())}${docTitle('كارت دوام الموظف', `الفترة: ${esc(d.period)}`)}
           <table class="emp"><tr><th>الرقم الوظيفي</th><td>${esc(d.employee.code)}</td><th>الاسم</th><td>${esc(d.employee.name)}</td></tr>
           <tr><th>القسم</th><td>${esc(d.employee.department)}</td><th>المسمى</th><td>${esc(d.employee.position)}</td></tr></table>
           <table class="grid"><thead><tr>${d.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
@@ -239,12 +242,12 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
             <th>تأخير (دقيقة)</th><td>${esc(st.lateMinutes)}</td><th>خروج مبكر (دقيقة)</th><td>${esc(st.earlyMinutes)}</td>
             <th>غياب (ساعة)</th><td>${esc(st.absenceHours)}</td><th>إجمالي الإضافي</th><td>${esc(st.otTotal)}</td></tr></table>
           <div class="sign"><div>توقيع الموظف<span></span></div><div>مسؤول القسم<span></span></div><div>الموارد البشرية<span></span></div></div>
-          <p class="foot">أقر بصحة بيانات الحضور الموضحة أعلاه · تاريخ الطباعة: ${new Date().toISOString().slice(0, 10)}</p>
+          <p class="foot">أقر بصحة بيانات الحضور الموضحة أعلاه</p>${brandFooter(brand())}
         </section>`);
       }
       w.document.open();
       w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كروت الدوام</title>
-        <style>@page{size:A4 landscape;margin:10mm}body{font-family:Tahoma,system-ui,sans-serif;margin:0;color:#111}
+        <style>${brandCss(brand())}@page{size:A4 landscape;margin:10mm}body{margin:0;color:#111}
         section{page-break-after:always}section:last-child{page-break-after:auto}
         .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1F8A70;padding-bottom:6px;margin-bottom:8px}
         .top b{font-size:15px}.top span{color:#1F8A70;font-weight:bold}.per{font-size:12px}
@@ -275,16 +278,17 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
     const pick = (r: (string | number)[]) => [r[0], r[3], r[4], r[5], r[6], r[7], r[8], r[9]];
     const sections = [...groups.entries()].map(([code, g]) => `
       <section>
+        ${letterhead(brand())}${docTitle('حركات البصمة بالصور', `${from} → ${to}`)}
         <table class="emp"><tr><th>رقم الموظف</th><td>${code}</td><th>الاسم</th><td>${g.name}</td><th>الفترة</th><td>${from} → ${to}</td></tr></table>
         <table><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
         <tbody>${g.rows.map((r) => `<tr>${pick(r).map((c) => `<td>${printCell(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>
       </section>`).join('');
     w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>حركات البصمة بالصور</title>
-      <style>body{font-family:system-ui,sans-serif;padding:16px}h1{color:#1F8A70;font-size:17px;margin:0 0 10px}
+      <style>${brandCss(brand())}body{padding:16px}
       table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}th,td{border:1px solid #cfcfcf;padding:4px 6px;text-align:center;vertical-align:middle}
       th{background:#eee}.emp th{background:#e8f3ef;width:12%}.emp td{font-weight:bold}
       section{page-break-after:always}section:last-child{page-break-after:auto}tr{page-break-inside:avoid}</style></head>
-      <body><h1>حركات البصمة بالصور</h1>${sections || '<p>لا توجد حركات في الفترة</p>'}</body></html>`);
+      <body>${sections || `${letterhead(brand())}<p>لا توجد حركات في الفترة</p>`}</body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 1200);
   };

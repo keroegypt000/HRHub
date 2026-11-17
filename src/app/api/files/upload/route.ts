@@ -6,7 +6,7 @@ import { saveFile } from '@/lib/storage';
 import { logAudit } from '@/lib/audit';
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED_TAGS = new Set(['contract_file', 'leave_attachment', 'employee_document', 'labor_form', 'insurance_document', 'health_card', 'injury_report']);
+const ALLOWED_TAGS = new Set(['contract_file', 'leave_attachment', 'employee_document', 'labor_form', 'insurance_document', 'health_card', 'injury_report', 'company_logo']);
 
 export async function POST(req: NextRequest) {
   return handle(async () => {

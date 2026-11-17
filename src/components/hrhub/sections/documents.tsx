@@ -33,7 +33,7 @@ export function PassportsSection({ canWrite }: { canWrite: boolean }) {
           { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
         ]}
         fields={[
-          { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'أول ما تختار الموظف: الاسم والجنسية والرقم يتملوا من ملفه' },
+          { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'تُستكمل البيانات تلقائيًا من ملف الموظف' },
           { key: 'holderName', label: 'اسم صاحب الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
           { key: 'passportNo', label: 'رقم الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
           { key: 'nationality', label: 'الجنسية', type: 'text' },
@@ -79,7 +79,7 @@ export function IqamasSection({ canWrite }: { canWrite: boolean }) {
           { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
         ]}
         fields={[
-          { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'أول ما تختار الموظف: الاسم والجنسية والرقم يتملوا من ملفه' },
+          { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'تُستكمل البيانات تلقائيًا من ملف الموظف' },
           { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
           { key: 'iqamaNo', label: 'الرقم الموحد', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
           { key: 'nationality', label: 'الجنسية', type: 'text' },

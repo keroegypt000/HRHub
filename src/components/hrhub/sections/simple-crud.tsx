@@ -90,7 +90,7 @@ export function ShiftsSection({ canWrite }: { canWrite: boolean }) {
       entityPath="/api/shifts"
       entityLabel="وردية"
       title="الورديات"
-      subtitle="اعمل الوردية، وبعدين اضغط «الموظفون» جنبها علشان تختار الموظفين اللي عليها"
+      subtitle="أنشئ الوردية ثم اضغط «الموظفون» بجانبها لتحديد موظفيها"
       canWrite={canWrite}
       searchPlaceholder="بحث باسم الوردية..."
       columns={[

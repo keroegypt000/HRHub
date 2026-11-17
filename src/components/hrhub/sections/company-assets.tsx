@@ -161,7 +161,7 @@ export function VehiclesSection({ canWrite }: { canWrite: boolean }) {
   const [company, setCompany] = useState(ALL);
   return (
     <div>
-      <PageHeader title="السيارات" subtitle="سيارات كل شركة ومستنداتها — اختار الشركة لعرض سياراتها، وأي سيارة تضيفها جوه تبويب الشركة بتتسجل عليها" />
+      <PageHeader title="السيارات" subtitle="سيارات كل شركة ومستنداتها" />
       <CompanyTabs countKey="vehicles" value={company} onChange={setCompany} />
       <VehiclesPanel key={company} canWrite={canWrite} company={company} />
     </div>
@@ -172,7 +172,7 @@ export function CompanyContractsSection({ canWrite }: { canWrite: boolean }) {
   const [company, setCompany] = useState(ALL);
   return (
     <div>
-      <PageHeader title="عقود الشركة" subtitle="عقود كل شركة (توريد، خدمات، إيجار...) — اختار الشركة لعرض عقودها، وأي عقد تضيفه جوه تبويب الشركة بيتسجل عليها" />
+      <PageHeader title="عقود الشركة" subtitle="عقود كل شركة: توريد، خدمات، إيجار وغيرها" />
       <CompanyTabs countKey="contracts" value={company} onChange={setCompany} />
       <CompanyContractsPanel key={company} canWrite={canWrite} company={company} />
     </div>

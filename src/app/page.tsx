@@ -2,6 +2,7 @@
 
 // HRHub — المكوّن الرئيسي الوحيد: التنقل عبر Section state
 import { useEffect, useState } from 'react';
+import { loadBranding } from '@/lib/branding';
 import { api, setToken, getToken, Me } from '@/lib/client';
 import { LoginScreen, SetupScreen } from '@/components/hrhub/login';
 import { AppShell } from '@/components/hrhub/shell';
@@ -55,6 +56,7 @@ export default function Page() {
           setMe(meData);
           setScreen('app');
           api<{ companyName?: string }>('/api/settings', { skipAuth401: true }).then((s) => { if (s.companyName) setCompanyName(s.companyName); }).catch(() => {});
+          loadBranding();
         } else {
           setScreen('login');
         }
@@ -78,6 +80,7 @@ export default function Page() {
       setSection('dashboard');
       // اسم الجهة من الإعدادات — للمستندات المطبوعة
       api<{ companyName?: string }>('/api/settings').then((s) => { if (s.companyName) setCompanyName(s.companyName); }).catch(() => {});
+      loadBranding();
     }).catch(() => setScreen('login'));
     void user;
   };

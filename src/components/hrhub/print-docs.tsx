@@ -1,9 +1,10 @@
 'use client';
 
-// print-docs — نظام المستندات المطبوعة: قالب موحد voucherDocHtml بهوية HRHub
+// print-docs — نظام المستندات المطبوعة: قالب موحد voucherDocHtml بهوية الشركة
 // قسيمة راتب، شهادة راتب، خطاب تعريف، كشف شهري، إشعار إنهاء/تجديد عقد
 import { tafqit } from '@/lib/tafqit-client';
 import { fmtKWD, fmtDate } from '@/lib/client';
+import { getBranding, brandCss, letterhead, brandFooter } from '@/lib/branding';
 
 interface DocSpec {
   title: string;
@@ -20,48 +21,47 @@ function esc(s: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
-/** القالب الموحد — يفتح نافذة طباعة بهوية HRHub */
+/** القالب الموحد — ترويسة الشركة (اللوجو والبيانات وشكل التقارير من الإعدادات) */
 export function voucherDocHtml(spec: DocSpec, companyName: string): string {
+  const b = { ...getBranding() };
+  if (companyName && (!b.companyName || b.companyName === 'الشركة')) b.companyName = companyName;
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <title>${esc(spec.title)}</title>
 <style>
+  ${brandCss(b)}
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, 'Segoe UI', Tahoma, sans-serif; color: #1a2b26; padding: 24px; background: #fff; }
-  .doc { max-width: 780px; margin: 0 auto; border: 2px solid #1F8A70; border-radius: 12px; overflow: hidden; }
-  .head { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; background: #1F8A70; color: #fff; }
-  .head .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; }
-  .head .logo .mark { width: 40px; height: 40px; background: #fff; color: #1F8A70; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
-  .head .meta { text-align: left; font-size: 12px; line-height: 1.7; }
-  .title { text-align: center; padding: 14px; font-size: 18px; font-weight: 800; color: #1F8A70; border-bottom: 1px dashed #b9d9cf; }
-  .body { padding: 22px 26px; font-size: 14px; line-height: 2; }
+  body { color: #1a2b26; padding: 24px; background: #fff; }
+  .doc { max-width: 780px; margin: 0 auto; }
+  .title { text-align: center; padding: 12px; font-size: 18px; font-weight: 700; color: var(--brand); border-bottom: 1px dashed var(--brand-mid); margin-bottom: 4px; }
+  .ref { display: flex; justify-content: space-between; font-size: 12px; color: #444; padding: 6px 2px; }
+  .body { padding: 14px 4px; font-size: 14px; line-height: 2; }
   .body table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; }
-  .body th, .body td { border: 1px solid #cde3dc; padding: 8px 10px; text-align: right; font-size: 13px; }
-  .body th { background: #eef7f4; color: #14523f; font-weight: 700; }
+  .body th, .body td { border: 1px solid #cfd8d5; padding: 7px 10px; text-align: right; font-size: 13px; }
+  .body th { background: var(--brand-soft); font-weight: 700; }
   .body td.num { font-variant-numeric: tabular-nums; text-align: center; }
-  .body .net { background: #1F8A70; color: #fff; font-weight: 800; }
-  .tafqit { background: #eef7f4; border: 1px dashed #1F8A70; border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-weight: 700; color: #14523f; }
+  .body .net { background: var(--brand); color: #fff; font-weight: 700; }
+  .tafqit { background: var(--brand-soft); border: 1px dashed var(--brand); border-radius: 8px; padding: 10px 14px; margin: 12px 0; font-weight: 700; }
   .signs { display: flex; justify-content: space-between; gap: 16px; margin-top: 44px; }
   .sign { flex: 1; text-align: center; font-size: 13px; }
   .sign .line { margin-top: 34px; border-top: 1.5px solid #666; padding-top: 6px; }
-  .foot { text-align: center; font-size: 11px; color: #6b7f79; padding: 10px; border-top: 1px dashed #b9d9cf; background: #f7fbfa; }
-  @media print { body { padding: 0; } .doc { border: none; border-radius: 0; } }
+  .note { text-align: center; font-size: 11px; color: #6b7f79; margin-top: 18px; }
+  @media print { body { padding: 0; } }
 </style>
 </head>
 <body>
   <div class="doc">
-    <div class="head">
-      <div class="logo"><div class="mark">AD</div><div>${esc(companyName)}<div style="font-size:11px;font-weight:400;opacity:.85">HRHub — الموارد البشرية والحضور والرواتب</div></div></div>
-      <div class="meta">رقم المرجع: <b>${esc(spec.refNo)}</b><br>التاريخ: <b>${esc(spec.date)}</b></div>
-    </div>
+    ${letterhead(b)}
     <div class="title">${esc(spec.title)}</div>
+    <div class="ref"><span>رقم المرجع: <b>${esc(spec.refNo)}</b></span><span>التاريخ: <b>${esc(spec.date)}</b></span></div>
     <div class="body">${spec.body}</div>
     <div class="signs">
       ${(spec.signatures || ['الموظف', 'المسؤول المباشر', 'الموارد البشرية']).map((s) => `<div class="sign"><b>${esc(s)}</b><div class="line">الاسم والتوقيع</div></div>`).join('')}
     </div>
-    <div class="foot">${esc(spec.footer || 'هذا المستند صادر آليًا من نظام HRHub — دولة الكويت')}${spec.footer ? '' : ` · مرجع ${esc(spec.refNo)}`}</div>
+    ${spec.footer ? `<div class="note">${esc(spec.footer)}</div>` : ''}
+    ${brandFooter(b)}
   </div>
 </body>
 </html>`;

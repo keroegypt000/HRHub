@@ -117,7 +117,7 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
         entityPath="/api/devices"
         entityLabel="جهاز"
         title="أجهزة البصمة"
-        subtitle="أضف الجهاز ← اضغط «اختبار» ← «استيراد الموظفين» ← «سحب البصمات». بعد كده السحب يتم تلقائيًا كل 5 دقائق."
+        subtitle="أضف الجهاز، ثم «اختبار»، ثم «استيراد الموظفين»، ثم «سحب البصمات». بعدها يتم السحب تلقائيًا كل 5 دقائق."
         canWrite={canWrite}
         searchPlaceholder="بحث بالاسم أو IP أو الموقع..."
         columns={[

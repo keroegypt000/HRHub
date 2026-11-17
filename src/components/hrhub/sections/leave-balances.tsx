@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/hrhub/common';
 import { DataTable, Column } from '@/components/hrhub/data-table';
 import { useTableFilters } from '@/components/hrhub/table-filters';
 import { printHtml } from '@/components/hrhub/print-docs';
+import { getBranding, brandCss, letterhead, docTitle, brandFooter } from '@/lib/branding';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,15 +99,15 @@ export function LeaveBalancesSection({ companyName }: { companyName: string }) {
   const print = () => {
     const tr = shown.map((r, i) => `<tr><td>${i + 1}</td><td>${r.employee.code}</td><td>${r.employee.name}</td><td>${r.employee.department?.name || ''}</td><td>${r.hireDate ? fmtDate(r.hireDate) : '—'}</td><td>${d1(r.accrued)}</td><td>${d1(r.used)}</td><td><b>${d1(r.balance)}</b></td><td>${fmtKWD(r.dayRate)}</td><td>${fmtKWD(r.value)}</td></tr>`).join('');
     printHtml(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>أرصدة الإجازات</title><style>
-      body{font-family:Tahoma,Arial;margin:16px;color:#111}h1{font-size:18px;margin:0}h2{font-size:13px;color:#555;margin:4px 0 12px}
+      ${brandCss()}body{margin:16px;color:#111}h2{font-size:12px;color:#555;margin:0 0 10px;font-weight:400}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #999;padding:4px 6px;text-align:right}th{background:#e8f5ee}
       tfoot td{font-weight:bold;background:#f3f3f3}.k{display:flex;gap:16px;font-size:12px;margin-bottom:10px}@page{size:A4 landscape;margin:12mm}</style></head><body>
-      <h1>${companyName || ''} — أرصدة الإجازات السنوية</h1>
+      ${letterhead(getBranding().companyName === 'الشركة' && companyName ? { ...getBranding(), companyName } : getBranding())}${docTitle('أرصدة الإجازات السنوية')}
       <h2>حتى تاريخ ${asOf} · الحصة السنوية ${data?.quota ?? 30} يوم · أجر اليوم = الراتب الشهري ÷ ${data?.perMonth ?? 26}</h2>
       <div class="k"><span>الموظفون: <b>${t.count}</b></span><span>المستحق: <b>${d1(t.accrued)}</b> يوم</span><span>المستخدم: <b>${d1(t.used)}</b> يوم</span><span>الرصيد: <b>${d1(t.balance)}</b> يوم</span><span>القيمة: <b>${fmtKWD(t.value)}</b></span></div>
       <table><thead><tr><th>م</th><th>الرقم</th><th>الموظف</th><th>القسم</th><th>تاريخ التعيين</th><th>المستحق</th><th>المستخدم</th><th>الرصيد</th><th>أجر اليوم</th><th>القيمة</th></tr></thead>
       <tbody>${tr}</tbody><tfoot><tr><td colspan="5">الإجمالي</td><td>${d1(t.accrued)}</td><td>${d1(t.used)}</td><td>${d1(t.balance)}</td><td></td><td>${fmtKWD(t.value)}</td></tr></tfoot></table>
-      </body></html>`);
+      ${brandFooter()}</body></html>`);
   };
 
   return (
@@ -136,8 +137,8 @@ export function LeaveBalancesSection({ companyName }: { companyName: string }) {
       {(t.negative > 0 || t.noHire > 0) && (
         <div className="flex flex-wrap gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <AlertTriangle className="h-4 w-4" />
-          {t.negative > 0 && <span>{t.negative} موظف رصيدهم بالسالب (أخدوا إجازات أكتر من المستحق).</span>}
-          {t.noHire > 0 && <span>{t.noHire} موظف من غير تاريخ تعيين ولا رصيد افتتاحي — رصيدهم بيظهر صفر لحد ما تسجل تاريخ التعيين.</span>}
+          {t.negative > 0 && <span>{t.negative} موظف برصيد سالب (إجازات تتجاوز المستحق).</span>}
+          {t.noHire > 0 && <span>{t.noHire} موظف بدون تاريخ تعيين أو رصيد افتتاحي — يظهر رصيدهم صفرًا حتى تسجيل تاريخ التعيين.</span>}
         </div>
       )}
 

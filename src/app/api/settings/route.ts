@@ -35,7 +35,8 @@ export async function PUT(req: NextRequest) {
       'lateDeductionMode', 'socialSecurityEnabled', 'sscEmployeeCitizen', 'sscEmployerCitizen',
       'sscEmployerExpatriate', 'defaultShiftId', 'autoAcceptDevices', 'admsEnabled',
       'biotimeEnabled', 'biotimeUrl', 'biotimeUsername', 'biotimeAutoSyncMinutes', 'deviceOfflineAlertMinutes',
-      'companyLogoFileId', 'vacationAnnualQuota', 'eosResignTiers', 'eosBasisDefault',
+      'companyLogoFileId', 'companyNameEn', 'companyAddress', 'companyPhone', 'companyEmail', 'companyCrNo',
+      'reportStyle', 'reportColor', 'reportShowLogo', 'vacationAnnualQuota', 'eosResignTiers', 'eosBasisDefault',
       'attendanceStartDate', 'emailEnabled', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpFrom', 'appUrl',
     ];
     const updates: Record<string, string | boolean | number> = {};

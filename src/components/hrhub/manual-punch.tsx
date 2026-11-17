@@ -75,7 +75,7 @@ export function ManualPunchDialog({ open, onClose, onDone }: { open: boolean; on
           <div><Label className="mb-1 text-xs">وقت الدخول</Label><Input type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} dir="ltr" /></div>
           <div><Label className="mb-1 text-xs">وقت الخروج</Label><Input type="time" value={outTime} onChange={(e) => setOutTime(e.target.value)} dir="ltr" /></div>
         </div>
-        <p className="-mt-1 text-[11px] text-muted-foreground">اترك وقت الدخول أو الخروج فاضي لو عايز تضيف بصمة واحدة بس. خروج قبل الدخول = خروج في اليوم التالي (وردية ليلية).</p>
+        <p className="-mt-1 text-[11px] text-muted-foreground">اترك أحد الوقتين فارغًا لإضافة بصمة واحدة. وقت خروج قبل الدخول يُسجَّل في اليوم التالي (وردية ليلية).</p>
 
         <div><Label className="mb-1 text-xs">السبب *</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="مثال: عطل جهاز البصمة يوم ..." /></div>
         <label className="flex items-center gap-2 text-sm"><Switch checked={skipOff} onCheckedChange={setSkipOff} /> تخطي أيام الراحة والعطلات والإجازات</label>

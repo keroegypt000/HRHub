@@ -72,7 +72,7 @@ export function ShiftMembersDialog({ shiftId, shiftName, onClose, canWrite }: {
         method: 'POST', body: JSON.stringify({ employeeIds: ids, fromDate, wholeHistory: whole }),
       });
       toast.success(whole
-        ? `تم ربط ${r.added} موظف بالوردية على كل السجل — جاري إعادة حساب الحضور في الخلفية (دقيقة أو اتنين)`
+        ? `تم ربط ${r.added} موظف بالوردية على كامل السجل — جارٍ إعادة احتساب الحضور في الخلفية`
         : `تم ربط ${r.added} موظف بالوردية${r.moved ? ` — ${r.moved} نُقلوا من ورديات أخرى` : ''}`);
       setPicked(new Set());
       setTab('members');
@@ -185,11 +185,11 @@ export function ShiftMembersDialog({ shiftId, shiftName, onClose, canWrite }: {
             <div className="space-y-2 rounded-lg border p-3">
               <label className="flex cursor-pointer items-start gap-2 text-sm">
                 <input type="radio" className="mt-1" checked={wholeHistory} onChange={() => setWholeHistory(true)} />
-                <span><b>على كل السجل السابق</b> — الوردية دي تحل محل أي وردية قديمة للموظف من أول بصمة ليه، وكل حضوره القديم يتحسب من جديد عليها.</span>
+                <span><b>على كل السجل السابق</b> — تحل هذه الوردية محل أي وردية سابقة للموظف من أول بصمة له، ويُعاد احتساب حضوره بالكامل عليها.</span>
               </label>
               <label className="flex cursor-pointer items-start gap-2 text-sm">
                 <input type="radio" className="mt-1" checked={!wholeHistory} onChange={() => setWholeHistory(false)} />
-                <span><b>من تاريخ معين</b> — الموظف يتنقل للوردية دي من التاريخ ده، وحضوره قبله يفضل على ورديته السابقة.</span>
+                <span><b>من تاريخ معين</b> — يُنقل الموظف إلى هذه الوردية من التاريخ المحدد، ويبقى حضوره السابق على ورديته القديمة.</span>
               </label>
               {!wholeHistory && (
                 <div className="mr-6">
@@ -205,7 +205,7 @@ export function ShiftMembersDialog({ shiftId, shiftName, onClose, canWrite }: {
           <Button variant="outline" onClick={onClose}>إغلاق</Button>
           {tab === 'members' && canWrite && !!data?.members.length && (
             <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled={saving}
-              onClick={() => { if (confirm(`تطبيق الوردية دي على كل السجل السابق لـ ${data.members.length} موظف؟ أي وردية قديمة ليهم هتتشال ويتحسب حضورهم القديم كله عليها.`)) save(data.members.map((m) => m.id), true); }}>
+              onClick={() => { if (confirm(`تطبيق هذه الوردية على كامل السجل السابق لـ ${data.members.length} موظف؟ ستُلغى ورديّاتهم السابقة ويُعاد احتساب حضورهم بالكامل عليها.`)) save(data.members.map((m) => m.id), true); }}>
               تطبيق على كل السجل السابق ({data.members.length})
             </Button>
           )}

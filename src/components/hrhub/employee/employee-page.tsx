@@ -339,7 +339,7 @@ export function EmployeePage({ id, open, onClose, canWrite, companyName, account
                 <div className="grid sm:grid-cols-3 gap-3">
                   <Kpi icon={Hourglass} tone="bg-violet-100 text-violet-700" label="المكافأة كاملة حتى اليوم" value={`${fmtKWD(data.eos.full)} د.ك`} sub={`أجر المكافأة ${fmtKWD(data.eos.wage)} (${data.eos.basis === 'full_wage' ? 'أساسي + بدلات' : 'أساسي فقط'})`} />
                   <Kpi icon={Hourglass} tone="bg-violet-100 text-violet-700" label="لو استقال اليوم" value={`${fmtKWD(data.eos.ifResigned)} د.ك`} sub="حسب نسب الاستقالة (المادة 51)" />
-                  <Kpi icon={Hourglass} tone="bg-violet-100 text-violet-700" label="لو أُنهيت خدمته" value={`${fmtKWD(data.eos.ifTerminated)} د.ك`} sub="بدون راتب آخر شهر وتعويض الإجازات" />
+                  <Kpi icon={Hourglass} tone="bg-violet-100 text-violet-700" label="إذا أُنهيت خدمته" value={`${fmtKWD(data.eos.ifTerminated)} د.ك`} sub="بدون راتب آخر شهر وتعويض الإجازات" />
                 </div>
                 {e.settlements.map((st) => (
                   <div key={st.id} className="rounded-lg border p-3 text-sm flex flex-wrap gap-3">

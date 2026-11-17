@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BrandingSettingsCard } from '@/components/hrhub/branding-settings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Save, History, Undo2, Trash2, KeyRound, Plus } from 'lucide-react';
@@ -178,6 +179,8 @@ export function SettingsSection() {
     setSaving(true);
     try {
       const payload: Record<string, unknown> = { ...s };
+      // هوية الشركة تُحفظ من بطاقتها الخاصة فقط
+      for (const k of ['companyName', 'companyNameEn', 'companyAddress', 'companyPhone', 'companyEmail', 'companyCrNo', 'companyLogoFileId', 'reportStyle', 'reportColor', 'reportShowLogo']) delete payload[k];
       if (biotimePassword) payload.biotimePassword = biotimePassword;
       if (smtpPassword) payload.smtpPassword = smtpPassword;
       await api('/api/settings', { method: 'PUT', body: JSON.stringify(payload) });
@@ -228,15 +231,7 @@ export function SettingsSection() {
     <div className="space-y-4 max-w-3xl">
       <PageHeader title="الإعدادات" subtitle="عام، معادلات الرواتب، ADMS وBioTime، نقاط الاستعادة" />
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">عام</CardTitle></CardHeader>
-        <CardContent className="grid sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <Label className="mb-1.5">اسم الجهة</Label>
-            <Input value={s.companyName} onChange={(e) => set('companyName', e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
+      <BrandingSettingsCard />
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">معادلات الرواتب</CardTitle></CardHeader>

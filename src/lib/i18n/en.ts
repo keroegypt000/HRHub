@@ -1,11 +1,40 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"بسيط": "Minimal",
+"حديث": "Modern",
+"كلاسيكي": "Classic",
+"لون آخر": "Other color",
+"حفظ الهوية": "Save identity",
+"لون الهوية": "Brand color",
+"لا يوجد شعار": "No logo",
+"معاينة تقرير": "Preview report",
+"إزالة الشعار": "Remove logo",
+"تغيير الشعار": "Change logo",
+"رفع شعار الشركة": "Upload company logo",
+"تعذّر رفع الشعار": "Could not upload the logo",
+"إذا أُنهيت خدمته": "If terminated",
+"شريط بلون الشركة": "Company color band",
+"شكل ترويسة التقارير": "Report header style",
+"معاينة شكل التقارير": "Report style preview",
+"خلفية بيضاء وخط ملون": "White background with a colored rule",
+"متوسّط ومناسب للطباعة بالأبيض والأسود": "Centered, suited to black & white printing",
+"إظهار الشعار في التقارير": "Show logo on reports",
+"هوية الشركة وشكل التقارير": "Company identity & report style",
+"حجم الشعار أكبر من 1 ميجابايت": "Logo is larger than 1 MB",
+"يجب أن يكون الشعار صورة PNG أو JPG أو SVG": "The logo must be a PNG, JPG or SVG image",
+"يُفضّل PNG بخلفية شفافة، بحد أقصى 1 ميجابايت": "A transparent PNG works best, up to 1 MB",
+"تم حفظ هوية الشركة وتطبيقها على التقارير والمطبوعات": "Company identity saved and applied to reports and printouts",
+" — يُنقل الموظف إلى هذه الوردية من التاريخ المحدد، ويبقى حضوره السابق على ورديته القديمة.": " — the employee moves to this shift from the chosen date; earlier attendance stays on the previous shift.",
+" — تحل هذه الوردية محل أي وردية سابقة للموظف من أول بصمة له، ويُعاد احتساب حضوره بالكامل عليها.": " — this shift replaces any previous shift from the employee's first punch, and all attendance is recalculated on it.",
+"— يُنقل الموظف إلى هذه الوردية من التاريخ المحدد، ويبقى حضوره السابق على ورديته القديمة.": "— the employee moves to this shift from the chosen date; earlier attendance stays on the previous shift.",
+"— تحل هذه الوردية محل أي وردية سابقة للموظف من أول بصمة له، ويُعاد احتساب حضوره بالكامل عليها.": "— this shift replaces any previous shift from the employee's first punch, and all attendance is recalculated on it.",
+"تاريخ الطباعة: ": "Printed: ",
 "بدون شركة": "No company",
 "كل الشركات": "All companies",
 "الشركة المالكة": "Owner company",
-"سيارات كل شركة ومستنداتها — اختار الشركة لعرض سياراتها، وأي سيارة تضيفها جوه تبويب الشركة بتتسجل عليها": "Each company's vehicles and their documents — pick a company to see its vehicles; a vehicle added inside a company tab is registered to it",
-"عقود كل شركة (توريد، خدمات، إيجار...) — اختار الشركة لعرض عقودها، وأي عقد تضيفه جوه تبويب الشركة بيتسجل عليها": "Each company's contracts (supply, services, rent...) — pick a company to see its contracts; a contract added inside a company tab is registered to it",
+"سيارات كل شركة ومستنداتها": "Each company's vehicles and their documents — pick a company to see its vehicles; a vehicle added inside a company tab is registered to it",
+"عقود كل شركة: توريد، خدمات، إيجار وغيرها": "Each company's contracts (supply, services, rent...) — pick a company to see its contracts; a contract added inside a company tab is registered to it",
 "نشطة": "Active",
 "شركة": "company",
 "موقوفة": "Suspended",
@@ -58,7 +87,7 @@ export const EN_EXACT: Record<string, string> = {
 "الموظفون السابقون": "Former employees",
 "الرصيد × أجر اليوم": "Balance × daily rate",
 "قيمة الرصيد": "Balance value",
-"أول ما تختار الموظف: الاسم والجنسية والرقم يتملوا من ملفه": "Once you pick the employee, name, nationality and number fill in from their file",
+"تُستكمل البيانات تلقائيًا من ملف الموظف": "Once you pick the employee, name, nationality and number fill in from their file",
 "سجل الموظفين السابقين الذين انتهت خدمتهم بالوفاة — مستحقاتهم تُصرف للورثة كاملة حسب المادة 53": "Former employees whose service ended by death — their dues are paid in full to the heirs per Article 53",
 "فتح": "Open",
 "الملف": "File",
@@ -184,7 +213,7 @@ export const EN_EXACT: Record<string, string> = {
 "لموظف أو مجموعة موظفين — مثلًا عند عطل جهاز البصمة. البصمات تُسجل باسم «إدخال يدوي» والسبب يظهر في التقارير.": "For one or more employees, e.g. when the device was down. Punches are saved as \"Manual entry\" and the reason shows in reports.",
 "من تاريخ": "From date",
 "إلى تاريخ": "To date",
-"اترك وقت الدخول أو الخروج فاضي لو عايز تضيف بصمة واحدة بس. خروج قبل الدخول = خروج في اليوم التالي (وردية ليلية).": "Leave in or out empty to add a single punch. Out before in = out on the next day (night shift).",
+"اترك أحد الوقتين فارغًا لإضافة بصمة واحدة. وقت خروج قبل الدخول يُسجَّل في اليوم التالي (وردية ليلية).": "Leave in or out empty to add a single punch. Out before in = out on the next day (night shift).",
 "تحديد الكل": "Select all",
 "،": ",",
 "؟": "?",
@@ -1614,7 +1643,7 @@ export const EN_EXACT: Record<string, string> = {
 "جوازات السفر والإقامات ومستندات السيارات وعقود الشركة — تنبيه تلقائي قبل الانتهاء بـ30/60/90 يومًا": "Passports, residencies, car documents and company contracts — automatic alert 30/60/90 days before expiry",
 "قوالب Excel جاهزة لكل كيان — استيراد جماعي بتقرير لكل صف (الصف الفاشل لا يوقف غيره)، وتصدير أي قسم": "Ready Excel templates for each entity — bulk import with a report per row (a failed row doesn't stop others), and export any section",
 "هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع، وستُسجل العملية في سجل التدقيق مع إنشاء نقطة استعادة.": "Are you sure you want to delete this record? This can't be undone, and it will be recorded in the audit log with a restore point.",
-"أضف الجهاز ← اضغط «اختبار» ← «استيراد الموظفين» ← «سحب البصمات». بعد كده السحب يتم تلقائيًا كل 5 دقائق.": "Add the device ← click «Test» ← «Import employees» ← «Pull punches». After that, pulling runs automatically every 5 minutes.",
+"أضف الجهاز، ثم «اختبار»، ثم «استيراد الموظفين»، ثم «سحب البصمات». بعدها يتم السحب تلقائيًا كل 5 دقائق.": "Add the device ← click «Test» ← «Import employees» ← «Pull punches». After that, pulling runs automatically every 5 minutes.",
 "السجلات تُدرج بمصدر «USB» مع منع التكرار — إعادة رفع نفس الملف آمن تمامًا، ويُعاد حساب الحضور تلقائيًا.": "Records are added with source «USB» without duplicates — re-uploading the same file is completely safe, and attendance is recalculated automatically.",
 "النتيجة المحسوبة آليًا من السجلات الخام بقواعد الورديات المعلنة — أولوية اليوم: عطلة ← إجازة ← راحة ← عمل": "The result computed automatically from raw records by the declared shift rules — day priority: holiday ← leave ← rest ← work",
 "انتهت مهلة جلب اتصال من قاعدة البيانات (ازدحام مؤقت) — أعد المحاولة بعد لحظات، وإذا تكرر افتح /api/health": "Timed out getting a database connection (temporary load) — try again in a moment, and if it repeats open /api/health",
@@ -1739,7 +1768,7 @@ export const EN_EXACT: Record<string, string> = {
 "لا يوجد موظفون مطابقون": "No matching employees",
 "بحث بالاسم أو الرقم الوظيفي...": "Search by name or employee no....",
 "لا يوجد موظفون على هذه الوردية — اضغط «إضافة موظفين»": "No employees on this shift — click «Add employees»",
-"اعمل الوردية، وبعدين اضغط «الموظفون» جنبها علشان تختار الموظفين اللي عليها": "Create the shift, then click «Employees» next to it to choose who works on it",
+"أنشئ الوردية ثم اضغط «الموظفون» بجانبها لتحديد موظفيها": "Create the shift, then click «Employees» next to it to choose who works on it",
 "الموظف اللي على وردية تانية بيتنقل للوردية دي من التاريخ ده، وحضوره القديم بيفضل محسوب على ورديته السابقة.": "Employees on another shift move to this shift from this date; their past attendance stays on their previous shift.",
 "إضافة موظفين": "Add employees",
 "ملاحظة": "Note",
@@ -1824,6 +1853,12 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^هاتف: (.+)$",
+"Tel: $1"
+],
+["^س\\.ت: (.+)$",
+"CR: $1"
+],
 ["^رخصة سير — (.+)$",
 "Vehicle license — $1"
 ],
@@ -1848,10 +1883,10 @@ export const EN_PATTERNS: [string, string][] = [
 ["^رصيد الإجازة السنوية لكل الموظفين وقيمته — نفس حساب كارت الموظف ونهاية الخدمة \\((\\d+) يوم في السنة\\)$",
 "Annual leave balance and value for all employees — same calculation as the employee card and end of service ($1 days a year)"
 ],
-["^(\\d+) موظف رصيدهم بالسالب \\(أخدوا إجازات أكتر من المستحق\\)\\.$",
+["^(\\d+) موظف برصيد سالب \\(إجازات تتجاوز المستحق\\)\\.$",
 "$1 employees have a negative balance (took more leave than accrued)."
 ],
-["^(\\d+) موظف من غير تاريخ تعيين ولا رصيد افتتاحي — رصيدهم بيظهر صفر لحد ما تسجل تاريخ التعيين\\.$",
+["^(\\d+) موظف بدون تاريخ تعيين أو رصيد افتتاحي — يظهر رصيدهم صفرًا حتى تسجيل تاريخ التعيين\\.$",
 "$1 employees have no hire date or opening balance — their balance shows zero until you record the hire date."
 ],
 ["^([\\d.,]+) يوم$",
@@ -1860,10 +1895,10 @@ export const EN_PATTERNS: [string, string][] = [
 ["^تطبيق على كل السجل السابق \\((\\d+)\\)$",
 "Apply to whole past record ($1)"
 ],
-["^تم ربط (\\d+) موظف بالوردية على كل السجل — جاري إعادة حساب الحضور في الخلفية \\(دقيقة أو اتنين\\)$",
+["^تم ربط (\\d+) موظف بالوردية على كامل السجل — جارٍ إعادة احتساب الحضور في الخلفية$",
 "Linked $1 employees to the shift for the whole record — recalculating attendance in the background (a minute or two)"
 ],
-["^تطبيق الوردية دي على كل السجل السابق لـ (\\d+) موظف؟ أي وردية قديمة ليهم هتتشال ويتحسب حضورهم القديم كله عليها\\.$",
+["^تطبيق هذه الوردية على كامل السجل السابق لـ (\\d+) موظف؟ ستُلغى ورديّاتهم السابقة ويُعاد احتساب حضورهم بالكامل عليها\\.$",
 "Apply this shift to the whole past record of $1 employees? Their old shifts are removed and all past attendance is recalculated on it."
 ],
 ["^(\\d+) سجل$",
