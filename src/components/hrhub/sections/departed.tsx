@@ -420,8 +420,8 @@ export function DeceasedSection({ canWrite, companyName }: { canWrite: boolean; 
   return (
     <div className="space-y-4">
       <PageHeader
-        title="الموظفون المتوفون"
-        subtitle="سجل الموظفين المتوفين أثناء الخدمة أو بعدها — مستحقاتهم تُصرف للمستحقين (الورثة) كاملة حسب المادة 53 — رحمهم الله"
+        title="الموظفون السابقون"
+        subtitle="سجل الموظفين السابقين الذين انتهت خدمتهم بالوفاة — مستحقاتهم تُصرف للورثة كاملة حسب المادة 53"
         actions={<Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300"><Flower2 className="h-3.5 w-3.5 ml-1" /> سجل الوفيات</Badge>}
       />
       {summary && (

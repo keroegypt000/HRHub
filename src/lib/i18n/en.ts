@@ -1,6 +1,28 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"المستحق": "Accrued",
+"القيمة:": "Value:",
+"الرصيد:": "Balance:",
+"المستحق:": "Accrued:",
+"أجر اليوم": "Daily rate",
+"الموظفون:": "Employees:",
+"حتى تاريخ": "As of",
+"الرصيد (يوم)": "Balance (days)",
+"رصيد افتتاحي": "Opening balance",
+"قيمة الأرصدة": "Balances value",
+"إجازات مأخوذة": "Leaves taken",
+"المستحق (يوم)": "Accrued (days)",
+"أرصدة الإجازات": "Leave balances",
+"إجمالي المستحق": "Total accrued",
+"المستخدم (يوم)": "Used (days)",
+"إجمالي المستخدم": "Total used",
+"إجمالي الرصيد": "Total balance",
+"الموظفون السابقون": "Former employees",
+"الرصيد × أجر اليوم": "Balance × daily rate",
+"قيمة الرصيد": "Balance value",
+"أول ما تختار الموظف: الاسم والجنسية والرقم يتملوا من ملفه": "Once you pick the employee, name, nationality and number fill in from their file",
+"سجل الموظفين السابقين الذين انتهت خدمتهم بالوفاة — مستحقاتهم تُصرف للورثة كاملة حسب المادة 53": "Former employees whose service ended by death — their dues are paid in full to the heirs per Article 53",
 "فتح": "Open",
 "الملف": "File",
 "نموذج": "Form",
@@ -1765,6 +1787,30 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^الإجمالي \\((\\d+) موظف\\):$",
+"Total ($1 employees):"
+],
+["^بتاريخ (.+)$",
+"as of $1"
+],
+["^أرصدة الإجازات حتى (.+)$",
+"Leave balances as of $1"
+],
+["^(.*) — أرصدة الإجازات السنوية$",
+"$1 — Annual leave balances"
+],
+["^رصيد الإجازة السنوية لكل الموظفين وقيمته — نفس حساب كارت الموظف ونهاية الخدمة \\((\\d+) يوم في السنة\\)$",
+"Annual leave balance and value for all employees — same calculation as the employee card and end of service ($1 days a year)"
+],
+["^(\\d+) موظف رصيدهم بالسالب \\(أخدوا إجازات أكتر من المستحق\\)\\.$",
+"$1 employees have a negative balance (took more leave than accrued)."
+],
+["^(\\d+) موظف من غير تاريخ تعيين ولا رصيد افتتاحي — رصيدهم بيظهر صفر لحد ما تسجل تاريخ التعيين\\.$",
+"$1 employees have no hire date or opening balance — their balance shows zero until you record the hire date."
+],
+["^([\\d.,]+) يوم$",
+"$1 days"
+],
 ["^تطبيق على كل السجل السابق \\((\\d+)\\)$",
 "Apply to whole past record ($1)"
 ],

@@ -63,6 +63,8 @@ export interface CrudPanelProps<T extends { id: string }> {
   filtersBar?: React.ReactNode;
   /** تصفية إضافية على الصفوف المحملة (فلاتر الشاشة) */
   filterRows?: (rows: T[]) => T[];
+  /** تعبئة تلقائية عند تغيير حقل (مثل اختيار الموظف → الاسم والجنسية والرقم) */
+  onFieldChange?: (key: string, value: unknown, form: Record<string, unknown>) => Promise<Record<string, unknown> | void> | Record<string, unknown> | void;
   searchPlaceholder?: string;
   /** إجراءات إضافية لكل صف (تجديد، اعتماد...) */
   rowActions?: (row: T) => React.ReactNode;
@@ -75,7 +77,7 @@ export interface CrudPanelProps<T extends { id: string }> {
 
 export function CrudPanel<T extends { id: string }>({
   entityPath, entityLabel, title, subtitle, columns, fields, canWrite,
-  extraActions, defaultValues = {}, loadOptions, rowToForm, filtersBar, filterRows, searchPlaceholder, rowActions,
+  extraActions, defaultValues = {}, loadOptions, rowToForm, filtersBar, filterRows, searchPlaceholder, rowActions, onFieldChange,
   onRowClick, detailsTitle, detailsExtra,
 }: CrudPanelProps<T>) {
   const [viewing, setViewing] = useState<T | null>(null);
@@ -181,7 +183,14 @@ export function CrudPanel<T extends { id: string }>({
     }
   };
 
-  const setVal = (key: string, v: unknown) => setForm((f) => ({ ...f, [key]: v }));
+  const setVal = (key: string, v: unknown) => {
+    setForm((f) => ({ ...f, [key]: v }));
+    if (onFieldChange) {
+      Promise.resolve(onFieldChange(key, v, { ...form, [key]: v })).then((patch) => {
+        if (patch && Object.keys(patch).length) setForm((cur) => (cur[key] === v ? { ...cur, ...patch } : cur));
+      }).catch(() => {});
+    }
+  };
 
   /** كل الحقول المُدخلة + الأعمدة المحسوبة — بقيم مقروءة (أسماء الاختيارات، نعم/لا، تواريخ) */
   const detailItems = (row: T): DetailItem[] => {

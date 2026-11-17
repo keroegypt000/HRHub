@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { api, fmtDate, fmtKWD } from '@/lib/client';
 import { PageHeader } from '@/components/hrhub/common';
 import { CrudPanel, optionLoaders } from '@/components/hrhub/crud-panel';
+import { employeeAutofill } from '@/components/hrhub/employee-autofill';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -119,6 +120,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
         <TabsContent value="passports">
           <CrudPanel<Record<string, unknown> & { id: string }>
             entityPath="/api/passports"
+            onFieldChange={employeeAutofill('passport')}
             entityLabel="جواز"
             title="جوازات السفر"
             subtitle="تنبيه انتهاء الجوازات — للموظفين أو لغيرهم من أفراد العائلة إن لزم"
@@ -133,7 +135,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
               { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
             ]}
             fields={[
-              { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'اختار الموظف والاسم والجنسية والرقم يتملوا من ملفه تلقائيًا' },
+              { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'أول ما تختار الموظف: الاسم والجنسية والرقم يتملوا من ملفه' },
               { key: 'holderName', label: 'اسم صاحب الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
               { key: 'passportNo', label: 'رقم الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
               { key: 'nationality', label: 'الجنسية', type: 'text' },
@@ -156,6 +158,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
         <TabsContent value="iqamas">
           <CrudPanel<Record<string, unknown> & { id: string }>
             entityPath="/api/iqamas"
+            onFieldChange={employeeAutofill('iqama')}
             entityLabel="إقامة"
             title="الإقامات"
             subtitle="تنبيه انتهاء إقامات المقيمين — تجديد قبل النفاذ لتفادي الغرامات"
@@ -170,7 +173,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
               { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
             ]}
             fields={[
-              { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'اختار الموظف والاسم والجنسية والرقم يتملوا من ملفه تلقائيًا' },
+              { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'أول ما تختار الموظف: الاسم والجنسية والرقم يتملوا من ملفه' },
               { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
               { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
               { key: 'nationality', label: 'الجنسية', type: 'text' },

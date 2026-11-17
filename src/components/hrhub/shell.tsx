@@ -12,7 +12,7 @@ import {
   LayoutDashboard, Users, Network, FileSignature, Clock4, Fingerprint, CalendarCheck2,
   Plane, Sparkles, MonitorSmartphone, Wallet, SlidersHorizontal, BarChart3,
   FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu, ChevronDown,
-  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList, PackageCheck, BadgePercent, ShieldPlus, HeartPulse, FolderOpen,
+  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList, PackageCheck, BadgePercent, ShieldPlus, HeartPulse, FolderOpen, CalendarDays,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -76,8 +76,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'payroll', label: 'الرواتب والقسائم', icon: Wallet, visibleFor: ['accountant'] },
       { key: 'adjustments', label: 'الحوافز والجزاءات', icon: BadgePercent, visibleFor: ['accountant'] },
       { key: 'end-of-service', label: 'نهاية الخدمة', icon: Hourglass },
+      { key: 'leave-balances', label: 'أرصدة الإجازات', icon: CalendarDays },
       { key: 'departed', label: 'المنصرفون والمستحقات', icon: UserMinus },
-      { key: 'deceased', label: 'الموظفون المتوفون', icon: Flower2 },
+      { key: 'deceased', label: 'الموظفون السابقون', icon: Flower2 },
     ],
   },
   {
