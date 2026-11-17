@@ -17,7 +17,8 @@ import { WEEKLY_OFF_OPTIONS } from '@/lib/workweek';
 import { EOS_BASIS_OPTIONS } from '@/lib/indemnity';
 
 interface EmployeeRow extends Record<string, unknown> {
-  id: string; code: string; name: string; photoId?: string | null;
+  id: string; code: string; name: string; nameEn?: string | null; photoId?: string | null;
+  company?: { id: string; name: string } | null; workLocation?: { id: string; name: string } | null;
   department?: { id: string; name: string } | null;
   position?: { id: string; name: string } | null;
   status: string; basicSalary: number; phone?: string | null; pin?: string | null;
@@ -46,11 +47,12 @@ const ALL = 'all';
 
 export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean; companyName: string }) {
   const [profile, setProfile] = useState<EmployeeRow | null>(null);
-  const [filters, setFilters] = useState({ department: ALL, position: ALL, status: 'active', nationality: '' });
-  const [lists, setLists] = useState<{ departments: { value: string; label: string }[]; positions: { value: string; label: string }[] }>({ departments: [], positions: [] });
+  const [filters, setFilters] = useState({ department: ALL, position: ALL, status: 'active', nationality: '', company: ALL, location: ALL });
+  type Opt = { value: string; label: string };
+  const [lists, setLists] = useState<{ departments: Opt[]; positions: Opt[]; companies: Opt[]; locations: Opt[] }>({ departments: [], positions: [], companies: [], locations: [] });
   useEffect(() => {
-    optionLoaders.combine(optionLoaders.departments, optionLoaders.positions)()
-      .then((o) => setLists({ departments: o.departmentId || [], positions: o.positionId || [] }))
+    optionLoaders.combine(optionLoaders.departments, optionLoaders.positions, optionLoaders.companies, optionLoaders.workLocations)()
+      .then((o) => setLists({ departments: o.departmentId || [], positions: o.positionId || [], companies: o.companyId || [], locations: o.workLocationId || [] }))
       .catch(() => {});
   }, []);
 
@@ -58,10 +60,12 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
   const filterRows = useMemo(() => (rows: EmployeeRow[]) => rows.filter((r) =>
     (filters.department === ALL || r.department?.id === filters.department) &&
     (filters.position === ALL || r.position?.id === filters.position) &&
+    (filters.company === ALL || r.company?.id === filters.company) &&
+    (filters.location === ALL || r.workLocation?.id === filters.location) &&
     (filters.status === ALL || r.status === filters.status) &&
     (!filters.nationality || (r.nationality || '').toLowerCase().includes(filters.nationality.toLowerCase()))
   ), [filters]);
-  const filtered = filters.department !== ALL || filters.position !== ALL || filters.status !== 'active' || !!filters.nationality;
+  const filtered = filters.department !== ALL || filters.position !== ALL || filters.company !== ALL || filters.location !== ALL || filters.status !== 'active' || !!filters.nationality;
 
   const columns: Column<EmployeeRow>[] = [
     {
@@ -69,11 +73,12 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
       render: (r) => (
         <button className="flex items-center gap-2.5 text-right hover:underline" onClick={() => setProfile(r)}>
           <Avatar emp={r} />
-          <div><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground tabular">{r.code}</p></div>
+          <div><p className="font-medium">{r.name}</p>{r.nameEn && <p className="text-xs text-muted-foreground" dir="ltr">{r.nameEn}</p>}<p className="text-xs text-muted-foreground tabular">{r.code}</p></div>
         </button>
       ),
     },
     { key: 'department', header: 'القسم', render: (r) => r.department?.name || '—' },
+    { key: 'company', header: 'الشركة / مكان العمل', render: (r) => (r.company || r.workLocation ? <div><p>{r.company?.name || '—'}</p>{r.workLocation && <p className="text-xs text-muted-foreground">{r.workLocation.name}</p>}</div> : '—'), hideOnMobile: true },
     { key: 'position', header: 'المسمى', render: (r) => r.position?.name || '—', hideOnMobile: true },
     { key: 'nationality', header: 'الجنسية', render: (r) => r.nationality || '—', hideOnMobile: true },
     { key: 'civilId', header: 'الرقم المدني', render: (r) => <span className="tabular">{r.civilId || '—'}</span>, hideOnMobile: true },
@@ -91,7 +96,7 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
     },
   ];
 
-  const filterSelect = (key: 'department' | 'position' | 'status', placeholder: string, options: { value: string; label: string }[]) => (
+  const filterSelect = (key: 'department' | 'position' | 'status' | 'company' | 'location', placeholder: string, options: { value: string; label: string }[]) => (
     <Select value={filters[key]} onValueChange={(v) => setFilters({ ...filters, [key]: v })} dir="rtl">
       <SelectTrigger dir="rtl" className="w-40 h-9"><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
@@ -102,12 +107,14 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
   );
   const filtersBar = (
     <div className="flex flex-wrap items-center gap-2">
+      {lists.companies.length > 0 && filterSelect('company', 'الشركة', lists.companies)}
+      {lists.locations.length > 0 && filterSelect('location', 'مكان العمل', lists.locations)}
       {filterSelect('department', 'القسم', lists.departments)}
       {filterSelect('position', 'المسمى', lists.positions)}
       {filterSelect('status', 'الحالة', ['active', 'on_leave', 'suspended', 'terminated', 'deceased'].map((v) => ({ value: v, label: STATUS_AR[v] || v })))}
       <Input className="w-36 h-9" placeholder="الجنسية" value={filters.nationality} onChange={(e) => setFilters({ ...filters, nationality: e.target.value })} />
       {filtered && (
-        <Button variant="ghost" size="sm" onClick={() => setFilters({ department: ALL, position: ALL, status: 'active', nationality: '' })}>
+        <Button variant="ghost" size="sm" onClick={() => setFilters({ department: ALL, position: ALL, status: 'active', nationality: '', company: ALL, location: ALL })}>
           <X className="h-4 w-4" /> مسح الفلاتر
         </Button>
       )}
@@ -129,13 +136,16 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
         columns={columns}
         fields={[
           { key: 'code', label: 'الرقم الوظيفي (= PIN الجهاز)', type: 'text', required: true },
-          { key: 'name', label: 'الاسم الكامل', type: 'text', required: true },
+          { key: 'name', label: 'الاسم بالعربي', type: 'text', required: true },
+          { key: 'nameEn', label: 'الاسم بالإنجليزي', type: 'text', placeholder: 'Full name in English' },
+          { key: 'companyId', label: 'الشركة', type: 'select', hint: 'من «الشركات ومواقع العمل»' },
+          { key: 'workLocationId', label: 'مكان العمل', type: 'select' },
           { key: 'gender', label: 'الجنس', type: 'select', options: [{ value: 'ذكر', label: 'ذكر' }, { value: 'أنثى', label: 'أنثى' }] },
           { key: 'nationality', label: 'الجنسية', type: 'text' },
           { key: 'civilId', label: 'الرقم المدني', type: 'text' },
           { key: 'passportNo', label: 'رقم الجواز', type: 'text' },
           { key: 'passportExpiry', label: 'تاريخ انتهاء الجواز', type: 'date', hint: 'يظهر في التنبيهات تلقائيًا' },
-          { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', placeholder: 'فارغ = الرقم المدني' },
+          { key: 'iqamaNo', label: 'الرقم الموحد', type: 'text', placeholder: 'فارغ = الرقم المدني' },
           { key: 'iqamaExpiry', label: 'تاريخ انتهاء الإقامة', type: 'date', hint: 'يظهر في التنبيهات تلقائيًا' },
           { key: 'healthCardNo', label: 'رقم الكرت الصحي (إن وجد)', type: 'text' },
           { key: 'healthCardExpiry', label: 'تاريخ انتهاء الكرت الصحي', type: 'date' },
@@ -171,11 +181,12 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
           { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
         ]}
         defaultValues={{ status: 'active', basicSalary: 0, weeklyOffDays: 'shift', eosBasis: 'default', otEligible: false, attendanceExempt: false }}
-        loadOptions={optionLoaders.combine(optionLoaders.departments, optionLoaders.positions)}
+        loadOptions={optionLoaders.combine(optionLoaders.departments, optionLoaders.positions, optionLoaders.companies, optionLoaders.workLocations)}
         rowToForm={(r) => ({
           ...r,
           hireDate: r.hireDate ? fmtDate(r.hireDate) : '', birthDate: r.birthDate ? fmtDate(r.birthDate) : '',
           departmentId: r.department?.id || '', positionId: r.position?.id || '',
+          companyId: r.company?.id || '', workLocationId: r.workLocation?.id || '',
           weeklyOffDays: r.weeklyOffDays || 'shift', eosBasis: r.eosBasis || 'default',
           otEligible: !!r.otEligible, attendanceExempt: !!r.attendanceExempt,
           openingLeaveDate: r.openingLeaveDate ? fmtDate(r.openingLeaveDate as string) : '',

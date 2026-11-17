@@ -116,7 +116,10 @@ model Position {
 model Employee {
   id               String                @id @default(cuid())
   code             String                @unique // الرقم الوظيفي = pin الجهاز افتراضيًا
-  name             String
+  name             String // الاسم بالعربي
+  nameEn           String? // الاسم بالإنجليزي
+  companyId        String? // الشركة التابع لها
+  workLocationId   String? // مكان العمل
   photoId          String?               @unique
   gender           String?
   nationality      String?
@@ -149,6 +152,8 @@ model Employee {
   updatedAt        DateTime              @updatedAt
   department       Department?           @relation(fields: [departmentId], references: [id])
   position         Position?             @relation(fields: [positionId], references: [id])
+  company          Company?              @relation(fields: [companyId], references: [id])
+  workLocation     WorkLocation?         @relation(fields: [workLocationId], references: [id])
   photo            FileUpload?           @relation("EmpPhoto", fields: [photoId], references: [id])
   manager          Employee?             @relation("MgrTree", fields: [managerId], references: [id])
   directReports    Employee[]            @relation("MgrTree")
@@ -725,4 +730,38 @@ model FormTemplate {
   createdBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ===== الشركات (أكثر من شركة على نفس الملف) ومواقع العمل =====
+model Company {
+  id         String         @id @default(cuid())
+  name       String         @unique // اسم الشركة بالعربي
+  nameEn     String?
+  crNo       String? // رقم السجل التجاري
+  laborFileNo String? // رقم ملف الهيئة العامة للقوى العاملة
+  licenseNo  String? // رقم الترخيص
+  address    String?
+  phone      String?
+  notes      String?
+  active     Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  locations  WorkLocation[]
+  employees  Employee[]
+}
+
+model WorkLocation {
+  id        String     @id @default(cuid())
+  name      String // اسم الموقع (فرع / موقع مشروع)
+  companyId String?
+  area      String? // المنطقة
+  address   String?
+  notes     String?
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  company   Company?   @relation(fields: [companyId], references: [id])
+  employees Employee[]
+
+  @@index([companyId])
 }

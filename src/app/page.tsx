@@ -7,7 +7,7 @@ import { LoginScreen, SetupScreen } from '@/components/hrhub/login';
 import { AppShell } from '@/components/hrhub/shell';
 import { DashboardSection } from '@/components/hrhub/sections/dashboard';
 import { EmployeesSection } from '@/components/hrhub/sections/employees';
-import { DepartmentsSection, ShiftsSection, HolidaysSection, SalaryComponentsSection } from '@/components/hrhub/sections/simple-crud';
+import { DepartmentsSection, CompaniesSection, ShiftsSection, HolidaysSection, SalaryComponentsSection } from '@/components/hrhub/sections/simple-crud';
 import { ContractsSection } from '@/components/hrhub/sections/contracts';
 import { AlertsSection } from '@/components/hrhub/sections/alerts';
 import { PassportsSection, IqamasSection } from '@/components/hrhub/sections/documents';
@@ -114,6 +114,7 @@ export default function Page() {
       {section === 'dashboard' && <DashboardSection role={me.role} onNavigate={setSection} />}
       {section === 'employees' && <EmployeesSection canWrite={!!can.employees} companyName={companyName} />}
       {section === 'departments' && <DepartmentsSection canWrite={!!can.departments} />}
+      {section === 'companies' && <CompaniesSection canWrite={!!can.departments} />}
       {section === 'contracts' && <ContractsSection canWrite={!!can.contracts} companyName={companyName} />}
       {section === 'custody' && <CustodySection canWrite={!!can.custody} />}
       {section === 'adjustments' && <AdjustmentsSection canWrite={!!can.adjustments} />}

@@ -1,6 +1,38 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"نشطة": "Active",
+"شركة": "company",
+"موقوفة": "Suspended",
+"الشركات": "Companies",
+"المنطقة": "Area",
+"موقع عمل": "work location",
+"مكان العمل": "Work location",
+"اسم الشركة": "Company name",
+"رقم الترخيص": "License no.",
+"مواقع العمل": "Work locations",
+"الاسم بالعربي": "Arabic name",
+"السجل التجاري": "Commercial reg.",
+"اسم مكان العمل": "Work location name",
+"رقم ملف الشؤون": "Labor file no.",
+"اكتب اسم الشركة": "Enter the company name",
+"الاسم بالإنجليزي": "English name",
+"رقم السجل التجاري": "Commercial registration no.",
+"اسم الشركة بالعربي": "Company name (Arabic)",
+"الشركة / مكان العمل": "Company / location",
+"اكتب اسم مكان العمل": "Enter the work location name",
+"الشركات ومواقع العمل": "Companies & work locations",
+"اسم الشركة بالإنجليزي": "Company name (English)",
+"بحث بالاسم أو المنطقة...": "Search by name or area...",
+"مثال: فرع الشويخ / مشروع ...": "e.g. Shuwaikh branch / project ...",
+"رقم ملف الهيئة العامة للقوى العاملة": "Public Authority for Manpower file no.",
+"بحث بالرقم الموحد أو الاسم أو الكفيل...": "Search by unified no., name or sponsor...",
+"بحث بالاسم أو السجل التجاري أو رقم الملف...": "Search by name, commercial reg. or file no...",
+"الشركات المسجلة على الملف — كل موظف يتبع شركة منها": "Companies registered on the file — each employee belongs to one of them",
+"الفروع ومواقع المشاريع — اختيار مكان العمل في ملف الموظف يحدد شركته تلقائيًا": "Branches and project sites — picking the work location on the employee file sets their company automatically",
+"الرقم الموحد": "Unified no.",
+"من «الشركات ومواقع العمل»": "From \"Companies & work locations\"",
+"أدخل الرقم الموحد": "Enter the unified no.",
 "المستحق": "Accrued",
 "القيمة:": "Value:",
 "الرصيد:": "Balance:",
@@ -1787,6 +1819,9 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^لا يمكن الحذف: عليه (\\d+) موظف — انقلهم أولًا أو اجعله غير نشط$",
+"Cannot delete: $1 employees are assigned — move them first or mark it inactive"
+],
 ["^الإجمالي \\((\\d+) موظف\\):$",
 "Total ($1 employees):"
 ],

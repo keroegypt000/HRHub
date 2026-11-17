@@ -16,7 +16,7 @@ export const cfg: CrudConfig = {
     await fillFromEmployee(data, 'iqamaNo');
     if (mode === 'create') {
       if (!data.holderName && !data.employeeId) return 'اختر الموظف أو أدخل اسم صاحب الإقامة';
-      if (!data.iqamaNo) return 'أدخل رقم الإقامة';
+      if (!data.iqamaNo) return 'أدخل الرقم الموحد';
       if (!data.expiryDate) return 'أدخل تاريخ انتهاء الإقامة';
     } else {
       if (data.holderName !== undefined && data.holderName === '' &&

@@ -425,6 +425,12 @@ export const optionLoaders = {
   devices: () =>
     api<{ rows: { id: string; sn: string; name: string }[] }>('/api/devices?limit=200')
       .then((d) => ({ deviceId: d.rows.map((r) => ({ value: r.sn, label: r.name })) })),
+  companies: () =>
+    api<{ rows: { id: string; name: string }[] }>('/api/companies?limit=500')
+      .then((d) => ({ companyId: d.rows.map((r) => ({ value: r.id, label: r.name })) })),
+  workLocations: () =>
+    api<{ rows: { id: string; name: string; company?: { name: string } | null }[] }>('/api/work-locations?limit=1000')
+      .then((d) => ({ workLocationId: d.rows.map((r) => ({ value: r.id, label: r.company ? `${r.name} — ${r.company.name}` : r.name })) })),
   combine: (...loaders: (() => Promise<Record<string, { value: string; label: string }[]>>)[]) =>
     async () => {
       const results = await Promise.all(loaders.map((l) => l()));

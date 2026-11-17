@@ -205,3 +205,83 @@ export function SalaryComponentsSection({ canWrite }: { canWrite: boolean }) {
     />
   );
 }
+
+// ===== الشركات ومواقع العمل =====
+interface CompanyRow extends Record<string, unknown> {
+  id: string; name: string; nameEn?: string | null; crNo?: string | null; laborFileNo?: string | null; active: boolean;
+  _count?: { employees: number; locations: number };
+}
+interface LocationRow extends Record<string, unknown> {
+  id: string; name: string; area?: string | null; address?: string | null; active: boolean;
+  company?: { id: string; name: string } | null; _count?: { employees: number };
+}
+
+export function CompaniesSection({ canWrite }: { canWrite: boolean }) {
+  return (
+    <Tabs defaultValue="companies" dir="rtl">
+      <TabsList>
+        <TabsTrigger value="companies">الشركات</TabsTrigger>
+        <TabsTrigger value="locations">مواقع العمل</TabsTrigger>
+      </TabsList>
+      <TabsContent value="companies">
+        <CrudPanel<CompanyRow>
+          entityPath="/api/companies"
+          entityLabel="شركة"
+          title="الشركات"
+          subtitle="الشركات المسجلة على الملف — كل موظف يتبع شركة منها"
+          canWrite={canWrite}
+          searchPlaceholder="بحث بالاسم أو السجل التجاري أو رقم الملف..."
+          columns={[
+            { key: 'name', header: 'اسم الشركة', render: (r) => <div><p className="font-medium">{r.name}</p>{r.nameEn && <p className="text-xs text-muted-foreground" dir="ltr">{r.nameEn}</p>}</div> },
+            { key: 'crNo', header: 'السجل التجاري', render: (r) => <span className="tabular">{r.crNo || '—'}</span> },
+            { key: 'laborFileNo', header: 'رقم ملف الشؤون', render: (r) => <span className="tabular">{r.laborFileNo || '—'}</span> },
+            { key: 'locations', header: 'مواقع العمل', render: (r) => <span className="tabular">{r._count?.locations ?? 0}</span> },
+            { key: 'employees', header: 'الموظفون', render: (r) => <span className="tabular">{r._count?.employees ?? 0}</span> },
+            { key: 'active', header: 'الحالة', render: (r) => (r.active ? 'نشطة' : 'موقوفة') },
+          ]}
+          fields={[
+            { key: 'name', label: 'اسم الشركة بالعربي', type: 'text', required: true },
+            { key: 'nameEn', label: 'اسم الشركة بالإنجليزي', type: 'text' },
+            { key: 'crNo', label: 'رقم السجل التجاري', type: 'text' },
+            { key: 'laborFileNo', label: 'رقم ملف الهيئة العامة للقوى العاملة', type: 'text' },
+            { key: 'licenseNo', label: 'رقم الترخيص', type: 'text' },
+            { key: 'phone', label: 'الهاتف', type: 'text' },
+            { key: 'address', label: 'العنوان', type: 'textarea', span: 2 },
+            { key: 'active', label: 'نشطة', type: 'switch' },
+            { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
+          ]}
+          defaultValues={{ active: true }}
+        />
+      </TabsContent>
+      <TabsContent value="locations">
+        <CrudPanel<LocationRow>
+          entityPath="/api/work-locations"
+          entityLabel="موقع عمل"
+          title="مواقع العمل"
+          subtitle="الفروع ومواقع المشاريع — اختيار مكان العمل في ملف الموظف يحدد شركته تلقائيًا"
+          canWrite={canWrite}
+          searchPlaceholder="بحث بالاسم أو المنطقة..."
+          columns={[
+            { key: 'name', header: 'مكان العمل', render: (r) => <span className="font-medium">{r.name}</span> },
+            { key: 'company', header: 'الشركة', render: (r) => r.company?.name || '—' },
+            { key: 'area', header: 'المنطقة', render: (r) => r.area || '—' },
+            { key: 'address', header: 'العنوان', render: (r) => r.address || '—', hideOnMobile: true },
+            { key: 'employees', header: 'الموظفون', render: (r) => <span className="tabular">{r._count?.employees ?? 0}</span> },
+            { key: 'active', header: 'الحالة', render: (r) => (r.active ? 'نشط' : 'موقوف') },
+          ]}
+          fields={[
+            { key: 'name', label: 'اسم مكان العمل', type: 'text', required: true, placeholder: 'مثال: فرع الشويخ / مشروع ...' },
+            { key: 'companyId', label: 'الشركة', type: 'select' },
+            { key: 'area', label: 'المنطقة', type: 'text' },
+            { key: 'address', label: 'العنوان', type: 'textarea', span: 2 },
+            { key: 'active', label: 'نشط', type: 'switch' },
+            { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
+          ]}
+          defaultValues={{ active: true }}
+          loadOptions={optionLoaders.companies}
+          rowToForm={(r) => ({ ...r, companyId: r.company?.id || '' })}
+        />
+      </TabsContent>
+    </Tabs>
+  );
+}

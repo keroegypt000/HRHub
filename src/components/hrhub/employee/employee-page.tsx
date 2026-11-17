@@ -20,7 +20,8 @@ import { reasonLabel } from '@/lib/indemnity';
 
 interface Overview {
   employee: {
-    id: string; code: string; name: string; status: string; photoId?: string | null; pin?: string | null;
+    id: string; code: string; name: string; nameEn?: string | null; status: string; photoId?: string | null; pin?: string | null;
+    company?: { name: string } | null; workLocation?: { name: string } | null;
     gender?: string | null; nationality?: string | null; civilId?: string | null; passportNo?: string | null;
     phone?: string | null; email?: string | null; address?: string | null; birthDate?: string | null;
     maritalStatus?: string | null; bankAccount?: string | null; hireDate?: string | null; basicSalary: number;
@@ -181,6 +182,8 @@ export function EmployeePage({ id, open, onClose, canWrite, companyName, account
 
               <TabsContent value="info" className="pt-3 space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3 rounded-xl border p-4">
+                  <Field label="الاسم بالعربي" value={e.name} /><Field label="الاسم بالإنجليزي" value={e.nameEn} />
+                  <Field label="الشركة" value={e.company?.name} /><Field label="مكان العمل" value={e.workLocation?.name} />
                   <Field label="الرقم الوظيفي" value={e.code} /><Field label="PIN البصمة" value={e.pin || e.code} />
                   <Field label="الجنس" value={e.gender} /><Field label="الجنسية" value={e.nationality} />
                   <Field label="الرقم المدني" value={e.civilId} /><Field label="رقم الجواز" value={e.passportNo} />

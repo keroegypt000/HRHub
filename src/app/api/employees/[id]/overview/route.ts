@@ -22,6 +22,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       where: { id },
       include: {
         department: true, position: true,
+        company: { select: { name: true } }, workLocation: { select: { name: true } },
         manager: { select: { id: true, name: true, code: true } },
         photo: { select: { id: true } },
         contracts: { orderBy: { startDate: 'desc' } },

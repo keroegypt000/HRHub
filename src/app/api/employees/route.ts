@@ -24,14 +24,24 @@ function normalizeOptions(data: Record<string, unknown>): Record<string, unknown
   return data;
 }
 
+/** اختيار مكان العمل يحدد الشركة تلقائيًا لو الشركة فاضية */
+async function companyFromLocation(data: Record<string, unknown>) {
+  if (typeof data.workLocationId === 'string' && data.workLocationId && !data.companyId) {
+    const loc = await db.workLocation.findUnique({ where: { id: data.workLocationId }, select: { companyId: true } });
+    if (loc?.companyId) data.companyId = loc.companyId;
+  }
+}
+
 export const cfg: CrudConfig = {
   model: 'employee',
   entity: 'employees',
   label: 'موظف',
-  searchFields: ['name', 'code', 'civilId', 'phone'],
+  searchFields: ['name', 'nameEn', 'code', 'civilId', 'phone'],
   orderBy: { code: 'asc' },
   include: {
     department: true, position: true,
+    company: { select: { id: true, name: true } },
+    workLocation: { select: { id: true, name: true, companyId: true } },
     photo: { select: { id: true, fileName: true, mimeType: true } },
     _count: { select: { contracts: true, leaveRequests: true } },
     passports: { orderBy: { expiryDate: 'desc' }, take: 1, select: { passportNo: true, expiryDate: true } },
@@ -40,12 +50,13 @@ export const cfg: CrudConfig = {
   },
   dateFields: ['birthDate', 'hireDate', 'openingLeaveDate'],
   beforeCreate: async (data) => {
+    await companyFromLocation(data);
     // pin افتراضي = الرقم الوظيفي
     if (!data.pin && data.code) data.pin = String(data.code);
     if (data.basicSalary !== undefined) data.basicSalary = num(data.basicSalary);
     return normalizeOptions(data);
   },
-  beforeUpdate: (data) => normalizeOptions(data),
+  beforeUpdate: async (data) => { await companyFromLocation(data); return normalizeOptions(data); },
   describe: (row) => `${row.name} (${row.code})`,
 };
 

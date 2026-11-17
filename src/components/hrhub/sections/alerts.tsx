@@ -163,10 +163,10 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
             title="الإقامات"
             subtitle="تنبيه انتهاء إقامات المقيمين — تجديد قبل النفاذ لتفادي الغرامات"
             canWrite={canWrite}
-            searchPlaceholder="بحث برقم الإقامة أو الاسم أو الكفيل..."
+            searchPlaceholder="بحث بالرقم الموحد أو الاسم أو الكفيل..."
             columns={[
               { key: 'holder', header: 'صاحب الإقامة', render: (r) => <span className="font-medium">{String(r.holderName)}</span> },
-              { key: 'iqamaNo', header: 'رقم الإقامة', render: (r) => <span className="font-mono">{String(r.iqamaNo)}</span> },
+              { key: 'iqamaNo', header: 'الرقم الموحد', render: (r) => <span className="font-mono">{String(r.iqamaNo)}</span> },
               { key: 'employee', header: 'موظف مرتبط', render: (r) => (r.employee as { name: string; code: string } | null) ? `${(r.employee as { name: string; code: string }).name}` : '—', hideOnMobile: true },
               { key: 'profession', header: 'المهنة', render: (r) => String(r.profession || '—'), hideOnMobile: true },
               { key: 'expiry', header: 'تاريخ الانتهاء', render: (r) => <span className="tabular">{fmtDate(r.expiryDate as string)}</span> },
@@ -175,7 +175,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
             fields={[
               { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'أول ما تختار الموظف: الاسم والجنسية والرقم يتملوا من ملفه' },
               { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
-              { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
+              { key: 'iqamaNo', label: 'الرقم الموحد', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
               { key: 'nationality', label: 'الجنسية', type: 'text' },
               { key: 'profession', label: 'المهنة', type: 'text' },
               { key: 'sponsor', label: 'الكفيل', type: 'text' },
