@@ -105,7 +105,7 @@ export function DevicesSection({ canWrite }: { canWrite: boolean }) {
     return (
       <div className="flex flex-wrap gap-1">
         {btn('test', k === 'zk-push' ? 'طريقة الضبط' : 'اختبار', PlugZap, () => run<TestResult>(r, 'test', 'test', (res) => setTestResult({ ...res, name: r.name }), 'فشل الاختبار'))}
-        {k !== 'zk-push' && btn('pull', 'سحب البصمات', Fingerprint, () => run<PullResult>(r, 'pull', 'pull', (res) => { setPullResult(res); toast.success(res.message); }, 'فشل السحب من الجهاز'), 'text-emerald-700')}
+        {btn('pull', k === 'zk-push' ? 'طلب كل البصمات والصور' : 'سحب البصمات', Fingerprint, () => run<PullResult>(r, 'pull', 'pull', (res) => { if (k === 'zk-push') toast.success(res.message, { duration: 10000 }); else { setPullResult(res); toast.success(res.message); } }, 'فشل السحب من الجهاز'), 'text-emerald-700')}
         {k !== 'zk-push' && btn('import', 'استيراد الموظفين', UserPlus, () => run<ImportResult>(r, 'import', 'import-users', (res) => { setImportResult(res); toast.success(res.message); }, 'فشل استيراد الموظفين'), 'text-teal-700')}
       </div>
     );

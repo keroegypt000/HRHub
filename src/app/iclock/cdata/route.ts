@@ -3,8 +3,8 @@
 // مع تحقق SN وrate limit بسيط لمنع الإغراق.
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { handshakeText, takeCommands, saveStamp } from '@/lib/zk/adms';
 import {
-  handshakeResponse, keepAliveResponse,
   parseATTLOG, parseUSERINFO,
 } from '@/lib/zk/protocol';
 import { getSettings } from '@/lib/settings';
@@ -43,12 +43,6 @@ async function touchDevice(sn: string, ip: string): Promise<boolean> {
   return res.count > 0;
 }
 
-async function getPendingCommand(sn: string): Promise<string[]> {
-  const row = await db.setting.findUnique({ where: { key: `devicecmd:${sn}` } });
-  if (!row?.value) return [];
-  await db.setting.delete({ where: { key: `devicecmd:${sn}` } }).catch(() => {});
-  return [row.value];
-}
 
 async function upsertDeviceAuto(sn: string, ip: string, pushVersion?: string): Promise<boolean> {
   const settings = await getSettings();
@@ -93,7 +87,7 @@ export async function GET(req: NextRequest) {
     const accepted = await upsertDeviceAuto(sn, ip, params.get('pushver') || undefined);
     if (!accepted) return new Response('SN NOT REGISTERED', { status: 403 });
     kaHandled.set(sn, Date.now());
-    return new Response(handshakeResponse(new Date()), {
+    return new Response(await handshakeText(sn), {
       status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
   }
@@ -105,11 +99,11 @@ export async function GET(req: NextRequest) {
     const accepted = await upsertDeviceAuto(sn, ip);
     if (!accepted) return new Response('SN NOT REGISTERED', { status: 403 });
   }
-  const commands = await getPendingCommand(sn);
+  const commands = await takeCommands(sn);
   // لا أمر افتراضي: الجهاز يدفع السجلات الجديدة فورًا (RealTime=1)،
   // وإرسال CHECKIN مع كل ping كان يجعل الجهاز يعيد رفع سجلاته باستمرار —
   // استهلاك ضخم للعمليات وتكرارات تُرفض بالقيد الفريد. أوامر الجلب تُرسل يدويًا من صفحة الأجهزة.
-  return new Response(keepAliveResponse(commands), {
+  return new Response(commands.length ? commands.join('\n') : 'OK', {
     status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   });
 }
@@ -142,6 +136,7 @@ export async function POST(req: NextRequest) {
     const buf = Buffer.from(await req.arrayBuffer().catch(() => new ArrayBuffer(0)));
     const photo = parseAttPhoto(buf);
     if (photo) await savePunchPhoto(sn, photo).catch(() => {});
+    await saveStamp(sn, 'ATTPHOTO', params.get('Stamp')).catch(() => {});
     return new Response('OK', { status: 200 });
   }
 
@@ -155,6 +150,7 @@ export async function POST(req: NextRequest) {
     }
     if (table !== 'USERINFO' && table !== 'ATTLOG') return new Response('OK', { status: 200 });
   }
+  if (table === 'OPERLOG') await saveStamp(sn, 'OPERLOG', params.get('Stamp')).catch(() => {});
   if (table === 'OPERLOG' || table === 'USERPIC' || table === 'BIOPHOTO') return new Response('OK', { status: 200 });
 
   // ===== USERINFO: مزامنة أسماء وربط pin بموظف =====
@@ -174,6 +170,7 @@ export async function POST(req: NextRequest) {
 
   // ===== ATTLOG: السجلات الخام — إضافة فقط بلا تعديل أبدًا (قاعدة 2) =====
   const punches = parseATTLOG(body);
+  await saveStamp(sn, 'ATTLOG', params.get('Stamp')).catch(() => {});
   if (!punches.length) return new Response('OK', { status: 200 });
 
   let inserted = 0;

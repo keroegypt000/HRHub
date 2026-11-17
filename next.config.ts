@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // أجهزة ZKTeco القديمة تطلب نفس المسارات بامتداد .aspx
+  async rewrites() {
+    return [
+      { source: '/iclock/cdata.aspx', destination: '/iclock/cdata' },
+      { source: '/iclock/getrequest.aspx', destination: '/iclock/getrequest' },
+      { source: '/iclock/devicecmd.aspx', destination: '/iclock/devicecmd' },
+      { source: '/iclock/fdata.aspx', destination: '/iclock/fdata' },
+    ];
+  },
 };
 
 export default nextConfig;
