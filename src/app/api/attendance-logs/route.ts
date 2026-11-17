@@ -6,6 +6,7 @@ import { recomputeDayForEmployees, recomputeRange } from '@/lib/attendance';
 import { resolveEmployeeByPin } from '@/lib/attendance';
 import { dateKey, dayRange, kuwaitMidnight } from '@/lib/time';
 import { STATUS_AR, VERIFY_AR } from '@/lib/zk/protocol';
+import { labelLogs } from '@/lib/punch-types';
 
 /** سجل البصمة الخام — فلاتر: فترة، موظف، جهاز، مصدر + شاشة غير المعروفين */
 export async function GET(req: NextRequest) {
@@ -51,9 +52,24 @@ export async function GET(req: NextRequest) {
       db.attendanceLog.count({ where }),
     ]);
 
+    // نوع الحركة الذكي: نحسبه من كل بصمات اليوم للموظف (وليس الصفحة فقط) — أول دخول وآخر خروج
+    const kinds = new Map<string, string>();
+    const empIds = [...new Set(rows.map((r) => r.employeeId).filter((x): x is string => !!x))];
+    if (empIds.length) {
+      const keys = rows.map((r) => dateKey(r.punchTime)).sort();
+      const dayLogs = await db.attendanceLog.findMany({
+        where: {
+          employeeId: { in: empIds },
+          punchTime: { gte: kuwaitMidnight(keys[0]), lt: new Date(kuwaitMidnight(keys[keys.length - 1]).getTime() + 24 * 3600_000) },
+        },
+        select: { id: true, employeeId: true, pin: true, punchTime: true },
+      });
+      for (const [l, k] of labelLogs(dayLogs, dateKey)) kinds.set(l.id, k);
+    }
     const decorated = rows.map((r) => ({
       ...r,
-      statusAr: STATUS_AR[r.status] || String(r.status),
+      statusAr: kinds.get(r.id) || STATUS_AR[r.status] || String(r.status),
+      deviceStatusAr: STATUS_AR[r.status] || String(r.status),
       verifyAr: VERIFY_AR[r.verify] || String(r.verify),
     }));
     return ok({ rows: decorated, total, page, limit });
