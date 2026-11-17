@@ -4,7 +4,7 @@ import { requireRead, handle, ok } from '@/lib/api';
 
 export interface ExpiryAlert {
   id: string;
-  kind: 'passport' | 'iqama' | 'vehicle_license' | 'vehicle_insurance' | 'vehicle_inspection' | 'company_contract' | 'employee_contract';
+  kind: 'passport' | 'iqama' | 'health_card' | 'health_insurance' | 'accident_insurance' | 'vehicle_license' | 'vehicle_insurance' | 'vehicle_inspection' | 'company_contract' | 'employee_contract';
   kindAr: string;
   title: string;      // اسم العنصر (اللوحة/الجواز/العقد)
   subtitle: string;   // تفاصيل إضافية
@@ -16,6 +16,9 @@ export interface ExpiryAlert {
 const KIND_AR: Record<ExpiryAlert['kind'], string> = {
   passport: 'جواز سفر',
   iqama: 'إقامة',
+  health_card: 'كرت صحي',
+  health_insurance: 'تأمين صحي',
+  accident_insurance: 'تأمين حوادث وإصابات',
   vehicle_license: 'رخصة سير مركبة',
   vehicle_insurance: 'تأمين مركبة',
   vehicle_inspection: 'فحص دوري مركبة',
@@ -61,6 +64,21 @@ export async function GET(req: NextRequest) {
     for (const q of iqamas) {
       push('iqama', q.id, `${q.iqamaNo} — ${q.holderName}`,
         q.employee ? `${q.employee.name} (${q.employee.code})` : q.nationality || q.sponsor || '', q.expiryDate);
+    }
+
+    // الكروت الصحية (للموظفين الحاليين فقط)
+    const active = { status: { notIn: ['terminated', 'deceased'] } };
+    const cards = await db.healthCard.findMany({ where: { employee: active }, include: { employee: { select: { name: true, code: true } } } });
+    for (const c of cards) {
+      push('health_card', c.id, `${c.cardNo || 'كرت صحي'} — ${c.employee.name}`, `${c.employee.name} (${c.employee.code})`, c.expiryDate);
+    }
+
+    // التأمين الصحي وتأمين الحوادث وإصابات العمل
+    const ins = await db.employeeInsurance.findMany({ where: { expiryDate: { not: null }, employee: active }, include: { employee: { select: { name: true, code: true } } } });
+    for (const i of ins) {
+      if (!i.expiryDate) continue;
+      push(i.kind === 'accident' ? 'accident_insurance' : 'health_insurance', i.id, `${i.provider}${i.policyNo ? ` (${i.policyNo})` : ''} — ${i.employee.name}`,
+        `${i.employee.name} (${i.employee.code})`, i.expiryDate);
     }
 
     // السيارات: رخصة + تأمين + فحص دوري

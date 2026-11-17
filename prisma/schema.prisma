@@ -165,6 +165,9 @@ model Employee {
   requests         EmployeeRequest[]
   custodies        Custody[]
   attendanceExceptions AttendanceException[]
+  healthCards      HealthCard[]
+  insurances       EmployeeInsurance[]
+  workInjuries     WorkInjury[]
   adjustments      PayrollAdjustment[]
   userAccount      User?                 @relation("UserEmployee")
 
@@ -645,4 +648,81 @@ model AttendanceException {
 
   @@unique([employeeId, date])
   @@index([date])
+}
+
+// ===== الكروت الصحية (شهادة صحية للعاملين) — تنبيه قبل الانتهاء =====
+model HealthCard {
+  id         String    @id @default(cuid())
+  employeeId String
+  cardNo     String?
+  issuer     String? // الجهة المصدرة (وزارة الصحة / البلدية)
+  issueDate  DateTime?
+  expiryDate DateTime
+  fileId     String? // صورة الكرت
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([expiryDate])
+}
+
+// ===== التأمين: صحي أو حوادث وإصابات عمل =====
+model EmployeeInsurance {
+  id         String    @id @default(cuid())
+  employeeId String
+  kind       String    @default("health") // health|accident
+  provider   String // شركة التأمين
+  policyNo   String? // رقم الوثيقة / البطاقة
+  category   String? // الفئة / درجة التغطية
+  startDate  DateTime?
+  expiryDate DateTime?
+  premium    Float     @default(0) // القسط السنوي د.ك
+  coverage   Float? // حد التغطية د.ك
+  includesFamily Boolean @default(false)
+  fileId     String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  injuries   WorkInjury[]
+
+  @@index([expiryDate])
+  @@index([kind])
+}
+
+// ===== إصابات العمل والحوادث =====
+model WorkInjury {
+  id           String    @id @default(cuid())
+  employeeId   String
+  date         DateTime
+  place        String?
+  injuryType   String? // نوع الإصابة
+  description  String
+  daysOff      Int       @default(0) // أيام الانقطاع عن العمل
+  insuranceId  String?
+  reported     Boolean   @default(false) // تم إبلاغ الجهات المختصة
+  status       String    @default("open") // open|closed
+  compensation Float     @default(0) // التعويض د.ك
+  fileId       String? // التقرير الطبي
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  insurance    EmployeeInsurance? @relation(fields: [insuranceId], references: [id])
+
+  @@index([date])
+}
+
+// ===== مكتبة النماذج (نماذج الشؤون / القوى العاملة) =====
+model FormTemplate {
+  id        String   @id @default(cuid())
+  title     String
+  category  String? // إذن عمل / تحويل / إلغاء / شهادات ...
+  fileId    String
+  fileName  String?
+  notes     String?
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

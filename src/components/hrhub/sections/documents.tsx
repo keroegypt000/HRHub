@@ -31,9 +31,9 @@ export function PassportsSection({ canWrite }: { canWrite: boolean }) {
           { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
         ]}
         fields={[
-          { key: 'holderName', label: 'اسم صاحب الجواز', type: 'text', required: true },
-          { key: 'employeeId', label: 'موظف مرتبط (اختياري)', type: 'select' },
-          { key: 'passportNo', label: 'رقم الجواز', type: 'text', required: true },
+          { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'اختار الموظف والاسم والجنسية والرقم يتملوا من ملفه تلقائيًا' },
+          { key: 'holderName', label: 'اسم صاحب الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
+          { key: 'passportNo', label: 'رقم الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
           { key: 'nationality', label: 'الجنسية', type: 'text' },
           { key: 'issueDate', label: 'تاريخ الإصدار', type: 'date' },
           { key: 'expiryDate', label: 'تاريخ الانتهاء', type: 'date', required: true },
@@ -76,9 +76,9 @@ export function IqamasSection({ canWrite }: { canWrite: boolean }) {
           { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
         ]}
         fields={[
-          { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', required: true },
-          { key: 'employeeId', label: 'موظف مرتبط (اختياري)', type: 'select' },
-          { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', required: true },
+          { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'اختار الموظف والاسم والجنسية والرقم يتملوا من ملفه تلقائيًا' },
+          { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
+          { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
           { key: 'nationality', label: 'الجنسية', type: 'text' },
           { key: 'profession', label: 'المهنة', type: 'text' },
           { key: 'sponsor', label: 'الكفيل', type: 'text' },

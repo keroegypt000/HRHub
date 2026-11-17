@@ -11,6 +11,7 @@ import { DepartmentsSection, ShiftsSection, HolidaysSection, SalaryComponentsSec
 import { ContractsSection } from '@/components/hrhub/sections/contracts';
 import { AlertsSection } from '@/components/hrhub/sections/alerts';
 import { PassportsSection, IqamasSection } from '@/components/hrhub/sections/documents';
+import { HealthCardsSection, InsuranceSection, FormsSection } from '@/components/hrhub/sections/employee-records';
 import { EndOfServiceSection } from '@/components/hrhub/sections/end-of-service';
 import { DepartedSection, DeceasedSection } from '@/components/hrhub/sections/departed';
 import { AttendanceLogsSection, DailyAttendanceSection } from '@/components/hrhub/sections/attendance';
@@ -118,6 +119,9 @@ export default function Page() {
       {section === 'alerts' && <AlertsSection canWrite={!!can.passports && !!can.vehicles && !!can.companyContracts} />}
       {section === 'passports' && <PassportsSection canWrite={!!can.passports} />}
       {section === 'iqamas' && <IqamasSection canWrite={!!can.iqamas} />}
+      {section === 'health-cards' && <HealthCardsSection canWrite={!!can.healthCards} />}
+      {section === 'insurance' && <InsuranceSection canWrite={!!can.insurances} canWriteInjuries={!!can.workInjuries} />}
+      {section === 'forms' && <FormsSection canWrite={!!can.forms} />}
       {section === 'end-of-service' && <EndOfServiceSection canWrite={!!can.settlements} companyName={companyName} />}
       {section === 'departed' && <DepartedSection canWrite={!!can.settlements} companyName={companyName} />}
       {section === 'deceased' && <DeceasedSection canWrite={!!can.settlements} companyName={companyName} />}

@@ -31,6 +31,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
         files: { orderBy: { createdAt: 'desc' }, select: { id: true, fileName: true, mimeType: true, size: true, createdAt: true, ownerTag: true } },
         passports: { orderBy: { expiryDate: 'desc' } },
         iqamas: { orderBy: { expiryDate: 'desc' } },
+        healthCards: { orderBy: { expiryDate: 'desc' } },
+        insurances: { orderBy: { expiryDate: 'desc' } },
         loans: { orderBy: { createdAt: 'desc' } },
         requests: { orderBy: { createdAt: 'desc' }, take: 30 },
         settlements: true,
@@ -86,6 +88,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const docs = [
       ...emp.passports.map((p) => ({ kind: 'جواز', no: p.passportNo, expiry: p.expiryDate })),
       ...emp.iqamas.map((q) => ({ kind: 'إقامة', no: q.iqamaNo, expiry: q.expiryDate })),
+      ...emp.healthCards.map((h) => ({ kind: 'كرت صحي', no: h.cardNo || '—', expiry: h.expiryDate })),
+      ...emp.insurances.filter((i) => i.expiryDate).map((i) => ({ kind: i.kind === 'accident' ? 'تأمين حوادث' : 'تأمين صحي', no: `${i.provider}${i.policyNo ? ` (${i.policyNo})` : ''}`, expiry: i.expiryDate! })),
       ...emp.contracts.filter((c) => c.status === 'active' && c.endDate).map((c) => ({ kind: 'عقد', no: c.contractNo, expiry: c.endDate! })),
     ].sort((a, b) => a.expiry.getTime() - b.expiry.getTime());
     const daysLeft = (d: Date) => Math.ceil((d.getTime() - Date.now()) / 86400_000);

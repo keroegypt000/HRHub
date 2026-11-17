@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { requireRead, requireWrite, handle } from '@/lib/api';
 import { crudList, crudCreate, CrudConfig } from '@/lib/crud';
+import { fillFromEmployee } from '@/lib/doc-holder';
 
 export const cfg: CrudConfig = {
   model: 'passport',
@@ -11,6 +12,8 @@ export const cfg: CrudConfig = {
   include: { employee: { select: { id: true, name: true, code: true } } },
   dateFields: ['issueDate', 'expiryDate'],
   validate: async (data, mode) => {
+    // اختيار الموظف يكفي: الاسم والجنسية والرقم تُؤخذ من ملفه
+    await fillFromEmployee(data, 'passportNo');
     if (mode === 'create') {
       if (!data.holderName && !data.employeeId) return 'اختر الموظف أو أدخل اسم صاحب الجواز';
       if (!data.passportNo) return 'أدخل رقم الجواز';

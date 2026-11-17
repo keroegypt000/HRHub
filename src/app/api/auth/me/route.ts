@@ -31,6 +31,10 @@ export async function GET(req: NextRequest) {
         // الأقسام الجديدة: التنبيهات ونهاية الخدمة والمستحقات
         passports: canWrite(user, 'passports'),
         iqamas: canWrite(user, 'iqamas'),
+        healthCards: canWrite(user, 'health-cards'),
+        insurances: canWrite(user, 'insurances'),
+        workInjuries: canWrite(user, 'work-injuries'),
+        forms: canWrite(user, 'forms'),
         vehicles: canWrite(user, 'vehicles'),
         companyContracts: canWrite(user, 'company-contracts'),
         settlements: canWrite(user, 'settlements'),

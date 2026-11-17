@@ -68,7 +68,7 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
     <div className="space-y-4">
       <PageHeader
         title="التنبيهات والنفاذ"
-        subtitle="جوازات السفر والإقامات ومستندات السيارات وعقود الشركة — تنبيه تلقائي قبل الانتهاء بـ30/60/90 يومًا"
+        subtitle="الجوازات والإقامات والكروت الصحية والتأمين ومستندات السيارات والعقود — تنبيه تلقائي قبل الانتهاء بـ30/60/90 يومًا"
         actions={<Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200"><BellRing className="h-3.5 w-3.5 ml-1" /> فحص تلقائي عند كل فتح</Badge>}
       />
 
@@ -133,9 +133,9 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
               { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
             ]}
             fields={[
-              { key: 'holderName', label: 'اسم صاحب الجواز', type: 'text', required: true },
-              { key: 'employeeId', label: 'موظف مرتبط (اختياري)', type: 'select' },
-              { key: 'passportNo', label: 'رقم الجواز', type: 'text', required: true },
+              { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'اختار الموظف والاسم والجنسية والرقم يتملوا من ملفه تلقائيًا' },
+              { key: 'holderName', label: 'اسم صاحب الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
+              { key: 'passportNo', label: 'رقم الجواز', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
               { key: 'nationality', label: 'الجنسية', type: 'text' },
               { key: 'issueDate', label: 'تاريخ الإصدار', type: 'date' },
               { key: 'expiryDate', label: 'تاريخ الانتهاء', type: 'date', required: true },
@@ -170,9 +170,9 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
               { key: 'status', header: 'الحالة', render: (r) => <ExpiryBadge expiry={r.expiryDate as string} /> },
             ]}
             fields={[
-              { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', required: true },
-              { key: 'employeeId', label: 'موظف مرتبط (اختياري)', type: 'select' },
-              { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', required: true },
+              { key: 'employeeId', label: 'الموظف', type: 'select', hint: 'اختار الموظف والاسم والجنسية والرقم يتملوا من ملفه تلقائيًا' },
+              { key: 'holderName', label: 'اسم صاحب الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = اسم الموظف' },
+              { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', requiredIf: (f) => !f.employeeId, placeholder: 'فارغ = من ملف الموظف' },
               { key: 'nationality', label: 'الجنسية', type: 'text' },
               { key: 'profession', label: 'المهنة', type: 'text' },
               { key: 'sponsor', label: 'الكفيل', type: 'text' },

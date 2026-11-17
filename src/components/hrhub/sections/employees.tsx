@@ -25,6 +25,9 @@ interface EmployeeRow extends Record<string, unknown> {
   nationality?: string | null; civilId?: string | null; hireDate?: string | null; birthDate?: string | null;
   photo?: { id: string } | null;
   _count?: { contracts: number; leaveRequests: number };
+  passports?: { passportNo: string; expiryDate: string }[];
+  iqamas?: { iqamaNo: string; expiryDate: string }[];
+  healthCards?: { cardNo?: string | null; expiryDate: string }[];
 }
 
 function Avatar({ emp, size = 'h-10 w-10' }: { emp: { photoId?: string | null; photo?: { id: string } | null; name: string }; size?: string }) {
@@ -131,6 +134,11 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
           { key: 'nationality', label: 'الجنسية', type: 'text' },
           { key: 'civilId', label: 'الرقم المدني', type: 'text' },
           { key: 'passportNo', label: 'رقم الجواز', type: 'text' },
+          { key: 'passportExpiry', label: 'تاريخ انتهاء الجواز', type: 'date', hint: 'يظهر في التنبيهات تلقائيًا' },
+          { key: 'iqamaNo', label: 'رقم الإقامة', type: 'text', placeholder: 'فارغ = الرقم المدني' },
+          { key: 'iqamaExpiry', label: 'تاريخ انتهاء الإقامة', type: 'date', hint: 'يظهر في التنبيهات تلقائيًا' },
+          { key: 'healthCardNo', label: 'رقم الكرت الصحي (إن وجد)', type: 'text' },
+          { key: 'healthCardExpiry', label: 'تاريخ انتهاء الكرت الصحي', type: 'date' },
           { key: 'phone', label: 'الهاتف', type: 'text' },
           { key: 'email', label: 'البريد الإلكتروني', type: 'text' },
           { key: 'departmentId', label: 'القسم', type: 'select' },
@@ -171,6 +179,11 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
           weeklyOffDays: r.weeklyOffDays || 'shift', eosBasis: r.eosBasis || 'default',
           otEligible: !!r.otEligible, attendanceExempt: !!r.attendanceExempt,
           openingLeaveDate: r.openingLeaveDate ? fmtDate(r.openingLeaveDate as string) : '',
+          passportExpiry: r.passports?.[0]?.expiryDate ? fmtDate(r.passports[0].expiryDate) : '',
+          iqamaNo: r.iqamas?.[0]?.iqamaNo || '',
+          iqamaExpiry: r.iqamas?.[0]?.expiryDate ? fmtDate(r.iqamas[0].expiryDate) : '',
+          healthCardNo: r.healthCards?.[0]?.cardNo || '',
+          healthCardExpiry: r.healthCards?.[0]?.expiryDate ? fmtDate(r.healthCards[0].expiryDate) : '',
         })}
       />
       {profile && (

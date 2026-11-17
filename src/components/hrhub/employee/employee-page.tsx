@@ -303,7 +303,7 @@ export function EmployeePage({ id, open, onClose, canWrite, companyName, account
 
               <TabsContent value="docs" className="pt-3 space-y-3">
                 <div className="space-y-2">
-                  {data.documents.length === 0 && <p className="text-sm text-muted-foreground">لا توجد جوازات أو إقامات مسجلة</p>}
+                  {data.documents.length === 0 && <p className="text-sm text-muted-foreground">لا توجد جوازات أو إقامات أو كروت صحية أو تأمين مسجل</p>}
                   {data.documents.map((d, i) => (
                     <div key={i} className="rounded-lg border p-2.5 flex flex-wrap items-center gap-3 text-sm">
                       <span className="font-medium w-14">{d.kind}</span>

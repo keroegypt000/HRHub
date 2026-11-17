@@ -12,7 +12,7 @@ import {
   LayoutDashboard, Users, Network, FileSignature, Clock4, Fingerprint, CalendarCheck2,
   Plane, Sparkles, MonitorSmartphone, Wallet, SlidersHorizontal, BarChart3,
   FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu, ChevronDown,
-  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList, PackageCheck, BadgePercent,
+  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList, PackageCheck, BadgePercent, ShieldPlus, HeartPulse, FolderOpen,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -49,7 +49,9 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Users,
     items: [
       { key: 'employees', label: 'كل الموظفين', icon: Users },
+      { key: 'iqamas', label: 'الإقامات', icon: CreditCard },
       { key: 'contracts', label: 'العقود', icon: FileSignature },
+      { key: 'insurance', label: 'التأمين وإصابات العمل', icon: ShieldPlus },
       { key: 'custody', label: 'العُهد', icon: PackageCheck },
       { key: 'departments', label: 'الأقسام والمسميات', icon: Network },
     ],
@@ -84,8 +86,9 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: BellRing,
     items: [
       { key: 'alerts', label: 'التنبيهات (انتهاء الصلاحية)', icon: BellRing },
-      { key: 'iqamas', label: 'الإقامات', icon: CreditCard },
       { key: 'passports', label: 'الجوازات', icon: Plane },
+      { key: 'health-cards', label: 'الكروت الصحية', icon: HeartPulse },
+      { key: 'forms', label: 'نماذج الشؤون', icon: FolderOpen },
     ],
   },
   {

@@ -19,12 +19,13 @@ import { RecordDetails, rowEmployeeId, DetailItem } from '@/components/hrhub/rec
 import { PageHeader } from '@/components/hrhub/common';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Download, Search } from 'lucide-react';
+import { FileField } from '@/components/hrhub/file-field';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'switch' | 'textarea' | 'time' | 'weekdays';
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'switch' | 'textarea' | 'time' | 'weekdays' | 'file';
 
 const WEEKDAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
@@ -40,6 +41,9 @@ export interface FieldDef {
   showIf?: (form: Record<string, unknown>) => boolean;
   /** إلزامي حسب الحالة */
   requiredIf?: (form: Record<string, unknown>) => boolean;
+  /** حقل ملف: تصنيف الملف عند الرفع + حقل يُحفظ فيه اسم الملف (اختياري) */
+  ownerTag?: string;
+  fileNameKey?: string;
   placeholder?: string;
 }
 
@@ -342,6 +346,10 @@ export function CrudPanel<T extends { id: string }>({
                     </span>
                     <Switch checked={!!form[f.key]} onCheckedChange={(v) => setVal(f.key, v)} />
                   </div>
+                ) : f.type === 'file' ? (
+                  <FileField value={String(form[f.key] ?? '')} ownerTag={f.ownerTag}
+                    employeeId={typeof form.employeeId === 'string' ? form.employeeId : undefined}
+                    onChange={(id, name) => { setVal(f.key, id); if (f.fileNameKey) setVal(f.fileNameKey, name); }} />
                 ) : f.type === 'textarea' ? (
                   <Textarea
                     value={String(form[f.key] ?? '')}
