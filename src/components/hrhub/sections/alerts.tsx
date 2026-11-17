@@ -7,6 +7,7 @@ import { api, fmtDate, fmtKWD } from '@/lib/client';
 import { PageHeader } from '@/components/hrhub/common';
 import { CrudPanel, optionLoaders } from '@/components/hrhub/crud-panel';
 import { employeeAutofill } from '@/components/hrhub/employee-autofill';
+import { VehiclesPanel, CompanyContractsPanel } from '@/components/hrhub/sections/company-assets';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -196,84 +197,12 @@ export function AlertsSection({ canWrite }: { canWrite: boolean }) {
 
         {/* السيارات */}
         <TabsContent value="vehicles">
-          <CrudPanel<Record<string, unknown> & { id: string }>
-            entityPath="/api/vehicles"
-            entityLabel="مركبة"
-            title="السيارات ومستنداتها"
-            subtitle="رخصة السير والتأمين والفحص الدوري — تنبيه لكل مستند على حدة"
-            canWrite={canWrite}
-            searchPlaceholder="بحث برقم اللوحة أو السائق..."
-            columns={[
-              { key: 'plate', header: 'اللوحة', render: (r) => <span className="font-mono font-bold">{String(r.plateNo)}</span> },
-              { key: 'make', header: 'الماركة/الموديل', render: (r) => `${r.make || ''} ${r.model || ''}`.trim() || '—' },
-              { key: 'driver', header: 'السائق', render: (r) => String(r.driverName || '—'), hideOnMobile: true },
-              { key: 'license', header: 'رخصة السير', render: (r) => <ExpiryBadge expiry={r.licenseExpiry as string | null} /> },
-              { key: 'insurance', header: 'التأمين', render: (r) => <ExpiryBadge expiry={r.insuranceExpiry as string | null} /> },
-              { key: 'inspection', header: 'الفحص الدوري', render: (r) => <ExpiryBadge expiry={r.inspectionExpiry as string | null} />, hideOnMobile: true },
-            ]}
-            fields={[
-              { key: 'plateNo', label: 'رقم اللوحة', type: 'text', required: true },
-              { key: 'make', label: 'الماركة', type: 'text' },
-              { key: 'model', label: 'الموديل', type: 'text' },
-              { key: 'year', label: 'سنة الصنع', type: 'number' },
-              { key: 'color', label: 'اللون', type: 'text' },
-              { key: 'driverName', label: 'السائق المسؤول', type: 'text' },
-              { key: 'licenseExpiry', label: 'انتهاء رخصة السير', type: 'date' },
-              { key: 'insuranceExpiry', label: 'انتهاء التأمين', type: 'date' },
-              { key: 'inspectionExpiry', label: 'انتهاء الفحص الدوري', type: 'date' },
-              { key: 'insuranceCompany', label: 'شركة التأمين', type: 'text' },
-              { key: 'policyNo', label: 'رقم الوثيقة', type: 'text' },
-              { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
-            ]}
-            defaultValues={{}}
-            rowToForm={(r) => ({
-              ...r,
-              licenseExpiry: r.licenseExpiry ? fmtDate(r.licenseExpiry as string) : '',
-              insuranceExpiry: r.insuranceExpiry ? fmtDate(r.insuranceExpiry as string) : '',
-              inspectionExpiry: r.inspectionExpiry ? fmtDate(r.inspectionExpiry as string) : '',
-            })}
-          />
+          <VehiclesPanel canWrite={canWrite} />
         </TabsContent>
 
         {/* عقود الشركة */}
         <TabsContent value="company-contracts">
-          <CrudPanel<Record<string, unknown> & { id: string }>
-            entityPath="/api/company-contracts"
-            entityLabel="عقد شركة"
-            title="عقود الشركة"
-            subtitle="عقود التوريد والخدمات والإيجار — تنبيه قبل الانتهاء للتجديد في وقته"
-            canWrite={canWrite}
-            searchPlaceholder="بحث باسم العقد أو الطرف الآخر..."
-            columns={[
-              { key: 'name', header: 'العقد', render: (r) => <span className="font-medium">{String(r.name)}</span> },
-              { key: 'counterparty', header: 'الطرف الآخر', render: (r) => String(r.counterparty || '—') },
-              { key: 'type', header: 'النوع', render: (r) => String(r.type || '—'), hideOnMobile: true },
-              { key: 'value', header: 'القيمة (د.ك)', render: (r) => <span className="tabular">{r.value ? fmtKWD(r.value as number) : '—'}</span>, hideOnMobile: true },
-              { key: 'period', header: 'الفترة', render: (r) => <span className="tabular text-xs">{fmtDate(r.startDate as string | null)} → {fmtDate(r.endDate as string)}</span> },
-              { key: 'status', header: 'النفاذ', render: (r) => <ExpiryBadge expiry={r.endDate as string} /> },
-            ]}
-            fields={[
-              { key: 'name', label: 'اسم/وصف العقد', type: 'text', required: true, span: 2 },
-              { key: 'counterparty', label: 'الطرف الآخر', type: 'text' },
-              { key: 'contractNo', label: 'رقم العقد', type: 'text' },
-              { key: 'type', label: 'النوع', type: 'select', options: [
-                { value: 'توريد', label: 'توريد' }, { value: 'خدمات', label: 'خدمات' },
-                { value: 'إيجار', label: 'إيجار' }, { value: 'صيانة', label: 'صيانة' },
-                { value: 'نقل', label: 'نقل' }, { value: 'أخرى', label: 'أخرى' },
-              ] },
-              { key: 'value', label: 'قيمة العقد (د.ك)', type: 'number' },
-              { key: 'startDate', label: 'تاريخ البداية', type: 'date' },
-              { key: 'endDate', label: 'تاريخ الانتهاء', type: 'date', required: true },
-              { key: 'renewal', label: 'قابل للتجديد', type: 'switch' },
-              { key: 'notes', label: 'ملاحظات', type: 'textarea', span: 2 },
-            ]}
-            defaultValues={{ renewal: true }}
-            rowToForm={(r) => ({
-              ...r,
-              startDate: r.startDate ? fmtDate(r.startDate as string) : '',
-              endDate: r.endDate ? fmtDate(r.endDate as string) : '',
-            })}
-          />
+          <CompanyContractsPanel canWrite={canWrite} />
         </TabsContent>
       </Tabs>
     </div>

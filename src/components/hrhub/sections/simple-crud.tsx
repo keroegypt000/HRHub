@@ -209,7 +209,7 @@ export function SalaryComponentsSection({ canWrite }: { canWrite: boolean }) {
 // ===== الشركات ومواقع العمل =====
 interface CompanyRow extends Record<string, unknown> {
   id: string; name: string; nameEn?: string | null; crNo?: string | null; laborFileNo?: string | null; active: boolean;
-  _count?: { employees: number; locations: number };
+  _count?: { employees: number; locations: number; vehicles?: number; contracts?: number };
 }
 interface LocationRow extends Record<string, unknown> {
   id: string; name: string; area?: string | null; address?: string | null; active: boolean;
@@ -237,6 +237,8 @@ export function CompaniesSection({ canWrite }: { canWrite: boolean }) {
             { key: 'laborFileNo', header: 'رقم ملف الشؤون', render: (r) => <span className="tabular">{r.laborFileNo || '—'}</span> },
             { key: 'locations', header: 'مواقع العمل', render: (r) => <span className="tabular">{r._count?.locations ?? 0}</span> },
             { key: 'employees', header: 'الموظفون', render: (r) => <span className="tabular">{r._count?.employees ?? 0}</span> },
+            { key: 'vehicles', header: 'السيارات', render: (r) => <span className="tabular">{r._count?.vehicles ?? 0}</span> },
+            { key: 'contracts', header: 'العقود', render: (r) => <span className="tabular">{r._count?.contracts ?? 0}</span> },
             { key: 'active', header: 'الحالة', render: (r) => (r.active ? 'نشطة' : 'موقوفة') },
           ]}
           fields={[

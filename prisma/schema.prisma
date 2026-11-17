@@ -254,9 +254,11 @@ model Vehicle {
   inspectionExpiry DateTime? // الفحص الدوري
   insuranceCompany String?
   policyNo         String?
+  companyId        String? // الشركة المالكة
   notes            String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  company          Company?  @relation(fields: [companyId], references: [id])
 }
 
 model CompanyContract {
@@ -270,9 +272,11 @@ model CompanyContract {
   endDate      DateTime
   renewal      Boolean   @default(true) // قابل للتجديد
   status       String    @default("active") // active|expired|terminated
+  companyId    String? // الشركة صاحبة العقد
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  company      Company?  @relation(fields: [companyId], references: [id])
 
   @@index([endDate])
 }
@@ -748,6 +752,8 @@ model Company {
   updatedAt  DateTime       @updatedAt
   locations  WorkLocation[]
   employees  Employee[]
+  vehicles   Vehicle[]
+  contracts  CompanyContract[]
 }
 
 model WorkLocation {

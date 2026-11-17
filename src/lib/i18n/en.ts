@@ -1,6 +1,11 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"بدون شركة": "No company",
+"كل الشركات": "All companies",
+"الشركة المالكة": "Owner company",
+"سيارات كل شركة ومستنداتها — اختار الشركة لعرض سياراتها، وأي سيارة تضيفها جوه تبويب الشركة بتتسجل عليها": "Each company's vehicles and their documents — pick a company to see its vehicles; a vehicle added inside a company tab is registered to it",
+"عقود كل شركة (توريد، خدمات، إيجار...) — اختار الشركة لعرض عقودها، وأي عقد تضيفه جوه تبويب الشركة بيتسجل عليها": "Each company's contracts (supply, services, rent...) — pick a company to see its contracts; a contract added inside a company tab is registered to it",
 "نشطة": "Active",
 "شركة": "company",
 "موقوفة": "Suspended",
@@ -1819,6 +1824,12 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^رخصة سير — (.+)$",
+"Vehicle license — $1"
+],
+["^فحص دوري — (.+)$",
+"Periodic inspection — $1"
+],
 ["^لا يمكن الحذف: عليه (\\d+) موظف — انقلهم أولًا أو اجعله غير نشط$",
 "Cannot delete: $1 employees are assigned — move them first or mark it inactive"
 ],

@@ -82,18 +82,19 @@ export async function GET(req: NextRequest) {
     }
 
     // السيارات: رخصة + تأمين + فحص دوري
-    const vehicles = await db.vehicle.findMany();
+    const vehicles = await db.vehicle.findMany({ include: { company: { select: { name: true } } } });
     for (const v of vehicles) {
       const label = `${v.make || ''} ${v.model || ''} (${v.plateNo})`.trim();
-      if (v.licenseExpiry) push('vehicle_license', v.id, label, 'رخصة سير', v.licenseExpiry);
-      if (v.insuranceExpiry) push('vehicle_insurance', v.id, label, `تأمين ${v.insuranceCompany || ''}`.trim(), v.insuranceExpiry);
-      if (v.inspectionExpiry) push('vehicle_inspection', v.id, label, 'فحص دوري', v.inspectionExpiry);
+      const co = v.company ? ` — ${v.company.name}` : '';
+      if (v.licenseExpiry) push('vehicle_license', v.id, label, `رخصة سير${co}`, v.licenseExpiry);
+      if (v.insuranceExpiry) push('vehicle_insurance', v.id, label, `تأمين ${v.insuranceCompany || ''}`.trim() + co, v.insuranceExpiry);
+      if (v.inspectionExpiry) push('vehicle_inspection', v.id, label, `فحص دوري${co}`, v.inspectionExpiry);
     }
 
     // عقود الشركة
-    const companyContracts = await db.companyContract.findMany({ where: { status: 'active' } });
+    const companyContracts = await db.companyContract.findMany({ where: { status: 'active' }, include: { company: { select: { name: true } } } });
     for (const c of companyContracts) {
-      push('company_contract', c.id, c.name, c.counterparty || c.type || '', c.endDate);
+      push('company_contract', c.id, c.name, [c.company?.name, c.counterparty || c.type].filter(Boolean).join(' — '), c.endDate);
     }
 
     // عقود الموظفين النشطة ذات نهاية

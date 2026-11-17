@@ -8,6 +8,7 @@ export const cfg: CrudConfig = {
   label: 'مركبة',
   searchFields: ['plateNo', 'make', 'model', 'driverName'],
   orderBy: { plateNo: 'asc' },
+  include: { company: { select: { id: true, name: true } } },
   dateFields: ['licenseExpiry', 'insuranceExpiry', 'inspectionExpiry'],
   validate: async (data, mode) => {
     if (mode === 'create' || data.plateNo !== undefined) {

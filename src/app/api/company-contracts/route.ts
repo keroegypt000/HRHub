@@ -10,6 +10,7 @@ export const cfg: CrudConfig = {
   label: 'عقد شركة',
   searchFields: ['name', 'counterparty', 'contractNo', 'type'],
   orderBy: { endDate: 'asc' }, // الأقرب انتهاءً أولًا
+  include: { company: { select: { id: true, name: true } } },
   dateFields: ['startDate', 'endDate'],
   validate: async (data, mode) => {
     if (mode === 'create' || data.endDate !== undefined) {

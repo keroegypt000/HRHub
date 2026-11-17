@@ -9,7 +9,7 @@ export const cfg: CrudConfig = {
   label: 'شركة',
   searchFields: ['name', 'nameEn', 'crNo', 'laborFileNo'],
   orderBy: { name: 'asc' },
-  include: { _count: { select: { employees: true, locations: true } } },
+  include: { _count: { select: { employees: true, locations: true, vehicles: true, contracts: true } } },
   validate: (data, mode) => {
     if (mode === 'create' && !data.name) return 'اكتب اسم الشركة';
     return null;
