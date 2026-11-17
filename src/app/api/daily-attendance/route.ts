@@ -1,7 +1,8 @@
+import { ensureComputed } from '@/lib/attendance-fill';
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, ok, handle } from '@/lib/api';
-import { kuwaitMidnight } from '@/lib/time';
+import { dateKey, kuwaitMidnight } from '@/lib/time';
 
 export const STATUS_AR_MAP: Record<string, string> = {
   present: 'حاضر', late: 'متأخر', half_day: 'نص يوم', absent: 'غائب',
@@ -20,6 +21,15 @@ export async function GET(req: NextRequest) {
     const employeeId = url.searchParams.get('employeeId');
     const page = Math.max(parseInt(url.searchParams.get('page') || '1', 10) || 1, 1);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '200', 10) || 200, 1000);
+
+    // كل الموظفين يظهرون: حساب الأيام الناقصة في الفترة (حتى اليوم)
+    if (from && to) {
+      const empWhere: Record<string, unknown> = {};
+      if (departmentId && departmentId !== 'all') empWhere.departmentId = departmentId;
+      if (employeeId && employeeId !== 'all') empWhere.id = employeeId;
+      const today = dateKey();
+      await ensureComputed(from, to < today ? to : today, empWhere);
+    }
 
     const where: Record<string, unknown> = {};
     if (from || to) {

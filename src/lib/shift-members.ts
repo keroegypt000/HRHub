@@ -1,7 +1,8 @@
 // lib/shift-members.ts — ربط الموظفين بالورديات (من داخل الوردية)
 // القاعدة: لكل موظف وردية واحدة سارية في أي يوم. عند نقله لوردية جديدة تنتهي ورديته السابقة يوم قبل البداية.
 import { db } from '@/lib/db';
-import { kuwaitMidnight, dateKey } from '@/lib/time';
+import { kuwaitMidnight, dateKey, addDaysKey } from '@/lib/time';
+import { computeDay } from '@/lib/attendance';
 
 const DAY = 86400_000;
 
@@ -60,3 +61,31 @@ export async function endAssignment(assignmentId: string, endKey: string) {
   else await db.shiftAssignment.update({ where: { id: a.id }, data: { toDate: end } });
   return a;
 }
+
+/** أقصى عدد أيام يُعاد حسابها تلقائيًا بعد تعديل الوردية أو توزيع الموظفين */
+const RECALC_DAYS = 120;
+
+/** إعادة حساب حضور موظفين من تاريخ حتى اليوم (بحد أقصى 120 يومًا للخلف) */
+export async function recalcEmployees(employeeIds: string[], fromKey: string) {
+  const today = dateKey();
+  const floor = addDaysKey(today, -RECALC_DAYS);
+  let d = fromKey < floor ? floor : fromKey;
+  let n = 0;
+  for (; d <= today; d = addDaysKey(d, 1)) for (const id of new Set(employeeIds)) { await computeDay(id, d); n++; }
+  return n;
+}
+
+/** بعد تعديل الوردية (السماحية، المواعيد...): إعادة حساب كل الأيام المحسوبة عليها في آخر 120 يوم */
+export async function recalcShift(shiftId: string) {
+  const since = kuwaitMidnight(addDaysKey(dateKey(), -RECALC_DAYS));
+  const rows = await db.dailyAttendance.findMany({ where: { shiftId, date: { gte: since } }, select: { employeeId: true, date: true } });
+  const members = await db.shiftAssignment.findMany({
+    where: { shiftId, OR: [{ toDate: null }, { toDate: { gte: since } }] }, select: { employeeId: true, fromDate: true },
+  });
+  const seen = new Set<string>();
+  for (const r of rows) { const k = `${r.employeeId}|${dateKey(r.date)}`; if (!seen.has(k)) { seen.add(k); await computeDay(r.employeeId, dateKey(r.date)); } }
+  for (const m of members) await recalcEmployees([m.employeeId], dateKey(m.fromDate));
+}
+
+/** تشغيل في الخلفية بدون تعطيل الرد */
+export function inBackground(task: Promise<unknown>) { task.catch((e) => console.error('[recalc]', e)); }

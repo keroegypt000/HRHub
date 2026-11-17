@@ -422,7 +422,7 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
             <span>{reportLabel} · {visibleRows.length} صف{search ? ` (من ${rows.length})` : ''}</span>
             <span>{filtersText}{meta ? ` · ${meta}` : ''}</span>
           </div>
-          <DataTable columns={tableColumns} rows={tableRows} loading={loading} emptyText="لا توجد بيانات بهذه الفلاتر" maxBodyHeight="60vh" details={false} />
+          <DataTable columns={tableColumns} rows={tableRows} loading={loading} emptyText="لا توجد بيانات بهذه الفلاتر" maxBodyHeight="60vh" details={false} filters={false} />
           {totals && !loading && (
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
               <b>الإجمالي:</b>

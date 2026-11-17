@@ -1,6 +1,24 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"تم اختيار": "Selected",
+"اكتب السبب": "Enter the reason",
+"حفظ البصمات": "Save punches",
+"جاري الحفظ...": "Saving...",
+"لا يوجد موظفون": "No employees",
+"إدخال بصمة يدوي": "Manual punch entry",
+"اكتب وقت الدخول أو الخروج": "Enter the in or out time",
+"لا توجد نتائج بهذه الفلاتر": "No results for these filters",
+"مثال: عطل جهاز البصمة يوم ...": "e.g. device was down on ...",
+"حدد الفترة (من / إلى) بشكل صحيح": "Set a valid period (from / to)",
+"تخطي أيام الراحة والعطلات والإجازات": "Skip rest days, holidays and leaves",
+"الوقت لازم يكون بصيغة HH:MM مثل 08:00": "Time must be HH:MM, e.g. 08:00",
+"اكتب السبب (يظهر في التقارير وسجل التدقيق)": "Enter the reason (shown in reports and the audit log)",
+"لموظف أو مجموعة موظفين — مثلًا عند عطل جهاز البصمة. البصمات تُسجل باسم «إدخال يدوي» والسبب يظهر في التقارير.": "For one or more employees, e.g. when the device was down. Punches are saved as \"Manual entry\" and the reason shows in reports.",
+"من تاريخ": "From date",
+"إلى تاريخ": "To date",
+"اترك وقت الدخول أو الخروج فاضي لو عايز تضيف بصمة واحدة بس. خروج قبل الدخول = خروج في اليوم التالي (وردية ليلية).": "Leave in or out empty to add a single punch. Out before in = out on the next day (night shift).",
+"تحديد الكل": "Select all",
 "،": ",",
 "؟": "?",
 "م": "PM",
@@ -1639,6 +1657,30 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^(\\d+) سجل$",
+"$1 records"
+],
+["^(\\d+) من (\\d+)$",
+"$1 of $2"
+],
+["^بصمة يدوية: (.+)$",
+"Manual punch: $1"
+],
+["^العدد كبير \\((\\d+) يوم-موظف\\) — قلل الفترة أو عدد الموظفين$",
+"Too many ($1 employee-days) — shorten the period or pick fewer employees"
+],
+["^تحديد الكل \\((\\d+)\\)$",
+"Select all ($1)"
+],
+["^تم اختيار (\\d+) موظف$",
+"$1 employees selected"
+],
+["^تمت إضافة (\\d+) بصمة لـ (\\d+) موظف \\((\\d+) يوم\\)(.*)$",
+"Added $1 punches for $2 employees ($3 days)$4"
+],
+["^ — تم تخطي (\\d+) يوم راحة/عطلة/إجازة$",
+" — skipped $1 rest/holiday/leave days"
+],
 [
 "^\\(من (.+?)\\)$",
 "(of $1)"

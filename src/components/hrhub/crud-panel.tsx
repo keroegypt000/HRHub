@@ -242,6 +242,7 @@ export function CrudPanel<T extends { id: string }>({
       </div>
 
       <DataTable
+        filters={filtersBar ? false : { search: false }}
         columns={canWrite ? [
           ...columns,
           {

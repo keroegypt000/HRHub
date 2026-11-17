@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { requireRead, ok, handle, HttpError } from '@/lib/api';
 import { getSettings } from '@/lib/settings';
-import { kuwaitMidnight, monthDayKeys, dateKey, addDaysKey, weekdayIndex, hmToMinutes, fmtTime } from '@/lib/time';
+import { kuwaitMidnight, monthDayKeys, dateKey, weekdayIndex, hmToMinutes, fmtTime } from '@/lib/time';
 import { effectiveWorkDays } from '@/lib/workweek';
 import { labelLogs } from '@/lib/punch-types';
-import { computeDay } from '@/lib/attendance';
+import { ensureComputed } from '@/lib/attendance-fill';
 
 const DAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
@@ -405,26 +405,3 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
   });
 }
 
-/** يحسب أيام الحضور الناقصة لكل الموظفين النشطين في الفترة (بحد أقصى حتى لا يبطئ التقرير) */
-async function ensureComputed(from: string, to: string, empWhere: Record<string, unknown>) {
-  if (from > to) return;
-  const emps = await db.employee.findMany({
-    where: { ...empWhere, status: { not: 'terminated' } },
-    select: { id: true, hireDate: true },
-  });
-  if (!emps.length) return;
-  const existing = await db.dailyAttendance.findMany({
-    where: { employeeId: { in: emps.map((e) => e.id) }, date: { gte: kuwaitMidnight(from), lte: kuwaitMidnight(to) } },
-    select: { employeeId: true, date: true },
-  });
-  const have = new Set(existing.map((r) => `${r.employeeId}|${dateKey(r.date)}`));
-  let budget = 20000;
-  for (let d = from, g = 0; d <= to && g < 400; d = addDaysKey(d, 1), g++) {
-    for (const e of emps) {
-      if (e.hireDate && dateKey(e.hireDate) > d) continue;
-      if (have.has(`${e.id}|${d}`)) continue;
-      if (--budget < 0) return;
-      await computeDay(e.id, d);
-    }
-  }
-}

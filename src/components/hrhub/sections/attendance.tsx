@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, fmtDate, fmtTime, fmtMinutes, STATUS_AR } from '@/lib/client';
 import { DataTable, Column } from '@/components/hrhub/data-table';
 import { PageHeader, StatusBadge } from '@/components/hrhub/common';
+import { ServerFilterBar } from '@/components/hrhub/table-filters';
+import { ManualPunchDialog } from '@/components/hrhub/manual-punch';
 import { optionLoaders, FieldDef } from '@/components/hrhub/crud-panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,21 +32,6 @@ interface DailyRow extends Record<string, unknown> {
   workedMinutes: number; lateMinutes: number; earlyMinutes: number; otMinutes: number; note?: string | null;
   employee?: { id: string; name: string; code: string; department?: { name: string } | null };
   shift?: { name: string; startTime: string; endTime: string } | null;
-}
-
-function FilterBar({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-wrap gap-2 items-center">{children}</div>;
-}
-
-function DateFilter({ from, to, setFrom, setTo }: {
-  from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void;
-}) {
-  return (
-    <>
-      <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-36" />
-      <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-36" />
-    </>
-  );
 }
 
 // ============================================================
@@ -213,23 +200,17 @@ export function AttendanceLogsSection({ canWrite, isAdmin }: { canWrite: boolean
         }
       />
 
-      <FilterBar>
-        <DateFilter from={from} to={to} setFrom={setFrom} setTo={setTo} />
-        <Select value={employeeId} onValueChange={setEmployeeId} dir="rtl">
-          <SelectTrigger className="w-48"><SelectValue placeholder="كل الموظفين" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الموظفين</SelectItem>
-            {emps.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Button variant={unknown ? 'default' : 'outline'} size="sm" onClick={() => setUnknown(!unknown)}>
+      <ServerFilterBar from={from} to={to} setFrom={setFrom} setTo={setTo} employeeId={employeeId} setEmployeeId={setEmployeeId}
+        onReset={() => { setFrom(''); setTo(''); setEmployeeId('all'); setUnknown(false); }}>
+        <Button variant={unknown ? 'default' : 'outline'} size="sm" className="h-8" onClick={() => setUnknown(!unknown)}>
           <Fingerprint className="h-4 w-4" /> غير المعروفة فقط
         </Button>
-        <Button variant="outline" size="sm" onClick={() => load(1)}>تحديث</Button>
-      </FilterBar>
+        <Button variant="outline" size="sm" className="h-8" onClick={() => load(1)}>تحديث</Button>
+      </ServerFilterBar>
 
       <div className="mt-4">
         <DataTable columns={columns} rows={rows} loading={loading} page={page} total={total} limit={100} onPage={setPage}
+          filters={{ date: false, employee: false, department: false }}
           emptyText={unknown ? 'لا توجد سجلات غير معروفة — كل السجلات مربوطة بموظفين' : 'لا توجد سجلات — اضبط جهاز ZKTeco على ADMS'} />
       </div>
 
@@ -350,11 +331,12 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [status, setStatus] = useState('all');
   const [departmentId, setDepartmentId] = useState('all');
-  const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
+  const [employeeId, setEmployeeId] = useState('all');
   const [sourceLogs, setSourceLogs] = useState<DailyRow | null>(null);
   const [sourceData, setSourceData] = useState<{ rows: LogRow[] } | null>(null);
   const [recomputing, setRecomputing] = useState(false);
   const [exceptionFor, setExceptionFor] = useState<DailyRow | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
@@ -362,6 +344,7 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
       const params = new URLSearchParams({ page: String(p), limit: '200', from, to });
       if (status !== 'all') params.set('status', status);
       if (departmentId !== 'all') params.set('departmentId', departmentId);
+      if (employeeId !== 'all') params.set('employeeId', employeeId);
       const data = await api<{ rows: DailyRow[]; total: number }>(`/api/daily-attendance?${params}`);
       setRows(data.rows);
       setTotal(data.total);
@@ -370,11 +353,10 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [from, to, status, departmentId]);
+  }, [from, to, status, departmentId, employeeId]);
 
-  useEffect(() => { setPage(1); load(1); }, [from, to, status, departmentId]);  
+  useEffect(() => { setPage(1); load(1); }, [from, to, status, departmentId, employeeId]);  
   useEffect(() => { load(page); }, [page]);  
-  useEffect(() => { optionLoaders.departments().then((o) => setDepartments(o.departmentId || [])); }, []);
 
   const recompute = async () => {
     setRecomputing(true);
@@ -441,6 +423,11 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
               <Download className="h-4 w-4" /> تصدير
             </Button>
             {canWrite && (
+              <Button variant="outline" size="sm" className="text-emerald-700 border-emerald-300" onClick={() => setBulkOpen(true)}>
+                <Fingerprint className="h-4 w-4" /> إدخال بصمة يدوي
+              </Button>
+            )}
+            {canWrite && (
               <Button size="sm" onClick={recompute} disabled={recomputing}>
                 <RefreshCcw className={`h-4 w-4 ${recomputing ? 'animate-spin' : ''}`} /> إعادة معالجة الفترة
               </Button>
@@ -449,30 +436,29 @@ export function DailyAttendanceSection({ canWrite }: { canWrite: boolean }) {
         }
       />
 
-      <FilterBar>
-        <DateFilter from={from} to={to} setFrom={setFrom} setTo={setTo} />
-        <Select value={status} onValueChange={setStatus} dir="rtl">
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الحالات</SelectItem>
-            {Object.entries(STATUS_AR).filter(([k]) => ['present', 'late', 'half_day', 'absent', 'leave', 'holiday', 'weekend', 'missed_punch'].includes(k)).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={departmentId} onValueChange={setDepartmentId} dir="rtl">
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الأقسام</SelectItem>
-            {departments.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </FilterBar>
+      <ServerFilterBar from={from} to={to} setFrom={setFrom} setTo={setTo}
+        departmentId={departmentId} setDepartmentId={setDepartmentId} employeeId={employeeId} setEmployeeId={setEmployeeId}
+        onReset={() => { setStatus('all'); setDepartmentId('all'); setEmployeeId('all'); }}>
+        <div>
+          <p className="mb-0.5 text-[11px] text-muted-foreground">الحالة</p>
+          <Select value={status} onValueChange={setStatus} dir="rtl">
+            <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الحالات</SelectItem>
+              {Object.entries(STATUS_AR).filter(([k]) => ['present', 'late', 'half_day', 'absent', 'leave', 'holiday', 'weekend', 'missed_punch'].includes(k)).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </ServerFilterBar>
 
       <div className="mt-4">
-        <DataTable columns={columns} rows={rows} loading={loading} page={page} total={total} limit={200} onPage={setPage} maxBodyHeight="65vh" />
+        <DataTable columns={columns} rows={rows} loading={loading} page={page} total={total} limit={200} onPage={setPage} maxBodyHeight="65vh"
+          filters={{ date: false, employee: false, department: false }} />
       </div>
 
+      <ManualPunchDialog open={bulkOpen} onClose={() => setBulkOpen(false)} onDone={() => load(1)} />
       {exceptionFor?.employee && (
         <AttendanceExceptionDialog
           employeeId={exceptionFor.employee.id} employeeName={exceptionFor.employee.name}

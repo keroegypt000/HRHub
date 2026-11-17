@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronRight, ChevronLeft, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RecordDetails, rowEmployeeId, DetailItem } from '@/components/hrhub/record-details';
+import { useTableFilters, FilterOptions } from '@/components/hrhub/table-filters';
 
 /** أعمدة الأزرار (إجراءات) لا تُعرض كحقول بل كأزرار أسفل نافذة التفاصيل */
 export function isActionColumn<T>(c: Column<T>): boolean {
@@ -44,7 +45,7 @@ export interface Column<T> {
 
 export function DataTable<T extends { id: string }>({
   columns, rows, loading, page, total, limit, onPage, emptyText, onRowClick, maxBodyHeight = '60vh',
-  details = true, detailsTitle, detailsExtra,
+  details = true, detailsTitle, detailsExtra, filters = true,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -61,8 +62,13 @@ export function DataTable<T extends { id: string }>({
   detailsTitle?: (row: T) => React.ReactNode;
   /** محتوى إضافي أسفل التفاصيل (بنود القسيمة مثلًا) */
   detailsExtra?: (row: T) => React.ReactNode;
+  /** شريط الفلاتر الموحد (بحث/فترة/قسم/موظف) — false لإخفائه أو تحديد ما يظهر */
+  filters?: boolean | FilterOptions;
 }) {
   const [viewing, setViewing] = useState<T | null>(null);
+  const allRows = rows;
+  const tf = useTableFilters(allRows, filters === false ? { search: false, date: false, employee: false, department: false } : filters === true ? {} : filters);
+  rows = tf.filtered;
   const handleClick = onRowClick ?? (details ? setViewing : undefined);
   const click = (e: React.MouseEvent, row: T) => {
     if (!handleClick || fromInteractive(e)) return;
@@ -94,9 +100,13 @@ export function DataTable<T extends { id: string }>({
   }
   if (!rows.length) {
     return (
-      <div className="flex flex-col items-center justify-center py-14 text-center gap-2 text-muted-foreground">
-        <Inbox className="h-10 w-10 opacity-30" />
-        <p className="font-medium">{emptyText || 'لا توجد بيانات بعد'}</p>
+      <div>
+        {allRows.length > 0 && tf.bar}
+        <div className="flex flex-col items-center justify-center py-14 text-center gap-2 text-muted-foreground">
+          <Inbox className="h-10 w-10 opacity-30" />
+          <p className="font-medium">{allRows.length ? 'لا توجد نتائج بهذه الفلاتر' : emptyText || 'لا توجد بيانات بعد'}</p>
+          {allRows.length > 0 && <Button variant="outline" size="sm" onClick={tf.reset}>مسح الفلاتر</Button>}
+        </div>
       </div>
     );
   }
@@ -104,6 +114,7 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className="space-y-3">
+      {tf.bar}
       {/* جدول الديسكتوب */}
       <div className="hidden md:block rounded-lg border overflow-auto" style={{ maxHeight: maxBodyHeight }}>
         <table className="w-full text-sm">
