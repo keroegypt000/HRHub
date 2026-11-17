@@ -52,6 +52,28 @@ export async function assignEmployees(shiftId: string, employeeIds: string[], fr
   return { added, unchanged, moved };
 }
 
+/**
+ * ربط موظفين بوردية على كل سجلهم: تُستبدل كل وردياتهم السابقة بهذه الوردية
+ * من أقدم تاريخ (أول بصمة / التعيين / أول وردية) — ثم يُعاد حساب كل السجل
+ */
+export async function assignWholeHistory(shiftId: string, employeeIds: string[]) {
+  let added = 0; let moved = 0;
+  for (const employeeId of [...new Set(employeeIds)]) {
+    const [emp, firstLog, old] = await Promise.all([
+      db.employee.findUnique({ where: { id: employeeId }, select: { hireDate: true } }),
+      db.attendanceLog.findFirst({ where: { employeeId }, orderBy: { punchTime: 'asc' }, select: { punchTime: true } }),
+      db.shiftAssignment.findMany({ where: { employeeId } }),
+    ]);
+    const starts = [emp?.hireDate, firstLog?.punchTime, ...old.map((o) => o.fromDate)].filter((d): d is Date => !!d).map((d) => dateKey(d));
+    const start = starts.sort()[0] || dateKey();
+    if (old.some((o) => o.shiftId !== shiftId)) moved++;
+    await db.shiftAssignment.deleteMany({ where: { employeeId } });
+    await db.shiftAssignment.create({ data: { employeeId, shiftId, fromDate: kuwaitMidnight(start), toDate: null } });
+    added++;
+  }
+  return { added, unchanged: 0, moved };
+}
+
 /** إخراج موظف من الوردية من تاريخ (الحضور السابق يبقى محسوبًا على الوردية) */
 export async function endAssignment(assignmentId: string, endKey: string) {
   const a = await db.shiftAssignment.findUnique({ where: { id: assignmentId } });

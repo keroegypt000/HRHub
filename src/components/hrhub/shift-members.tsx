@@ -30,6 +30,7 @@ export function ShiftMembersDialog({ shiftId, shiftName, onClose, canWrite }: {
   const [onlyFree, setOnlyFree] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [fromDate, setFromDate] = useState(todayKey());
+  const [wholeHistory, setWholeHistory] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
@@ -63,14 +64,16 @@ export function ShiftMembersDialog({ shiftId, shiftName, onClose, canWrite }: {
   });
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
-  const save = async () => {
-    if (!picked.size) { toast.error('اختر موظفًا واحدًا على الأقل'); return; }
+  const save = async (ids: string[] = [...picked], whole = wholeHistory) => {
+    if (!ids.length) { toast.error('اختر موظفًا واحدًا على الأقل'); return; }
     setSaving(true);
     try {
       const r = await api<{ added: number; unchanged: number; moved: number }>(`/api/shifts/${shiftId}/members`, {
-        method: 'POST', body: JSON.stringify({ employeeIds: [...picked], fromDate }),
+        method: 'POST', body: JSON.stringify({ employeeIds: ids, fromDate, wholeHistory: whole }),
       });
-      toast.success(`تم ربط ${r.added} موظف بالوردية${r.moved ? ` — ${r.moved} نُقلوا من ورديات أخرى` : ''}`);
+      toast.success(whole
+        ? `تم ربط ${r.added} موظف بالوردية على كل السجل — جاري إعادة حساب الحضور في الخلفية (دقيقة أو اتنين)`
+        : `تم ربط ${r.added} موظف بالوردية${r.moved ? ` — ${r.moved} نُقلوا من ورديات أخرى` : ''}`);
       setPicked(new Set());
       setTab('members');
       load();
@@ -179,20 +182,35 @@ export function ShiftMembersDialog({ shiftId, shiftName, onClose, canWrite }: {
                 </label>
               ))}
             </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <div>
-                <Label className="mb-1 block text-xs">تبدأ الوردية من</Label>
-                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-44" dir="ltr" />
-              </div>
-              <p className="flex-1 text-xs text-muted-foreground">الموظف اللي على وردية تانية بيتنقل للوردية دي من التاريخ ده، وحضوره القديم بيفضل محسوب على ورديته السابقة.</p>
+            <div className="space-y-2 rounded-lg border p-3">
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input type="radio" className="mt-1" checked={wholeHistory} onChange={() => setWholeHistory(true)} />
+                <span><b>على كل السجل السابق</b> — الوردية دي تحل محل أي وردية قديمة للموظف من أول بصمة ليه، وكل حضوره القديم يتحسب من جديد عليها.</span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input type="radio" className="mt-1" checked={!wholeHistory} onChange={() => setWholeHistory(false)} />
+                <span><b>من تاريخ معين</b> — الموظف يتنقل للوردية دي من التاريخ ده، وحضوره قبله يفضل على ورديته السابقة.</span>
+              </label>
+              {!wholeHistory && (
+                <div className="mr-6">
+                  <Label className="mb-1 block text-xs">تبدأ الوردية من</Label>
+                  <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-44" dir="ltr" />
+                </div>
+              )}
             </div>
           </>
         )}
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>إغلاق</Button>
+          {tab === 'members' && canWrite && !!data?.members.length && (
+            <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled={saving}
+              onClick={() => { if (confirm(`تطبيق الوردية دي على كل السجل السابق لـ ${data.members.length} موظف؟ أي وردية قديمة ليهم هتتشال ويتحسب حضورهم القديم كله عليها.`)) save(data.members.map((m) => m.id), true); }}>
+              تطبيق على كل السجل السابق ({data.members.length})
+            </Button>
+          )}
           {tab === 'add' && canWrite && (
-            <Button onClick={save} disabled={saving || !picked.size}>
+            <Button onClick={() => save()} disabled={saving || !picked.size}>
               <UserPlus className="h-4 w-4" /> {saving ? 'جارٍ الحفظ...' : `ربط ${picked.size} موظف بالوردية`}
             </Button>
           )}

@@ -1,6 +1,10 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"على كل السجل السابق": "For the whole past record",
+"من تاريخ معين": "From a specific date",
+"— الموظف يتنقل للوردية دي من التاريخ ده، وحضوره قبله يفضل على ورديته السابقة.": "— the employee moves to this shift from that date; earlier attendance stays on the previous shift.",
+"— الوردية دي تحل محل أي وردية قديمة للموظف من أول بصمة ليه، وكل حضوره القديم يتحسب من جديد عليها.": "— this shift replaces any old shift from the employee's first punch, and all past attendance is recalculated on it.",
 "تم اختيار": "Selected",
 "اكتب السبب": "Enter the reason",
 "حفظ البصمات": "Save punches",
@@ -1657,6 +1661,15 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^تطبيق على كل السجل السابق \\((\\d+)\\)$",
+"Apply to whole past record ($1)"
+],
+["^تم ربط (\\d+) موظف بالوردية على كل السجل — جاري إعادة حساب الحضور في الخلفية \\(دقيقة أو اتنين\\)$",
+"Linked $1 employees to the shift for the whole record — recalculating attendance in the background (a minute or two)"
+],
+["^تطبيق الوردية دي على كل السجل السابق لـ (\\d+) موظف؟ أي وردية قديمة ليهم هتتشال ويتحسب حضورهم القديم كله عليها\\.$",
+"Apply this shift to the whole past record of $1 employees? Their old shifts are removed and all past attendance is recalculated on it."
+],
 ["^(\\d+) سجل$",
 "$1 records"
 ],

@@ -4,7 +4,7 @@ import { requireRead, requireWrite, ok, fail, handle } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
 import { recomputeRange } from '@/lib/attendance';
 import { dateKey } from '@/lib/time';
-import { activeAssignments, assignEmployees, endAssignment, recalcEmployeeHistory, inBackground } from '@/lib/shift-members';
+import { activeAssignments, assignEmployees, endAssignment, recalcEmployeeHistory, inBackground, assignWholeHistory } from '@/lib/shift-members';
 
 /** GET — موظفو الوردية الحاليون + كل الموظفين النشطين بورديتهم الحالية (للاختيار) */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -35,12 +35,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   return handle(async () => {
     const user = await requireWrite(req, 'shifts');
     const { id } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as { employeeIds?: string[]; fromDate?: string; toDate?: string | null };
+    const body = (await req.json().catch(() => ({}))) as { employeeIds?: string[]; fromDate?: string; toDate?: string | null; wholeHistory?: boolean };
     const shift = await db.shift.findUnique({ where: { id } });
     if (!shift) return fail(404, 'الوردية غير موجودة');
     const ids = (body.employeeIds || []).filter(Boolean);
     if (!ids.length) return fail(400, 'اختر موظفًا واحدًا على الأقل');
     const fromKey = /^\d{4}-\d{2}-\d{2}$/.test(body.fromDate || '') ? (body.fromDate as string) : dateKey();
+    if (body.wholeHistory) {
+      const r = await assignWholeHistory(id, ids);
+      // إعادة حساب كل سجل الموظفين في الخلفية (آلاف الأيام)
+      inBackground((async () => { for (const e of ids) await recalcEmployeeHistory(e); })());
+      await logAudit({
+        userId: user.id, action: 'create', entity: 'shift-assignment', entityId: id,
+        description: `ربط ${r.added} موظف بوردية «${shift.name}» على كل السجل السابق`,
+      });
+      return ok({ ...r, wholeHistory: true });
+    }
     const r = await assignEmployees(id, ids, fromKey, body.toDate || null);
     const today = dateKey();
     if (fromKey <= today) await recomputeRange({ from: fromKey, to: today, employeeIds: ids }).catch(() => {});
