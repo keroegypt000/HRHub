@@ -7,7 +7,7 @@ import { logAudit } from '@/lib/audit';
 import { createRestorePoint } from '@/lib/restores';
 import { recomputeRange } from '@/lib/attendance';
 import { dateKey } from '@/lib/time';
-import { assignEmployees } from '@/lib/shift-members';
+import { assignEmployees, recalcEmployeeHistory, inBackground } from '@/lib/shift-members';
 
 const cfg: CrudConfig = {
   model: 'shiftAssignment',
@@ -65,6 +65,8 @@ export async function POST(req: NextRequest) {
     const recomputeTo = to && dateKey(to) < today ? dateKey(to) : today;
     // للموظفين الذين تغيرت ورديتهم فقط (كانت تعيد معالجة كل الشركة — دقائق لكل إسناد)
     await recomputeRange({ from: body.fromDate, to: recomputeTo, employeeIds }).catch(() => {});
+    // الموظف بدون وردية سابقة: الوردية تغطي كل تاريخه — يُعاد حساب كل سجله في الخلفية
+    inBackground((async () => { for (const e of employeeIds) await recalcEmployeeHistory(e); })());
 
     await logAudit({
       userId: user.id, action: 'create', entity: 'shift-assignment', entityId: created[0],

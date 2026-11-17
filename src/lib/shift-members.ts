@@ -62,29 +62,67 @@ export async function endAssignment(assignmentId: string, endKey: string) {
   return a;
 }
 
-/** أقصى عدد أيام يُعاد حسابها تلقائيًا بعد تعديل الوردية أو توزيع الموظفين */
-const RECALC_DAYS = 120;
+/**
+ * أول وردية للموظف تغطي كل تاريخه: لو مفيش وردية قبلها، تبدأ من أول بصمة أو تاريخ التعيين (الأقدم)
+ * — حتى لا تبقى الأيام القديمة على الوردية الافتراضية. يرجع تاريخ البداية بعد التعديل.
+ */
+export async function backfillFirstAssignment(employeeId: string): Promise<string | null> {
+  const list = await db.shiftAssignment.findMany({ where: { employeeId }, orderBy: { fromDate: 'asc' }, take: 1 });
+  const first = list[0];
+  if (!first) return null;
+  const [emp, firstLog] = await Promise.all([
+    db.employee.findUnique({ where: { id: employeeId }, select: { hireDate: true } }),
+    db.attendanceLog.findFirst({ where: { employeeId }, orderBy: { punchTime: 'asc' }, select: { punchTime: true } }),
+  ]);
+  const candidates = [first.fromDate, emp?.hireDate, firstLog?.punchTime].filter((d): d is Date => !!d).map((d) => dateKey(d));
+  const start = candidates.sort()[0];
+  if (start < dateKey(first.fromDate)) {
+    await db.shiftAssignment.update({ where: { id: first.id }, data: { fromDate: kuwaitMidnight(start) } });
+  }
+  return start;
+}
 
-/** إعادة حساب حضور موظفين من تاريخ حتى اليوم (بحد أقصى 120 يومًا للخلف) */
+/** إعادة حساب حضور موظفين من تاريخ حتى اليوم (كل الأيام بدون حد) */
 export async function recalcEmployees(employeeIds: string[], fromKey: string) {
   const today = dateKey();
-  const floor = addDaysKey(today, -RECALC_DAYS);
-  let d = fromKey < floor ? floor : fromKey;
   let n = 0;
-  for (; d <= today; d = addDaysKey(d, 1)) for (const id of new Set(employeeIds)) { await computeDay(id, d); n++; }
+  for (let d = fromKey, g = 0; d <= today && g < 3700; d = addDaysKey(d, 1), g++) {
+    for (const id of new Set(employeeIds)) { await computeDay(id, d); n++; }
+  }
   return n;
 }
 
-/** بعد تعديل الوردية (السماحية، المواعيد...): إعادة حساب كل الأيام المحسوبة عليها في آخر 120 يوم */
+/**
+ * بعد تعديل الوردية أو ربط موظفين بها: كل موظف عليها يُعاد حساب كل سجله
+ * من بداية ورديته (بعد مدّ أول وردية لأول بصمة) حتى اليوم
+ */
 export async function recalcShift(shiftId: string) {
-  const since = kuwaitMidnight(addDaysKey(dateKey(), -RECALC_DAYS));
-  const rows = await db.dailyAttendance.findMany({ where: { shiftId, date: { gte: since } }, select: { employeeId: true, date: true } });
-  const members = await db.shiftAssignment.findMany({
-    where: { shiftId, OR: [{ toDate: null }, { toDate: { gte: since } }] }, select: { employeeId: true, fromDate: true },
-  });
-  const seen = new Set<string>();
-  for (const r of rows) { const k = `${r.employeeId}|${dateKey(r.date)}`; if (!seen.has(k)) { seen.add(k); await computeDay(r.employeeId, dateKey(r.date)); } }
-  for (const m of members) await recalcEmployees([m.employeeId], dateKey(m.fromDate));
+  const members = await db.shiftAssignment.findMany({ where: { shiftId }, select: { employeeId: true } });
+  for (const empId of new Set(members.map((m) => m.employeeId))) await recalcEmployeeHistory(empId);
+}
+
+/** إعادة حساب كل تاريخ موظف (من أقدم وردية/بصمة/تعيين) */
+export async function recalcEmployeeHistory(employeeId: string) {
+  const start = await backfillFirstAssignment(employeeId);
+  const firstLog = await db.attendanceLog.findFirst({ where: { employeeId }, orderBy: { punchTime: 'asc' }, select: { punchTime: true } });
+  const from = [start, firstLog ? dateKey(firstLog.punchTime) : null].filter((x): x is string => !!x).sort()[0];
+  if (from) await recalcEmployees([employeeId], from);
+}
+
+/**
+ * إصلاح البيانات القديمة (عند تشغيل البرنامج): أي موظف أول وردية له تبدأ بعد أول بصمة له
+ * تُمد ورديته لأول بصمة ويُعاد حساب كل سجله — مرة واحدة فقط لأن الشرط لا يتكرر بعدها
+ */
+export async function fixHistoricalAssignments() {
+  const firsts = await db.shiftAssignment.findMany({ orderBy: { fromDate: 'asc' }, select: { employeeId: true, fromDate: true } });
+  const earliest = new Map<string, Date>();
+  for (const a of firsts) if (!earliest.has(a.employeeId)) earliest.set(a.employeeId, a.fromDate);
+  let fixed = 0;
+  for (const [employeeId, from] of earliest) {
+    const firstLog = await db.attendanceLog.findFirst({ where: { employeeId }, orderBy: { punchTime: 'asc' }, select: { punchTime: true } });
+    if (firstLog && dateKey(firstLog.punchTime) < dateKey(from)) { await recalcEmployeeHistory(employeeId); fixed++; }
+  }
+  return fixed;
 }
 
 /** تشغيل في الخلفية بدون تعطيل الرد */

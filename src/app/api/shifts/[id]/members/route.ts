@@ -4,7 +4,7 @@ import { requireRead, requireWrite, ok, fail, handle } from '@/lib/api';
 import { logAudit } from '@/lib/audit';
 import { recomputeRange } from '@/lib/attendance';
 import { dateKey } from '@/lib/time';
-import { activeAssignments, assignEmployees, endAssignment } from '@/lib/shift-members';
+import { activeAssignments, assignEmployees, endAssignment, recalcEmployeeHistory, inBackground } from '@/lib/shift-members';
 
 /** GET — موظفو الوردية الحاليون + كل الموظفين النشطين بورديتهم الحالية (للاختيار) */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -44,6 +44,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const r = await assignEmployees(id, ids, fromKey, body.toDate || null);
     const today = dateKey();
     if (fromKey <= today) await recomputeRange({ from: fromKey, to: today, employeeIds: ids }).catch(() => {});
+    // الموظف بدون وردية سابقة: الوردية تغطي كل تاريخه — يُعاد حساب كل سجله في الخلفية
+    inBackground((async () => { for (const e of ids) await recalcEmployeeHistory(e); })());
     await logAudit({
       userId: user.id, action: 'create', entity: 'shift-assignment', entityId: id,
       description: `ربط ${r.added} موظف بوردية «${shift.name}» من ${fromKey}${r.moved ? ` (${r.moved} نُقلوا من ورديات أخرى)` : ''}`,
