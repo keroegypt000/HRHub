@@ -118,6 +118,17 @@ export function parseUSERINFO(body: string): RawUserInfo[] {
     let content = line;
     const decoded = tryHexDecode(line);
     if (decoded) content = decoded;
+    // صيغة PUSH الحديثة: USER PIN=1\tName=Ali\tPri=0\tPasswd=\tCard=...
+    if (/^(USER\s+)?PIN=/i.test(content)) {
+      const kv: Record<string, string> = {};
+      for (const part of content.replace(/^USER\s+/i, '').split(/\t+/)) {
+        const i = part.indexOf('=');
+        if (i > 0) kv[part.slice(0, i).trim().toLowerCase()] = part.slice(i + 1).trim();
+      }
+      if (kv.pin) out.push({ pin: kv.pin, name: kv.name || '', privilege: parseInt(kv.pri || '0', 10), card: kv.card || undefined });
+      continue;
+    }
+    if (/^[A-Z]{2,}\s/.test(content)) continue; // أسطر OPERLOG أخرى (FP / OPLOG / BIOPHOTO ...)
     const parts = content.split(/[\t]+/).map((p) => p.trim());
     if (parts.length < 2 || !parts[0]) continue;
     out.push({ pin: parts[0], name: parts[1], privilege: parseInt(parts[2] || '0', 10), card: parts[4] });

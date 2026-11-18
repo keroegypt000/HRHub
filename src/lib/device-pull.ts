@@ -1,6 +1,7 @@
 // lib/device-pull.ts — سحب البصمات من جهاز على الشبكة المحلية (ZKTeco 4370 أو ACTAtek REST/SOAP)
 // يستخدمه زر «سحب الآن» في صفحة الأجهزة + السحب التلقائي في النسخة المكتبية
 import { db } from '@/lib/db';
+import { getDeviceUsers, queueCommands } from '@/lib/zk/adms';
 import { logAudit } from '@/lib/audit';
 import { pullFromLocalDevice, getLocalDeviceUsers, getLocalDeviceInfo, LocalDeviceError } from '@/lib/zk/local';
 import { pullFromActatek, getActatekUsers, ActatekError } from '@/lib/actatek';
@@ -154,10 +155,18 @@ export interface ImportUsersResult {
 export async function importDeviceUsers(deviceId: string, userId?: string | null): Promise<ImportUsersResult> {
   const device = await db.device.findUnique({ where: { id: deviceId } });
   if (!device) throw new DevicePullError('الجهاز غير موجود');
-  if (!device.ipAddress) throw new DevicePullError('لم يُسجَّل عنوان IP للجهاز — عدّل الجهاز وأدخل IP الشبكة الخاص به');
 
   let users: { pin: string; name: string }[];
-  try {
+  if (device.mode === 'push' && device.vendor !== 'actatek') {
+    // جهاز يرسل للبرنامج: الأسماء التي أرسلها الجهاز + كل رقم له بصمات غير مربوطة من هذا الجهاز
+    const names = await getDeviceUsers(device.sn);
+    const pins = await db.attendanceLog.groupBy({ by: ['pin'], where: { sn: device.sn, employeeId: null } });
+    const all = new Set([...Object.keys(names), ...pins.map((p) => p.pin)]);
+    users = [...all].map((pin) => ({ pin, name: names[pin] || '' }));
+    // اطلب الأسماء من الجهاز (تُحدَّث تلقائيًا عند وصولها)
+    await queueCommands(device.sn, ['DATA QUERY USERINFO']).catch(() => {});
+  } else try {
+    if (!device.ipAddress) throw new DevicePullError('لم يُسجَّل عنوان IP للجهاز — عدّل الجهاز وأدخل IP الشبكة الخاص به');
     if (device.vendor === 'actatek') {
       if (!device.apiUser || !device.apiPassword) throw new DevicePullError('أدخل اسم مستخدم وكلمة سر جهاز ACTAtek في بيانات الجهاز');
       users = await getActatekUsers({

@@ -76,3 +76,27 @@ export function fetchAllCommands(): string[] {
     'DATA QUERY USERINFO',
   ];
 }
+
+// ===== مستخدمو الجهاز (الرقم والاسم) كما يرسلهم في USERINFO / OPERLOG =====
+const usersKey = (sn: string) => `adms:users:${sn}`;
+
+export async function getDeviceUsers(sn: string): Promise<Record<string, string>> {
+  const row = await db.setting.findUnique({ where: { key: usersKey(sn) } });
+  try { return row?.value ? JSON.parse(row.value) : {}; } catch { return {}; }
+}
+
+/** حفظ أسماء مستخدمي الجهاز + تحديث أسماء الموظفين المستوردين باسم مؤقت «موظف <رقم>» */
+export async function saveDeviceUsers(sn: string, users: { pin: string; name: string }[]): Promise<number> {
+  const valid = users.filter((u) => u.pin && u.name);
+  if (!valid.length) return 0;
+  const map = await getDeviceUsers(sn);
+  for (const u of valid) map[u.pin] = u.name;
+  const value = JSON.stringify(map);
+  await db.setting.upsert({ where: { key: usersKey(sn) }, update: { value }, create: { key: usersKey(sn), value } });
+  let renamed = 0;
+  for (const u of valid) {
+    const r = await db.employee.updateMany({ where: { OR: [{ pin: u.pin }, { code: u.pin }], name: `موظف ${u.pin}` }, data: { name: u.name } });
+    renamed += r.count;
+  }
+  return renamed;
+}

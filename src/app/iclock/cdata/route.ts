@@ -3,7 +3,7 @@
 // مع تحقق SN وrate limit بسيط لمنع الإغراق.
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { handshakeText, takeCommands, saveStamp } from '@/lib/zk/adms';
+import { handshakeText, takeCommands, saveStamp, saveDeviceUsers } from '@/lib/zk/adms';
 import {
   parseATTLOG, parseUSERINFO,
 } from '@/lib/zk/protocol';
@@ -150,12 +150,17 @@ export async function POST(req: NextRequest) {
     }
     if (table !== 'USERINFO' && table !== 'ATTLOG') return new Response('OK', { status: 200 });
   }
-  if (table === 'OPERLOG') await saveStamp(sn, 'OPERLOG', params.get('Stamp')).catch(() => {});
+  if (table === 'OPERLOG') {
+    await saveStamp(sn, 'OPERLOG', params.get('Stamp')).catch(() => {});
+    // أسماء المستخدمين تأتي ضمن OPERLOG بصيغة USER PIN=..	Name=..
+    await saveDeviceUsers(sn, parseUSERINFO(body)).catch(() => 0);
+  }
   if (table === 'OPERLOG' || table === 'USERPIC' || table === 'BIOPHOTO') return new Response('OK', { status: 200 });
 
   // ===== USERINFO: مزامنة أسماء وربط pin بموظف =====
   if (table === 'USERINFO' || table === 'FP') {
     const users = parseUSERINFO(body);
+    await saveDeviceUsers(sn, users).catch(() => 0);
     let linked = 0;
     for (const u of users) {
       const emp = await resolveEmployeeByPin(u.pin);
