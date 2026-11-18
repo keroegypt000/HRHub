@@ -1,6 +1,10 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"بيانات ناقصة": "Incomplete",
+"بيانات ناقصة:": "Missing data:",
+"الراتب": "Salary",
+"— أكملها من «تعديل» في قائمة الموظفين حتى تُحسب الرواتب والإجازات ونهاية الخدمة بشكل صحيح.": "— complete it via Edit in the employee list so payroll, leave and end of service are calculated correctly.",
 "طلب كل البصمات والصور": "Request all punches & photos",
 "بسيط": "Minimal",
 "حديث": "Modern",
@@ -1854,6 +1858,9 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^بيانات ناقصة: (.+)$",
+"Missing data: $1"
+],
 ["^تم إرسال طلب رفع كل البصمات والصور إلى الجهاز (.+)\\. سيبدأ الجهاز الرفع خلال دقيقة إذا كان متصلًا بالبرنامج — راجع «سجل البصمات» بعدها\\.$",
 "Request sent to device $1 to upload all punches and photos. It starts within a minute if connected — then check the punch log."
 ],

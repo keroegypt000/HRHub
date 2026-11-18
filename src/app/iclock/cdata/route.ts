@@ -4,6 +4,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { handshakeText, takeCommands, saveStamp, saveDeviceUsers } from '@/lib/zk/adms';
+import { ensureEmployeesForPins, recomputeDays } from '@/lib/auto-employees';
 import {
   parseATTLOG, parseUSERINFO,
 } from '@/lib/zk/protocol';
@@ -213,9 +214,18 @@ export async function POST(req: NextRequest) {
   // صور وصلت قبل سجلاتها
   if (inserted > 0) await linkPendingPhotos(sn, punches).catch(() => {});
 
-  // إعادة معالجة الحضور للأيام المتأثرة فورًا
-  const today = dateKey();
-  await recomputeDayForEmployees(affectedEmployees, today).catch(() => {});
+  // الأرقام غير المسجلة تُضاف موظفين تلقائيًا (بيانات ناقصة) وتُربط بصماتها وتُحسب
+  if (unknownPins.size) await ensureEmployeesForPins(unknownPins, sn).catch((e) => console.error('[auto-employees]', e));
+
+  // إعادة حساب كل الأيام التي وصلت فيها بصمات (وليس اليوم فقط)
+  const pairs = new Map<string, Set<string>>();
+  for (const p of punches) {
+    const emp = await resolveEmployeeByPin(p.pin);
+    if (!emp || unknownPins.has(p.pin)) continue;
+    if (!pairs.has(emp.id)) pairs.set(emp.id, new Set());
+    pairs.get(emp.id)!.add(dateKey(p.punchTime));
+  }
+  await recomputeDays(pairs).catch(() => {});
 
   if (inserted > 0) {
     await logAudit({

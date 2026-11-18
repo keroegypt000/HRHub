@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { Camera, Award, FileBadge, Printer, Wallet, Palmtree, CalendarCheck2, HandCoins, FileWarning, Hourglass, Upload } from 'lucide-react';
 import { salaryCertificateDoc, introLetterDoc, payslipDoc, printHtml, PayslipDocData } from '@/components/hrhub/print-docs';
 import { requestTypeLabel, REQUEST_STATUS_AR } from '@/lib/requests';
+import { missingInfo } from '@/lib/employee-missing';
 import { reasonLabel } from '@/lib/indemnity';
 
 interface Overview {
@@ -181,6 +182,12 @@ export function EmployeePage({ id, open, onClose, canWrite, companyName, account
               </TabsList>
 
               <TabsContent value="info" className="pt-3 space-y-4">
+                {missingInfo(e).length > 0 && (
+                  <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                    <div><b>بيانات ناقصة:</b> {missingInfo(e).join('، ')} — أكملها من «تعديل» في قائمة الموظفين حتى تُحسب الرواتب والإجازات ونهاية الخدمة بشكل صحيح.</div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3 rounded-xl border p-4">
                   <Field label="الاسم بالعربي" value={e.name} /><Field label="الاسم بالإنجليزي" value={e.nameEn} />
                   <Field label="الشركة" value={e.company?.name} /><Field label="مكان العمل" value={e.workLocation?.name} />

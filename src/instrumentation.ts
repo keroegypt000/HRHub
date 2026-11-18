@@ -9,6 +9,9 @@ export async function register() {
       const { fixHistoricalAssignments } = await import('@/lib/shift-members');
       const n = await fixHistoricalAssignments();
       if (n) console.log(`[shifts] أُعيد حساب كامل سجل ${n} موظف على ورديتهم`);
+      const { backfillRecentUnknownPins } = await import('@/lib/auto-employees');
+      const added = await backfillRecentUnknownPins();
+      if (added) console.log(`[employees] أضيف ${added} موظف تلقائيًا من بصمات غير مسجلة`);
     } catch (e) { console.warn('[shifts]', e); }
   }, 20_000);
   const minutes = Number(process.env.HRHUB_AUTOPULL_MINUTES || 0);

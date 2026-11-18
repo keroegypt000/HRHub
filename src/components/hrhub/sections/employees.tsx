@@ -3,6 +3,7 @@
 // الموظفون: جدول بالصور + ملف كامل بتبويبات (بيانات، عقود، حضور، إجازات، رواتب، ملفات)
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, fmtKWD, fmtDate, STATUS_AR } from '@/lib/client';
+import { missingInfo } from '@/lib/employee-missing';
 import { Column } from '@/components/hrhub/data-table';
 import { StatusBadge } from '@/components/hrhub/common';
 import { CrudPanel, optionLoaders } from '@/components/hrhub/crud-panel';
@@ -47,7 +48,7 @@ const ALL = 'all';
 
 export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean; companyName: string }) {
   const [profile, setProfile] = useState<EmployeeRow | null>(null);
-  const [filters, setFilters] = useState({ department: ALL, position: ALL, status: 'active', nationality: '', company: ALL, location: ALL });
+  const [filters, setFilters] = useState({ department: ALL, position: ALL, status: 'active', nationality: '', company: ALL, location: ALL, incomplete: false });
   type Opt = { value: string; label: string };
   const [lists, setLists] = useState<{ departments: Opt[]; positions: Opt[]; companies: Opt[]; locations: Opt[] }>({ departments: [], positions: [], companies: [], locations: [] });
   useEffect(() => {
@@ -60,12 +61,13 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
   const filterRows = useMemo(() => (rows: EmployeeRow[]) => rows.filter((r) =>
     (filters.department === ALL || r.department?.id === filters.department) &&
     (filters.position === ALL || r.position?.id === filters.position) &&
+    (!filters.incomplete || missingInfo(r).length > 0) &&
     (filters.company === ALL || r.company?.id === filters.company) &&
     (filters.location === ALL || r.workLocation?.id === filters.location) &&
     (filters.status === ALL || r.status === filters.status) &&
     (!filters.nationality || (r.nationality || '').toLowerCase().includes(filters.nationality.toLowerCase()))
   ), [filters]);
-  const filtered = filters.department !== ALL || filters.position !== ALL || filters.company !== ALL || filters.location !== ALL || filters.status !== 'active' || !!filters.nationality;
+  const filtered = filters.incomplete || filters.department !== ALL || filters.position !== ALL || filters.company !== ALL || filters.location !== ALL || filters.status !== 'active' || !!filters.nationality;
 
   const columns: Column<EmployeeRow>[] = [
     {
@@ -73,7 +75,11 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
       render: (r) => (
         <button className="flex items-center gap-2.5 text-right hover:underline" onClick={() => setProfile(r)}>
           <Avatar emp={r} />
-          <div><p className="font-medium">{r.name}</p>{r.nameEn && <p className="text-xs text-muted-foreground" dir="ltr">{r.nameEn}</p>}<p className="text-xs text-muted-foreground tabular">{r.code}</p></div>
+          <div><p className="flex items-center gap-1.5 font-medium">{r.name}{missingInfo(r).length > 0 && (
+            <span title={`بيانات ناقصة: ${missingInfo(r).join('، ')}`} className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-px text-[10px] font-semibold text-amber-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />بيانات ناقصة
+            </span>
+          )}</p>{r.nameEn && <p className="text-xs text-muted-foreground" dir="ltr">{r.nameEn}</p>}<p className="text-xs text-muted-foreground tabular">{r.code}</p></div>
         </button>
       ),
     },
@@ -107,6 +113,10 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
   );
   const filtersBar = (
     <div className="flex flex-wrap items-center gap-2">
+      <Button variant={filters.incomplete ? 'default' : 'outline'} size="sm" className={filters.incomplete ? 'h-9 bg-amber-500 hover:bg-amber-600' : 'h-9 border-amber-300 text-amber-800'}
+        onClick={() => setFilters({ ...filters, incomplete: !filters.incomplete })}>
+        <span className="h-2 w-2 rounded-full bg-amber-500" /> بيانات ناقصة
+      </Button>
       {lists.companies.length > 0 && filterSelect('company', 'الشركة', lists.companies)}
       {lists.locations.length > 0 && filterSelect('location', 'مكان العمل', lists.locations)}
       {filterSelect('department', 'القسم', lists.departments)}
@@ -114,7 +124,7 @@ export function EmployeesSection({ canWrite, companyName }: { canWrite: boolean;
       {filterSelect('status', 'الحالة', ['active', 'on_leave', 'suspended', 'terminated', 'deceased'].map((v) => ({ value: v, label: STATUS_AR[v] || v })))}
       <Input className="w-36 h-9" placeholder="الجنسية" value={filters.nationality} onChange={(e) => setFilters({ ...filters, nationality: e.target.value })} />
       {filtered && (
-        <Button variant="ghost" size="sm" onClick={() => setFilters({ department: ALL, position: ALL, status: 'active', nationality: '', company: ALL, location: ALL })}>
+        <Button variant="ghost" size="sm" onClick={() => setFilters({ department: ALL, position: ALL, status: 'active', nationality: '', company: ALL, location: ALL, incomplete: false })}>
           <X className="h-4 w-4" /> مسح الفلاتر
         </Button>
       )}

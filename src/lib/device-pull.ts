@@ -1,7 +1,8 @@
 // lib/device-pull.ts — سحب البصمات من جهاز على الشبكة المحلية (ZKTeco 4370 أو ACTAtek REST/SOAP)
 // يستخدمه زر «سحب الآن» في صفحة الأجهزة + السحب التلقائي في النسخة المكتبية
 import { db } from '@/lib/db';
-import { getDeviceUsers, queueCommands } from '@/lib/zk/adms';
+import { getDeviceUsers, queueCommands, saveDeviceUsers } from '@/lib/zk/adms';
+import { ensureEmployeesForPins } from '@/lib/auto-employees';
 import { logAudit } from '@/lib/audit';
 import { pullFromLocalDevice, getLocalDeviceUsers, getLocalDeviceInfo, LocalDeviceError } from '@/lib/zk/local';
 import { pullFromActatek, getActatekUsers, ActatekError } from '@/lib/actatek';
@@ -81,6 +82,7 @@ async function pullDeviceOnce(deviceId: string, userId?: string | null): Promise
 
   let inserted = 0; let duplicates = 0; let photos = 0;
   const days = new Set<string>();
+  const unknownPins = new Set<string>();
   for (const p of punches) {
     const emp = await resolveEmployeeByPin(p.pin);
     try {
@@ -88,6 +90,7 @@ async function pullDeviceOnce(deviceId: string, userId?: string | null): Promise
         data: { sn, pin: p.pin, employeeId: emp?.id || null, punchTime: p.punchTime, status: p.status, verify: p.verify, workCode: p.workCode || null, source },
       });
       inserted++;
+      if (!emp) unknownPins.add(p.pin);
       days.add(dayKey(p.punchTime));
     } catch {
       duplicates++;
@@ -106,6 +109,13 @@ async function pullDeviceOnce(deviceId: string, userId?: string | null): Promise
     if (byName) { await db.employee.update({ where: { id: byName.id }, data: { pin: u.pin } }); matchedUsers++; }
   }
 
+  // أرقام جديدة على الجهاز → موظفون تلقائيًا (بيانات ناقصة) — أول سحب لجهاز قديم: آخر 30 يومًا فقط
+  if (unknownPins.size) {
+    const recent = new Date(Date.now() - 30 * 86400_000);
+    const active = punches.filter((p) => unknownPins.has(p.pin) && p.punchTime >= recent).map((p) => p.pin);
+    if (users.length) await saveDeviceUsers(sn, users).catch(() => 0);
+    await ensureEmployeesForPins(active, sn).catch((e) => console.error('[auto-employees]', e));
+  }
   const sorted = [...days].sort();
   if (sorted.length) await recomputeRange({ from: sorted[0], to: sorted[sorted.length - 1] }).catch(() => {});
 
