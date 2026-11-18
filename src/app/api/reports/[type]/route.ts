@@ -419,19 +419,20 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
           take: 20000,
         });
         const kinds = labelLogs(logs, dateKey);
-        // مجموع الساعات لكل موظف في كل يوم = آخر بصمة − أول بصمة
-        const span = new Map<string, { first: number; last: number; lastId: string }>();
+        // مجموع الساعات لكل موظف في كل يوم = وقت «الخروج» (آخر بصمة غير مكررة) − وقت «الدخول» (أول بصمة)
+        const span = new Map<string, { inT?: number; outT?: number; outId?: string }>();
         for (const l of logs) {
           const k = `${l.employeeId}|${dateKey(l.punchTime)}`;
-          const t = l.punchTime.getTime();
-          const cur = span.get(k);
-          if (!cur) span.set(k, { first: t, last: t, lastId: l.id });
-          else if (t >= cur.last) { cur.last = t; cur.lastId = l.id; }
+          if (!span.has(k)) span.set(k, {});
+          const v = span.get(k)!;
+          const kind = kinds.get(l);
+          if (kind === 'دخول' && v.inT === undefined) v.inT = l.punchTime.getTime();
+          if (kind === 'خروج') { v.outT = l.punchTime.getTime(); v.outId = l.id; }
         }
-        const minutesOf = (k: string) => { const v = span.get(k); return v ? Math.round((v.last - v.first) / 60000) : 0; };
+        const minutesOf = (k: string) => { const v = span.get(k); return v?.inT !== undefined && v.outT !== undefined ? Math.round((v.outT - v.inT) / 60000) : 0; };
         const rows = logs.map((l) => {
           const k = `${l.employeeId}|${dateKey(l.punchTime)}`;
-          const isLast = span.get(k)?.lastId === l.id && (span.get(k)!.last > span.get(k)!.first);
+          const isLast = span.get(k)?.outId === l.id;
           return {
             id: l.id, employeeId: l.employeeId, code: l.employee?.code || l.pin, name: l.employee?.name || '—',
             department: l.employee?.department?.name || '', company: l.employee?.company?.name || '',

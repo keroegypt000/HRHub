@@ -27,6 +27,7 @@ interface Data { rows: Row[]; employees: { code: string; name: string; days: num
 const kw = () => new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
 const monthStart = () => `${kw().slice(0, 7)}-01`;
 export const fmtHM = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+const FIRST_LAST = new Set(['دخول', 'خروج', 'دخول (بدون خروج)']);
 const KIND_TONE: Record<string, string> = { 'دخول': 'text-emerald-700', 'خروج': 'text-sky-700', 'تكرار': 'text-muted-foreground' };
 
 export function PunchMovementsSection({ companyName = '' }: { companyName?: string }) {
@@ -37,6 +38,7 @@ export function PunchMovementsSection({ companyName = '' }: { companyName?: stri
   const [departmentId, setDepartmentId] = useState('all');
   const [employeeId, setEmployeeId] = useState('all');
   const [onlyPhotos, setOnlyPhotos] = useState(false);
+  const [firstLast, setFirstLast] = useState(true); // أول وآخر بصمة فقط
   const [search, setSearch] = useState('');
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,8 +59,8 @@ export function PunchMovementsSection({ companyName = '' }: { companyName?: stri
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (data?.rows || []).filter((r) => (!onlyPhotos || r.photoId) && (!q || [r.code, r.name, r.date, r.kind, r.device].some((v) => v.toLowerCase().includes(q))));
-  }, [data, search, onlyPhotos]);
+    return (data?.rows || []).filter((r) => (!firstLast || FIRST_LAST.has(r.kind)) && (!onlyPhotos || r.photoId) && (!q || [r.code, r.name, r.date, r.kind, r.device].some((v) => v.toLowerCase().includes(q))));
+  }, [data, search, onlyPhotos, firstLast]);
 
   // تجميع حسب الموظف مع سطر الإجمالي
   const groups = useMemo(() => {
@@ -114,7 +116,7 @@ export function PunchMovementsSection({ companyName = '' }: { companyName?: stri
 
       <ServerFilterBar from={from} to={to} setFrom={setFrom} setTo={setTo}
         departmentId={departmentId} setDepartmentId={setDepartmentId} employeeId={employeeId} setEmployeeId={setEmployeeId}
-        onReset={() => { setFrom(monthStart()); setTo(kw()); setCompanyId('all'); setDepartmentId('all'); setEmployeeId('all'); setSearch(''); setOnlyPhotos(false); }}>
+        onReset={() => { setFrom(monthStart()); setTo(kw()); setCompanyId('all'); setDepartmentId('all'); setEmployeeId('all'); setSearch(''); setOnlyPhotos(false); setFirstLast(true); }}>
         <div>
           <p className="mb-0.5 text-[11px] text-muted-foreground">الشركة</p>
           <Select value={companyId} onValueChange={setCompanyId} dir="rtl">
@@ -130,6 +132,10 @@ export function PunchMovementsSection({ companyName = '' }: { companyName?: stri
           <p className="mb-0.5 text-[11px] text-muted-foreground">بحث</p>
           <div className="relative"><Search className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="رقم، اسم، تاريخ، جهاز..." className="h-8 pr-8" /></div>
+        </div>
+        <div className="flex h-8 overflow-hidden rounded-md border text-sm">
+          <button type="button" onClick={() => setFirstLast(true)} className={cn('px-3', firstLast ? 'bg-emerald-600 text-white' : 'hover:bg-muted')}>أول وآخر بصمة</button>
+          <button type="button" onClick={() => setFirstLast(false)} className={cn('border-r px-3', !firstLast ? 'bg-emerald-600 text-white' : 'hover:bg-muted')}>كل الحركات</button>
         </div>
         <Button variant={onlyPhotos ? 'default' : 'outline'} size="sm" className="h-8" onClick={() => setOnlyPhotos(!onlyPhotos)}><Camera className="h-4 w-4" /> بالصور فقط</Button>
       </ServerFilterBar>
