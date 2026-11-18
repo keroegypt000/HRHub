@@ -1,6 +1,21 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"عرض الصورة": "View photo",
+"بالصور فقط": "With photos only",
+"تعذّر الحفظ": "Could not save",
+"حركات بالصور": "Punches with photos",
+"بدون شركة فقط": "Without company only",
+"مجموع الساعات": "Total hours",
+"الشركة غير موجودة": "Company not found",
+"إخراج موظف من الشركة": "Remove employee from company",
+"رقم، اسم، تاريخ، جهاز...": "Number, name, date, device...",
+"لا توجد حركات بهذه الفلاتر": "No punches for these filters",
+"أضيف تلقائيًا من جهاز البصمة — أكمل بياناته": "Added automatically from the punch device — complete their details",
+"لا يوجد موظفون في هذه الشركة — اضغط «إضافة موظفين»": "No employees in this company — press Add employees",
+"كل حركة بوقتها وصورتها، ومجموع الساعات اليومي من أول بصمة إلى آخر بصمة": "Every punch with its time and photo, and daily hours from first to last punch",
+"النتيجة كبيرة — تم عرض أول 20,000 حركة. ضيّق الفترة أو اختر شركة أو موظفًا.": "Large result — showing the first 20,000 punches. Narrow the period or pick a company or employee.",
+"موظفو الشركة": "Company employees",
 "بيانات ناقصة": "Incomplete",
 "بيانات ناقصة:": "Missing data:",
 "الراتب": "Salary",
@@ -1858,6 +1873,33 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^إجمالي (.+)$",
+"Total $1"
+],
+["^الشركة: (.+)$",
+"Company: $1"
+],
+["^موظفو شركة «(.+)»$",
+"Employees of «$1»"
+],
+["^موظفو الشركة \\((\\d+)\\)$",
+"Company employees ($1)"
+],
+["^ضم (\\d+) موظف للشركة$",
+"Add $1 employees to company"
+],
+["^(\\d+) يوم · (\\d+) حركة$",
+"$1 days · $2 punches"
+],
+["^تم ضم (\\d+) موظف إلى الشركة(.*)$",
+"Added $1 employees to the company$2"
+],
+["^الإجمالي \\((\\d+) موظف\\)$",
+"Total ($1 employees)"
+],
+["^الموظفون \\((\\d+)\\)$",
+"Employees ($1)"
+],
 ["^بيانات ناقصة: (.+)$",
 "Missing data: $1"
 ],

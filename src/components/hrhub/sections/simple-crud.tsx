@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
 import { ShiftMembersDialog } from '@/components/hrhub/shift-members';
+import { CompanyMembersDialog } from '@/components/hrhub/company-members';
 
 interface Named { id: string; name: string; notes?: string | null }
 
@@ -217,7 +218,10 @@ interface LocationRow extends Record<string, unknown> {
 }
 
 export function CompaniesSection({ canWrite }: { canWrite: boolean }) {
+  const [membersOf, setMembersOf] = useState<CompanyRow | null>(null);
   return (
+    <>
+    {membersOf && <CompanyMembersDialog companyId={membersOf.id} companyName={membersOf.name} canWrite={canWrite} onClose={() => setMembersOf(null)} />}
     <Tabs defaultValue="companies" dir="rtl">
       <TabsList>
         <TabsTrigger value="companies">الشركات</TabsTrigger>
@@ -236,7 +240,11 @@ export function CompaniesSection({ canWrite }: { canWrite: boolean }) {
             { key: 'crNo', header: 'السجل التجاري', render: (r) => <span className="tabular">{r.crNo || '—'}</span> },
             { key: 'laborFileNo', header: 'رقم ملف الشؤون', render: (r) => <span className="tabular">{r.laborFileNo || '—'}</span> },
             { key: 'locations', header: 'مواقع العمل', render: (r) => <span className="tabular">{r._count?.locations ?? 0}</span> },
-            { key: 'employees', header: 'الموظفون', render: (r) => <span className="tabular">{r._count?.employees ?? 0}</span> },
+            { key: '__members', header: 'الموظفون', render: (r) => (
+              <Button variant="outline" size="sm" className="h-7 text-xs text-emerald-700" onClick={() => setMembersOf(r)}>
+                <Users className="h-3.5 w-3.5" /> الموظفون ({r._count?.employees ?? 0})
+              </Button>
+            ) },
             { key: 'vehicles', header: 'السيارات', render: (r) => <span className="tabular">{r._count?.vehicles ?? 0}</span> },
             { key: 'contracts', header: 'العقود', render: (r) => <span className="tabular">{r._count?.contracts ?? 0}</span> },
             { key: 'active', header: 'الحالة', render: (r) => (r.active ? 'نشطة' : 'موقوفة') },
@@ -285,5 +293,6 @@ export function CompaniesSection({ canWrite }: { canWrite: boolean }) {
         />
       </TabsContent>
     </Tabs>
+    </>
   );
 }

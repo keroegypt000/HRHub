@@ -27,7 +27,6 @@ const REPORTS = [
   { key: 'absence', label: 'الغياب', desc: 'أيام الغياب والبصمة الناقصة' },
   { key: 'leaves', label: 'رصيد الإجازات', desc: 'الأرصدة المستهلكة لكل نوع' },
   { key: 'time-card', label: 'كشف الوقت الشهري', desc: 'يوم-باليوم لموظف مع الإحصائيات (Total Time Card)' },
-  { key: 'punches', label: 'حركات البصمة بالصور', desc: 'كل دخول/خروج بوقته وصورته والجهاز وعنوانه' },
 ] as const;
 type ReportKey = (typeof REPORTS)[number]['key'];
 
@@ -40,7 +39,7 @@ const STATUS_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
   absence: [{ value: 'absent', label: 'غائب' }, { value: 'missed_punch', label: 'بصمة ناقصة' }],
 };
-const GROUPABLE: ReportKey[] = ['daily', 'late', 'overtime', 'absence', 'punches'];
+const GROUPABLE: ReportKey[] = ['daily', 'late', 'overtime', 'absence'];
 
 // الفترات السريعة (بتوقيت الكويت)
 const kw = () => new Date(Date.now() + 3 * 3600_000);
@@ -69,6 +68,9 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
   const [from, to] = range;
   const setFrom = (v: string) => setRange([v, to]);
   const setTo = (v: string) => setRange([from, v]);
+  const [companyId, setCompanyId] = useState('all');
+  const [companies, setCompanies] = useState<{ value: string; label: string }[]>([]);
+  const [empCompany, setEmpCompany] = useState<Record<string, string | null>>({});
   const [departmentId, setDepartmentId] = useState('all');
   const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
   const [employeeId, setEmployeeId] = useState('all');
@@ -83,13 +85,15 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { optionLoaders.departments().then((o) => setDepartments(o.departmentId || [])); }, []);
+  useEffect(() => { optionLoaders.companies().then((o) => setCompanies(o.companyId || [])).catch(() => {}); }, []);
   useEffect(() => {
-    api<{ rows: { id: string; name: string; code: string; status: string; department?: { id: string } | null }[] }>('/api/employees?limit=2000')
-      .then((d) => setAllEmployees(d.rows.filter((e) => e.status !== 'terminated' && e.status !== 'deceased').map((e) => ({ id: e.id, name: e.name, code: e.code, departmentId: e.department?.id || null }))))
+    api<{ rows: { id: string; name: string; code: string; status: string; department?: { id: string } | null; company?: { id: string } | null }[] }>('/api/employees?limit=2000')
+      .then((d) => (setEmpCompany(Object.fromEntries(d.rows.map((e) => [e.id, e.company?.id || null]))), setAllEmployees(d.rows.filter((e) => e.status !== 'terminated' && e.status !== 'deceased').map((e) => ({ id: e.id, name: e.name, code: e.code, departmentId: e.department?.id || null })))))
       .catch(() => {});
   }, []);
   // قائمة الموظفين حسب القسم المختار
-  const employees = useMemo(() => allEmployees.filter((e) => departmentId === 'all' || e.departmentId === departmentId), [allEmployees, departmentId]);
+  const employees = useMemo(() => allEmployees.filter((e) => (departmentId === 'all' || e.departmentId === departmentId)
+    && (companyId === 'all' || (companyId === 'none' ? !empCompany[e.id] : empCompany[e.id] === companyId))), [allEmployees, departmentId, companyId, empCompany]);
 
   const needsEmployee = type === 'time-card';
   const load = useCallback(async () => {
@@ -99,6 +103,7 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
     try {
       const params = new URLSearchParams({ from, to });
       if (departmentId !== 'all') params.set('departmentId', departmentId);
+      if (companyId !== 'all') params.set('companyId', companyId);
       if (employeeId !== 'all') params.set('employeeId', employeeId);
       if (status !== 'all' && STATUS_OPTIONS[type]) params.set('status', status);
       const data = await api<{ columns: string[]; rows: Cell[][]; period?: string; statistics?: Record<string, string | number> }>(`/api/reports/${type}?${params}`);
@@ -111,7 +116,7 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
     } finally {
       setLoading(false);
     }
-  }, [type, from, to, departmentId, employeeId, status, needsEmployee]);
+  }, [type, from, to, departmentId, companyId, employeeId, status, needsEmployee]);
   useEffect(() => { load(); }, [load]);
 
   // تغيير القسم يلغي اختيار موظف من قسم آخر — وتغيير التقرير يلغي فلتر حالة غير متاح له
@@ -119,8 +124,12 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
     setDepartmentId(v);
     if (employeeId !== 'all' && v !== 'all' && allEmployees.find((e) => e.id === employeeId)?.departmentId !== v) setEmployeeId('all');
   };
+  const changeCompany = (v: string) => {
+    setCompanyId(v);
+    if (employeeId !== 'all' && v !== 'all' && (v === 'none' ? !!empCompany[employeeId] : empCompany[employeeId] !== v)) setEmployeeId('all');
+  };
   const changeType = (k: ReportKey) => { setType(k); if (!STATUS_OPTIONS[k]?.some((o) => o.value === status)) setStatus('all'); };
-  const resetFilters = () => { setRange(preset('month')); setDepartmentId('all'); setEmployeeId('all'); setStatus('all'); setSearch(''); setGrouped(false); };
+  const resetFilters = () => { setRange(preset('month')); setCompanyId('all'); setDepartmentId('all'); setEmployeeId('all'); setStatus('all'); setSearch(''); setGrouped(false); };
 
   // البحث داخل التقرير (أي عمود)
   const visibleRows = useMemo(() => {
@@ -136,7 +145,8 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
   const deptLabel = departmentId === 'all' ? 'كل الأقسام' : departments.find((d) => d.value === departmentId)?.label || '';
   const empLabel = employeeId === 'all' ? 'كل الموظفين' : (() => { const e = allEmployees.find((x) => x.id === employeeId); return e ? `${e.name} (${e.code})` : ''; })();
   const statusLabel = status === 'all' ? '' : STATUS_OPTIONS[type]?.find((o) => o.value === status)?.label || '';
-  const filtersText = [`الفترة: ${from} → ${to}`, `القسم: ${deptLabel}`, `الموظف: ${empLabel}`, statusLabel && `الحالة: ${statusLabel}`, search && `بحث: ${search}`].filter(Boolean).join(' · ');
+  const companyLabel = companyId === 'all' ? 'كل الشركات' : companyId === 'none' ? 'بدون شركة' : companies.find((c) => c.value === companyId)?.label || '';
+  const filtersText = [`الفترة: ${from} → ${to}`, `الشركة: ${companyLabel}`, `القسم: ${deptLabel}`, `الموظف: ${empLabel}`, statusLabel && `الحالة: ${statusLabel}`, search && `بحث: ${search}`].filter(Boolean).join(' · ');
 
   // أعمدة الجدول — صفوف «إجمالي الموظف» و«الإجمالي» بخط عريض وخلفية مميزة
   const tableRows = [...display, ...(totals ? [{ row: totals, subtotal: false, total: true }] : [])].map((d, idx) => {
@@ -186,7 +196,6 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
   const printReport = () => {
     const w = window.open('', '_blank');
     if (!w) { toast.error('اسمح بالنوافذ المنبثقة للطباعة'); return; }
-    if (type === 'punches') { printPunches(w); return; }
     if (type === 'time-card') { w.close(); printTimeCards(false); return; }
     const kpiHtml = kpis.length ? `<table class="kpi"><tr>${kpis.map((k) => `<td><span>${esc(k.label)}</span><b>${esc(k.value)}</b></td>`).join('')}</tr></table>` : '';
     w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${esc(reportLabel)}</title>
@@ -220,7 +229,8 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
       if (!all && employeeId !== 'all') ids = [employeeId];
       else {
         const list = await api<{ rows: { id: string; status: string; department?: { id: string } | null }[] }>('/api/employees?limit=2000');
-        ids = list.rows.filter((e) => e.status === 'active' && (departmentId === 'all' || e.department?.id === departmentId)).map((e) => e.id);
+        ids = list.rows.filter((e) => e.status === 'active' && (departmentId === 'all' || e.department?.id === departmentId)
+          && (companyId === 'all' || (companyId === 'none' ? !empCompany[e.id] : empCompany[e.id] === companyId))).map((e) => e.id);
       }
       if (!ids.length) { w.close(); toast.error('اختر الموظف أولًا'); return; }
       const esc = (v: unknown) => String(v ?? '').replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] as string));
@@ -264,33 +274,6 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
       w.close();
       toast.error(e instanceof Error ? e.message : 'فشل تجهيز الكروت');
     }
-  };
-
-  /** طباعة «حركات البصمة بالصور» بنفس شكل نموذج العميل: صفحة لكل موظف برقمه واسمه ثم جدول الحركات */
-  const printPunches = (w: Window) => {
-    const groups = new Map<string, { name: string; rows: (string | number)[][] }>();
-    for (const r of rows) {
-      const code = String(r[1]);
-      if (!groups.has(code)) groups.set(code, { name: String(r[2]), rows: [] });
-      groups.get(code)!.rows.push(r);
-    }
-    const head = ['م', 'التاريخ', 'اليوم', 'وقت الحركة', 'نوع العملية', 'الصورة', 'وصف الجهاز', 'عنوان الشبكة'];
-    const pick = (r: (string | number)[]) => [r[0], r[3], r[4], r[5], r[6], r[7], r[8], r[9]];
-    const sections = [...groups.entries()].map(([code, g]) => `
-      <section>
-        ${letterhead(brand())}${docTitle('حركات البصمة بالصور', `${from} → ${to}`)}
-        <table class="emp"><tr><th>رقم الموظف</th><td>${code}</td><th>الاسم</th><td>${g.name}</td><th>الفترة</th><td>${from} → ${to}</td></tr></table>
-        <table><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
-        <tbody>${g.rows.map((r) => `<tr>${pick(r).map((c) => `<td>${printCell(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>
-      </section>`).join('');
-    w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>حركات البصمة بالصور</title>
-      <style>${brandCss(brand())}body{padding:16px}
-      table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}th,td{border:1px solid #cfcfcf;padding:4px 6px;text-align:center;vertical-align:middle}
-      th{background:#eee}.emp th{background:#e8f3ef;width:12%}.emp td{font-weight:bold}
-      section{page-break-after:always}section:last-child{page-break-after:auto}tr{page-break-inside:avoid}</style></head>
-      <body>${sections || `${letterhead(brand())}<p>لا توجد حركات في الفترة</p>`}</body></html>`);
-    w.document.close();
-    setTimeout(() => w.print(), 1200);
   };
 
   return (
@@ -344,6 +327,17 @@ export function ReportsSection({ companyName = '' }: { companyName?: string }) {
           <div className="flex flex-wrap items-end gap-2">
             <div><p className="mb-1 text-[11px] text-muted-foreground">من</p><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-40" dir="ltr" /></div>
             <div><p className="mb-1 text-[11px] text-muted-foreground">إلى</p><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-40" dir="ltr" /></div>
+            <div>
+              <p className="mb-1 text-[11px] text-muted-foreground">الشركة</p>
+              <Select value={companyId} onValueChange={changeCompany} dir="rtl">
+                <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الشركات</SelectItem>
+                  {companies.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  <SelectItem value="none">بدون شركة</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <p className="mb-1 text-[11px] text-muted-foreground">القسم</p>
               <Select value={departmentId} onValueChange={changeDepartment} dir="rtl">

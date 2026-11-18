@@ -12,7 +12,7 @@ import {
   LayoutDashboard, Users, Network, FileSignature, Clock4, Fingerprint, CalendarCheck2,
   Plane, Sparkles, MonitorSmartphone, Wallet, SlidersHorizontal, BarChart3,
   FileSpreadsheet, ScrollText, UserCog, Settings, LogOut, Menu, ChevronDown,
-  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList, PackageCheck, BadgePercent, ShieldPlus, HeartPulse, FolderOpen, CalendarDays, Building2, Car, Handshake,
+  BellRing, Hourglass, Flower2, UserMinus, CreditCard, ClipboardList, PackageCheck, BadgePercent, ShieldPlus, HeartPulse, FolderOpen, CalendarDays, Building2, Car, Handshake, Camera,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -101,6 +101,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: BarChart3,
     items: [
       { key: 'reports', label: 'التقارير وكشف الوقت', icon: BarChart3 },
+      { key: 'punch-movements', label: 'حركات البصمة بالصور', icon: Camera },
     ],
   },
   {

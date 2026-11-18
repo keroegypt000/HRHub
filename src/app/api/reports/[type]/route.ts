@@ -39,6 +39,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
     const to = url.searchParams.get('to');
     const departmentId = url.searchParams.get('departmentId');
     const employeeId = url.searchParams.get('employeeId');
+    const companyId = url.searchParams.get('companyId');
     // فلتر الحالة (الحضور اليومي/الغياب): present|late|absent|... مفصولة بفاصلة
     const statusParam = (url.searchParams.get('status') || '').split(',').map((x) => x.trim()).filter(Boolean);
 
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
     const empWhere: Record<string, unknown> = {};
     if (departmentId && departmentId !== 'all') empWhere.departmentId = departmentId;
     if (employeeId && employeeId !== 'all') empWhere.id = employeeId;
+    if (companyId && companyId !== 'all') empWhere.companyId = companyId === 'none' ? null : companyId;
     const where: Record<string, unknown> = {};
     if (from || to) where.date = dateWhere;
     if (Object.keys(empWhere).length) where.employee = empWhere;
@@ -396,6 +398,65 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
               l.device?.model || l.device?.name || '—', l.device?.ipAddress || l.device?.lastIp || '—',
             ];
           }),
+        });
+      }
+
+      // ===== 9. حركات البصمة بالصور + مجموع الساعات (بدون ورديات): أول وآخر بصمة في اليوم =====
+      case 'movements': {
+        const timeWhere: Record<string, unknown> = {};
+        if (from) timeWhere.gte = kuwaitMidnight(from);
+        if (to) timeWhere.lt = new Date(kuwaitMidnight(to).getTime() + 24 * 3600_000);
+        const logs = await db.attendanceLog.findMany({
+          where: {
+            ...(from || to ? { punchTime: timeWhere } : {}),
+            ...(Object.keys(empWhere).length ? { employee: empWhere } : { employeeId: { not: null } }),
+          },
+          include: {
+            employee: { select: { id: true, code: true, name: true, department: { select: { name: true } }, company: { select: { name: true } } } },
+            device: { select: { name: true, model: true, ipAddress: true, lastIp: true } },
+          },
+          orderBy: [{ employee: { code: 'asc' } }, { punchTime: 'asc' }],
+          take: 20000,
+        });
+        const kinds = labelLogs(logs, dateKey);
+        // مجموع الساعات لكل موظف في كل يوم = آخر بصمة − أول بصمة
+        const span = new Map<string, { first: number; last: number; lastId: string }>();
+        for (const l of logs) {
+          const k = `${l.employeeId}|${dateKey(l.punchTime)}`;
+          const t = l.punchTime.getTime();
+          const cur = span.get(k);
+          if (!cur) span.set(k, { first: t, last: t, lastId: l.id });
+          else if (t >= cur.last) { cur.last = t; cur.lastId = l.id; }
+        }
+        const minutesOf = (k: string) => { const v = span.get(k); return v ? Math.round((v.last - v.first) / 60000) : 0; };
+        const rows = logs.map((l) => {
+          const k = `${l.employeeId}|${dateKey(l.punchTime)}`;
+          const isLast = span.get(k)?.lastId === l.id && (span.get(k)!.last > span.get(k)!.first);
+          return {
+            id: l.id, employeeId: l.employeeId, code: l.employee?.code || l.pin, name: l.employee?.name || '—',
+            department: l.employee?.department?.name || '', company: l.employee?.company?.name || '',
+            date: dateKey(l.punchTime), day: DAYS_AR[weekdayIndex(l.punchTime)], time: time12(l.punchTime),
+            kind: kinds.get(l) || 'حركة', minutes: isLast ? minutesOf(k) : null, photoId: l.photoId,
+            device: l.device?.model || l.device?.name || '—', ip: l.device?.ipAddress || l.device?.lastIp || '—',
+          };
+        });
+        // ملخص لكل موظف
+        const per = new Map<string, { code: string; name: string; days: number; minutes: number; punches: number; photos: number }>();
+        for (const r of rows) {
+          const k = r.employeeId || r.code;
+          if (!per.has(k)) per.set(k, { code: r.code, name: r.name, days: 0, minutes: 0, punches: 0, photos: 0 });
+          const p = per.get(k)!;
+          p.punches++;
+          if (r.photoId) p.photos++;
+          if (r.minutes !== null) { p.days++; p.minutes += r.minutes; }
+        }
+        const employees = [...per.values()];
+        return ok({
+          rows, employees, truncated: logs.length >= 20000,
+          totals: {
+            punches: rows.length, employees: employees.length, photos: rows.filter((r) => r.photoId).length,
+            minutes: employees.reduce((s, e) => s + e.minutes, 0), days: employees.reduce((s, e) => s + e.days, 0),
+          },
         });
       }
 
