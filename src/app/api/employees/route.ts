@@ -7,6 +7,7 @@ import { num } from '@/lib/calc';
 import { refreshContractStatuses } from '@/lib/contracts';
 import { parseDayList } from '@/lib/workweek';
 import { stripDocFields, syncEmployeeDocs } from '@/lib/employee-docs';
+import { licenseLimit } from '@/lib/license';
 
 /** خيارات الموظف: يوم الراحة وأساس المكافأة — «حسب الوردية/افتراضي الشركة» تُخزن null */
 function normalizeOptions(data: Record<string, unknown>): Record<string, unknown> {
@@ -71,6 +72,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const user = await requireWrite(req, 'employees');
+    const maxEmployees = await licenseLimit('employees');
+    if (maxEmployees !== null && await db.employee.count({ where: { status: { notIn: ['terminated', 'deceased'] } } }) >= maxEmployees) {
+      return NextResponse.json({ error: `الترخيص يسمح بـ ${maxEmployees} موظف فقط — جدّد الترخيص لإضافة المزيد` }, { status: 402 });
+    }
     const body = (await req.clone().json().catch(() => ({}))) as Record<string, unknown>;
     const res = await crudCreate(req, user, cfg);
     // ربط بصماته السابقة المسجلة برقمه (لو أضيف بعد سحب البصمات من الجهاز)

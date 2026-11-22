@@ -1,6 +1,33 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"نسخ": "Copy",
+"دائم": "Perpetual",
+"تفعيل": "Activate",
+"العميل:": "Customer:",
+"الانتهاء:": "Expires:",
+"رقم الجهاز": "Machine code",
+"نسخة تجريبية": "Trial version",
+"رقم الترخيص:": "License no.:",
+"تعذّر التفعيل": "Activation failed",
+"تفعيل البرنامج": "Activate the software",
+"ترخيص البرنامج": "Software license",
+"تاريخ الإصدار:": "Issued:",
+"جارٍ التفعيل...": "Activating...",
+"تم نسخ رقم الجهاز": "Machine code copied",
+"الحد الأقصى للموظفين:": "Max employees:",
+"تجديد أو تغيير الترخيص": "Renew or change license",
+"تم تفعيل البرنامج بنجاح": "Software activated successfully",
+"الصق مفتاح الترخيص كاملًا": "Paste the full license key",
+"الحد الأقصى لأجهزة البصمة:": "Max punch devices:",
+"فعّل البرنامج لمتابعة العمل": "Activate the software to continue",
+"الترخيص المسجل لجهاز آخر — فترة تجربة": "The registered license is for another computer — trial period",
+"مفتاح الترخيص غير صحيح — تأكد من نسخه كاملًا": "Invalid license key — make sure you copied all of it",
+"انتهت الفترة التجريبية — فعّل البرنامج لمتابعة العمل": "Trial ended — activate the software to continue",
+"الترخيص المسجل لجهاز آخر — فعّل البرنامج بمفتاح لهذا الجهاز": "The registered license is for another computer — activate with a key for this computer",
+"هذا المفتاح لجهاز آخر — أرسل رقم هذا الجهاز للحصول على مفتاح خاص به": "This key is for another computer — send this computer's machine code to get its own key",
+"أرسل رقم الجهاز إلى مزوّد البرنامج للحصول على مفتاح الترخيص، ثم الصقه هنا. بياناتك محفوظة، وأجهزة البصمة تواصل إرسال الحركات.": "Send the machine code to your software provider to get a license key, then paste it here. Your data is safe and punch devices keep sending punches.",
+"بلا حد": "Unlimited",
 "أول وآخر بصمة": "First & last punch",
 "كل الحركات": "All punches",
 "عرض الصورة": "View photo",
@@ -1875,6 +1902,42 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^مرخص لـ (.+) حتى (.+)$",
+"Licensed to $1 until $2"
+],
+["^مرخص لـ (.+)$",
+"Licensed to $1"
+],
+["^هذا المفتاح منتهي منذ (.+)$",
+"This key expired on $1"
+],
+["^انتهى الترخيص في (.+) — فترة سماح$",
+"License expired on $1 — grace period"
+],
+["^انتهى الترخيص في (.+) — جدّد الترخيص لمتابعة العمل$",
+"License expired on $1 — renew to continue"
+],
+["^نسخة تجريبية — متبقٍ (\\d+) يوم$",
+"Trial version — $1 days left"
+],
+["^انتهى الترخيص — فترة سماح متبقٍ (\\d+) يوم$",
+"License expired — grace period, $1 days left"
+],
+["^الترخيص لجهاز آخر — متبقٍ (\\d+) يوم$",
+"License is for another computer — $1 days left"
+],
+["^الترخيص ينتهي خلال (\\d+) يوم$",
+"License expires in $1 days"
+],
+["^الترخيص يسمح بـ (\\d+) موظف فقط — جدّد الترخيص لإضافة المزيد$",
+"Your license allows $1 employees only — renew to add more"
+],
+["^الترخيص يسمح بـ (\\d+) جهاز بصمة فقط — جدّد الترخيص لإضافة المزيد$",
+"Your license allows $1 punch devices only — renew to add more"
+],
+["^ — متبقٍ (\\d+) يوم$",
+" — $1 days left"
+],
 ["^إجمالي (.+)$",
 "Total $1"
 ],

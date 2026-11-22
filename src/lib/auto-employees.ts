@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveEmployeeByPin, computeDay } from '@/lib/attendance';
 import { getDeviceUsers } from '@/lib/zk/adms';
 import { linkPunchesToEmployees } from '@/lib/link-punches';
+import { licenseLimit } from '@/lib/license';
 
 export const AUTO_NOTE = 'أضيف تلقائيًا من جهاز البصمة — أكمل بياناته';
 
@@ -13,8 +14,13 @@ export async function ensureEmployeesForPins(pins: Iterable<string>, sn: string)
   const names = await getDeviceUsers(sn).catch(() => ({} as Record<string, string>));
   const device = await db.device.findUnique({ where: { sn }, select: { name: true } });
   const created: string[] = [];
+  // حد الترخيص: لا نضيف موظفين جددًا بعده (البصمات تبقى محفوظة في السجل الخام)
+  const max = await licenseLimit('employees').catch(() => null);
+  let count = max !== null ? await db.employee.count({ where: { status: { notIn: ['terminated', 'deceased'] } } }) : 0;
   for (const pin of list) {
     if (await resolveEmployeeByPin(pin)) continue;
+    if (max !== null && count >= max) break;
+    count++;
     const codeTaken = await db.employee.findUnique({ where: { code: pin }, select: { id: true } });
     const code = codeTaken ? `${pin}-${sn.slice(-4)}` : pin;
     try {

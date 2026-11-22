@@ -69,3 +69,8 @@ server.log
 /desktop/node_modules
 /desktop/dist
 /desktop/app
+
+# مفاتيح الترخيص السرية — لا تُرفع أبدًا
+*.pem
+HRHub-License/
+issued-licenses.csv

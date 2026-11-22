@@ -53,6 +53,8 @@ export async function api<T = unknown>(
     }
     throw new ApiError(401, 'غير مصرح');
   }
+  // 402 = انتهت التجربة/الترخيص — الصفحة الرئيسية تعرض شاشة التفعيل
+  if (res.status === 402 && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('hrhub:license'));
   const contentType = res.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     if (!res.ok) throw new ApiError(res.status, `خطأ ${res.status}`);

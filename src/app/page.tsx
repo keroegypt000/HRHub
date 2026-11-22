@@ -3,6 +3,7 @@
 // HRHub — المكوّن الرئيسي الوحيد: التنقل عبر Section state
 import { useEffect, useState } from 'react';
 import { loadBranding } from '@/lib/branding';
+import { useLicense, ActivationScreen, LicenseBanner } from '@/components/hrhub/license';
 import { api, setToken, getToken, Me } from '@/lib/client';
 import { LoginScreen, SetupScreen } from '@/components/hrhub/login';
 import { AppShell } from '@/components/hrhub/shell';
@@ -38,6 +39,7 @@ export default function Page() {
   const [me, setMe] = useState<Me | null>(null);
   const [section, setSection] = useState('dashboard');
   const [companyName, setCompanyName] = useState('الشركة');
+  const { info: licenseInfo, reload: reloadLicense } = useLicense();
   // ملف الموظف من أي شاشة (زر «ملف الموظف» في نافذة التفاصيل)
   const [profileId, setProfileId] = useState<string | null>(null);
   useEffect(() => {
@@ -106,6 +108,9 @@ export default function Page() {
     );
   }
 
+  // انتهت التجربة/الترخيص: شاشة التفعيل (البيانات محفوظة والبصمات تستمر في الوصول)
+  if (licenseInfo?.locked) return <ActivationScreen info={licenseInfo} onActivated={() => { reloadLicense(); window.location.reload(); }} />;
+
   if (screen === 'setup') return <SetupScreen onDone={() => setScreen('login')} />;
   if (screen === 'login' || !me) return <LoginScreen onLogin={onLogin} />;
 
@@ -116,6 +121,7 @@ export default function Page() {
 
   return (
     <AppShell me={me} section={section} onNavigate={setSection} onLogout={logout}>
+      <LicenseBanner info={licenseInfo} onOpenSettings={() => setSection('settings')} />
       {section === 'dashboard' && <DashboardSection role={me.role} onNavigate={setSection} />}
       {section === 'employees' && <EmployeesSection canWrite={!!can.employees} companyName={companyName} />}
       {section === 'departments' && <DepartmentsSection canWrite={!!can.departments} />}

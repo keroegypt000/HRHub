@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BrandingSettingsCard } from '@/components/hrhub/branding-settings';
+import { LicenseCard } from '@/components/hrhub/license';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Save, History, Undo2, Trash2, KeyRound, Plus } from 'lucide-react';
@@ -230,6 +231,8 @@ export function SettingsSection() {
   return (
     <div className="space-y-4 max-w-3xl">
       <PageHeader title="الإعدادات" subtitle="عام، معادلات الرواتب، ADMS وBioTime، نقاط الاستعادة" />
+
+      <LicenseCard />
 
       <BrandingSettingsCard />
 

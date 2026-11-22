@@ -1,0 +1,32 @@
+﻿اتفاقية ترخيص استخدام برنامج HRHub
+End-User License Agreement (EULA) — HRHub
+
+باستمرارك في تثبيت البرنامج فأنت توافق على الشروط التالية:
+
+1. الترخيص: يُمنح لك ترخيص غير حصري وغير قابل للتحويل لاستخدام البرنامج على الجهاز المرخَّص فقط، وفي حدود عدد الموظفين وأجهزة البصمة ومدة الترخيص المذكورة في مفتاح الترخيص.
+
+2. الملكية: البرنامج وكوده المصدري وتصميمه ووثائقه ملك حصري لمطوّره، ومحمية بقوانين حقوق المؤلف والملكية الفكرية. لا ينقل هذا الترخيص أي ملكية إليك.
+
+3. المحظورات: يُحظر نسخ البرنامج أو توزيعه أو بيعه أو تأجيره أو إعارته، أو تثبيته على أكثر من الجهاز المرخَّص، أو فك تشفيره أو الهندسة العكسية له أو تعديله أو تجاوز نظام الترخيص فيه.
+
+4. البيانات: بياناتك ملكك وتُحفظ على جهازك. أنت مسؤول عن أخذ نسخ احتياطية منها.
+
+5. الفترة التجريبية: يعمل البرنامج 30 يومًا بدون ترخيص لأغراض التجربة، ثم يتطلب التفعيل.
+
+6. إخلاء المسؤولية: يُقدَّم البرنامج «كما هو»، ولا يتحمل المطوّر أي أضرار غير مباشرة ناتجة عن استخدامه، وتقتصر مسؤوليته في جميع الأحوال على قيمة الترخيص المدفوعة.
+
+7. الإنهاء: يُنهى الترخيص تلقائيًا عند مخالفة أي من هذه الشروط.
+
+-----------------------------------------------------------------
+
+By installing this software you agree to the following:
+
+1. License: You are granted a non-exclusive, non-transferable license to use the software on the licensed computer only, within the employee, device and time limits stated in your license key.
+2. Ownership: The software, its source code, design and documentation are the exclusive property of its developer and are protected by copyright and intellectual property laws.
+3. Restrictions: You may not copy, distribute, sell, rent or lend the software, install it on more than the licensed computer, reverse engineer, decompile or modify it, or circumvent its licensing system.
+4. Data: Your data belongs to you and is stored on your computer. You are responsible for backing it up.
+5. Trial: The software runs for 30 days without a license for evaluation, after which activation is required.
+6. Disclaimer: The software is provided "as is". The developer is not liable for indirect damages, and total liability is limited to the license fee paid.
+7. Termination: This license terminates automatically if you breach any of these terms.
+
+© 2026 HRHub. All rights reserved.

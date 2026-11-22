@@ -1,6 +1,7 @@
+import { licenseLimit } from '@/lib/license';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireRead, requireWrite, handle, HttpError } from '@/lib/api';
+import { requireRead, requireWrite, handle, HttpError, fail } from '@/lib/api';
 import { pullDevice } from '@/lib/device-pull';
 import { crudList, crudCreate, crudUpdate, crudDelete, CrudConfig } from '@/lib/crud';
 import { num } from '@/lib/calc';
@@ -100,6 +101,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const user = await requireWrite(req, 'devices');
+    const maxDevices = await licenseLimit('devices');
+    if (maxDevices !== null && await db.device.count({ where: { sn: { not: 'MANUAL-HR' } } }) >= maxDevices) {
+      return fail(402, `الترخيص يسمح بـ ${maxDevices} جهاز بصمة فقط — جدّد الترخيص لإضافة المزيد`);
+    }
     const res = await crudCreate(req, user, cfg);
     if (res.status >= 300) return res;
     const row = (await res.json()) as { id: string; mode?: string };

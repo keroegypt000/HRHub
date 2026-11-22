@@ -1,5 +1,6 @@
 // lib/api.ts — مساعدات موحدة لمسارات الـ API: أخطاء عربية، مصادقة، صلاحيات
 import { NextRequest, NextResponse } from 'next/server';
+import { isDesktop, licenseStatus } from '@/lib/license';
 import { AuthUser, canRead, canWrite, getSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
@@ -23,7 +24,20 @@ export function fail(status: number, message: string): NextResponse {
 export async function requireUser(req: NextRequest): Promise<AuthUser> {
   const user = await getSessionUser(req);
   if (!user) throw new HttpError(401, 'غير مصرح — يجب تسجيل الدخول');
+  await requireActiveLicense(req);
   return user;
+}
+
+/** مسارات تعمل حتى بعد انتهاء الترخيص: الدخول، الترخيص، الهوية، النسخ الاحتياطي */
+const LICENSE_FREE = ['/api/auth/', '/api/license', '/api/branding', '/api/health', '/api/setup'];
+
+/** النسخة المكتبية: إيقاف الاستخدام عند انتهاء التجربة/الترخيص (البصمات تستمر في الوصول) */
+async function requireActiveLicense(req: NextRequest) {
+  if (!isDesktop()) return;
+  const path = req.nextUrl?.pathname || '';
+  if (LICENSE_FREE.some((p) => path.startsWith(p))) return;
+  const st = await licenseStatus().catch(() => null);
+  if (st?.locked) throw new HttpError(402, st.message || 'فعّل البرنامج لمتابعة العمل');
 }
 
 /** تحقق قراءة */
