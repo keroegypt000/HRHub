@@ -1,8 +1,8 @@
 {
   "name": "hrhub-desktop",
   "productName": "HRHub",
-  "version": "1.0.24",
-  "description": "HRHub — نظام الموارد البشرية والرواتب والحضور (نسخة مكتبية بقاعدة بيانات محلية)",
+  "version": "1.0.25",
+  "description": "Ad Mas — HR, attendance and payroll",
   "author": "HRHub",
   "main": "main.js",
   "private": true,
@@ -17,7 +17,7 @@
   "build": {
     "appId": "com.hrhub.desktop",
     "productName": "HRHub",
-    "copyright": "© 2026 HRHub. All rights reserved.",
+    "copyright": "© 2026 Ad Mas. All rights reserved.",
     "directories": {
       "output": "dist"
     },
@@ -52,10 +52,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "HRHub",
-      "artifactName": "HRHub-Setup-${version}.exe",
+      "shortcutName": "Ad Mas",
+      "artifactName": "AdMas-Setup-${version}.exe",
       "deleteAppDataOnUninstall": false,
-      "license": "LICENSE.txt"
+      "license": "LICENSE.txt",
+      "uninstallDisplayName": "Ad Mas"
     }
   }
 }

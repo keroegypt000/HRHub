@@ -3,6 +3,7 @@
 // القائمة الجانبية اليمنى + الهيدر + درج الموبايل
 // الملاحة في مجموعات منسدلة لتقليل الازدحام + جرس تنبيهات النفاذ في الهيدر
 import { LanguageToggle } from '@/components/hrhub/language';
+import { APP_NAME, APP_NAME_AR, APP_MARK, APP_TAGLINE } from '@/lib/brand';
 import { useCallback, useEffect, useState } from 'react';
 import { Me, api } from '@/lib/client';
 import { Button } from '@/components/ui/button';
@@ -31,8 +32,10 @@ export interface NavGroup {
 }
 
 /** عنصر يظهر لكل الأدوار */
-export const visible = (item: NavItem, role: string): boolean => {
+export const visible = (item: NavItem, role: string, screens?: Record<string, string>): boolean => {
   if (item.adminOnly && role !== 'admin') return false;
+  // صلاحيات الشاشات لكل مستخدم (يحددها المدير) — تتقدم على الدور
+  if (screens && item.key in screens) return screens[item.key] !== 'none';
   if (['payroll', 'salary-components', 'adjustments'].includes(item.key)) {
     return role === 'admin' || role === 'accountant';
   }
@@ -169,7 +172,7 @@ function AlertsBell({ onNavigate }: { onNavigate: (k: string) => void }) {
 }
 
 function NavList({ me, current, onNavigate }: { me: Me; current: string; onNavigate: (k: string) => void }) {
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((it) => visible(it, me.role)) })).filter((g) => g.items.length > 0);
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((it) => visible(it, me.role, me.screens)) })).filter((g) => g.items.length > 0);
 
   // المجموعة المفتوحة: تجاوز يدوي بالكليك، وإلا مجموعة القسم الحالي تلقائيًا
   const [manualOpen, setManualOpen] = useState<string | null>(null);
@@ -294,11 +297,11 @@ function BrandBox({ small = false }: { small?: boolean }) {
         'shrink-0 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center ring-1 ring-white/25 shadow-lg shadow-emerald-950/40',
         small ? 'h-9 w-9' : 'h-10 w-10'
       )}>
-        <span className={cn('font-black leading-none text-white', small ? 'text-base' : 'text-lg')}>A</span>
+        <span className={cn('font-black leading-none tracking-tight text-white', small ? 'text-[13px]' : 'text-sm')}>{APP_MARK}</span>
       </div>
       <div className="min-w-0">
-        <p className={cn('truncate font-extrabold leading-tight tracking-wide text-white', small ? 'text-[12px]' : 'text-[13px]')}>HRHub</p>
-        <p className="truncate text-xs text-sidebar-foreground/60">إدارة الموارد البشرية</p>
+        <p className={cn('truncate font-extrabold leading-tight tracking-wide text-white', small ? 'text-[12px]' : 'text-[13px]')}>{APP_NAME}</p>
+        <p className="truncate text-xs text-sidebar-foreground/60">{APP_NAME_AR} · الموارد البشرية</p>
       </div>
     </>
   );
@@ -368,7 +371,7 @@ export function AppShell({
           <main className="flex-1 p-4 pb-16 max-w-full">{children}</main>
 
           <footer className="mt-auto border-t py-3 px-4 text-center text-xs text-muted-foreground bg-background">
-            HRHub — إدارة الموارد البشرية والحضور والرواتب · دولة الكويت · العملة: دينار كويتي (د.ك)
+            {APP_NAME} — {APP_TAGLINE} · © {new Date().getFullYear()}
           </footer>
         </div>
       </div>

@@ -8,6 +8,7 @@ export interface Me {
   role: string;
   permissions: Record<string, boolean> | null;
   can: Record<string, boolean>;
+  screens?: Record<string, 'none' | 'view' | 'edit'>;
   employeeId?: string | null;
 }
 

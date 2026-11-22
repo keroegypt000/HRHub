@@ -21,7 +21,8 @@ const LOG_DIR = path.join(DATA, 'logs');
 const BACKUP_DIR = path.join(DATA, 'backups');
 const ICON = path.join(__dirname, 'icon.png');
 const VERSION = app.getVersion();
-const TITLE = `HRHub — الإصدار ${VERSION}`;
+const APP_NAME = 'Ad Mas';
+const TITLE = `${APP_NAME} — الإصدار ${VERSION}`;
 
 let win = null; let tray = null; let server = null; let quitting = false;
 let config = null;
@@ -149,7 +150,7 @@ function createWindow() {
     e.preventDefault();
     win.hide();
     if (tray && !config.trayHintShown) {
-      tray.displayBalloon?.({ title: 'HRHub يعمل في الخلفية', content: 'النظام مستمر في استقبال البصمات. افتحه أو اخرج منه من أيقونة HRHub بجوار الساعة.' });
+      tray.displayBalloon?.({ title: `${APP_NAME} يعمل في الخلفية`, content: `النظام مستمر في استقبال البصمات. افتحه أو اخرج منه من أيقونة ${APP_NAME} بجوار الساعة.` });
       config.trayHintShown = true;
       fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify(config, null, 2));
     }
@@ -160,14 +161,14 @@ function showWindow() { if (!win) createWindow(); win.show(); win.focus(); }
 
 function buildTray() {
   tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
-  tray.setToolTip(`HRHub ${VERSION} — نظام الموارد البشرية`);
+  tray.setToolTip(`${APP_NAME} ${VERSION} — نظام الموارد البشرية`);
   const login = app.getLoginItemSettings().openAtLogin;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: `HRHub — الإصدار ${VERSION}`, enabled: false },
+    { label: `${APP_NAME} — الإصدار ${VERSION}`, enabled: false },
     { type: 'separator' },
-    { label: 'فتح HRHub', click: showWindow },
+    { label: `فتح ${APP_NAME}`, click: showWindow },
     { label: 'فتح في المتصفح', click: () => shell.openExternal(`http://127.0.0.1:${config.port}`) },
-    { label: 'عناوين الشبكة (للأجهزة والموظفين)', click: () => dialog.showMessageBox({ type: 'info', title: 'HRHub', message: 'افتح النظام من أي جهاز على نفس الشبكة:', detail: `${lanAddresses().join('\n') || 'لا توجد شبكة'}\n\nوعنوان سيرفر ADMS لأجهزة ZKTeco: نفس الـ IP والمنفذ ${config.port}` }) },
+    { label: 'عناوين الشبكة (للأجهزة والموظفين)', click: () => dialog.showMessageBox({ type: 'info', title: APP_NAME, message: 'افتح النظام من أي جهاز على نفس الشبكة:', detail: `${lanAddresses().join('\n') || 'لا توجد شبكة'}\n\nوعنوان سيرفر ADMS لأجهزة ZKTeco: نفس الـ IP والمنفذ ${config.port}` }) },
     { type: 'separator' },
     { label: 'نسخة احتياطية الآن', click: () => { const f = backup(true); dialog.showMessageBox({ type: 'info', message: f ? `تم حفظ النسخة:\n${f}` : 'لا توجد بيانات بعد' }); } },
     { label: 'فتح مجلد البيانات والنسخ', click: () => shell.openPath(DATA) },
@@ -193,12 +194,12 @@ app.whenReady().then(async () => {
   try { backup(false); } catch (e) { log(`backup failed: ${e}`); }
   const synced = await syncDatabase();
   if (synced !== true) {
-    dialog.showErrorBox('HRHub', `تعذر تحديث قاعدة البيانات. البيانات لم تُمس.\n\nالتفاصيل في:\n${path.join(LOG_DIR, 'server.log')}`);
+    dialog.showErrorBox(APP_NAME, `تعذر تحديث قاعدة البيانات. البيانات لم تُمس.\n\nالتفاصيل في:\n${path.join(LOG_DIR, 'server.log')}`);
   }
   startServer();
   const ok = await waitForServer();
   if (!ok) {
-    dialog.showErrorBox('HRHub', `لم يبدأ السيرفر على المنفذ ${config.port}.\nربما برنامج آخر يستخدم نفس المنفذ — غيّر "port" في:\n${path.join(DATA, 'config.json')}`);
+    dialog.showErrorBox(APP_NAME, `لم يبدأ السيرفر على المنفذ ${config.port}.\nربما برنامج آخر يستخدم نفس المنفذ — غيّر "port" في:\n${path.join(DATA, 'config.json')}`);
     return;
   }
   if (win) win.loadURL(`http://127.0.0.1:${config.port}`);

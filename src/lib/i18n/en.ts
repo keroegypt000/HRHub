@@ -1,6 +1,29 @@
 // قاموس الترجمة العربية → الإنجليزية (يُولَّد من نصوص البرنامج)
 // لإضافة/تعديل ترجمة: عدّل القيمة هنا. القوالب تستخدم $1 $2 ... مكان القيم المتغيرة.
 export const EN_EXACT: Record<string, string> = {
+"للكل": "for all",
+"مخصص": "Custom",
+"مخفية": "Hidden",
+"صلاحيات": "Permissions of",
+"عرض فقط": "View only",
+"حسب الدور": "By role",
+"الصلاحيات": "Permissions",
+"قالب جاهز:": "Template:",
+"إخفاء الكل": "Hide all",
+"عرض وتعديل": "View & edit",
+"شاشة ظاهرة": "visible screens",
+"كل الصلاحيات": "Full access",
+"الكل عرض فقط": "All view only",
+"مرحبًا بك في": "Welcome to",
+"حفظ الصلاحيات": "Save permissions",
+"نسخ صلاحيات دور": "Copy a role's permissions",
+"· الموارد البشرية": "· Human resources",
+"المستخدمون والصلاحيات": "Users & permissions",
+"نظام الموارد البشرية والحضور والرواتب": "HR, attendance and payroll system",
+"الإعدادات والمستخدمون وسجل التدقيق متاحة لمدير النظام فقط.": "Settings, users and the audit log are available to the system admin only.",
+"حدد لكل شاشة: مخفية، أو عرض فقط، أو عرض وتعديل. الدور الحالي:": "Set each screen to hidden, view only or view & edit. Current role:",
+"مدير النظام يرى كل الشاشات ويعدّل كل شيء دائمًا. لتقييد مستخدم غيّر دوره أولًا.": "The system admin always sees and edits everything. To restrict a user, change their role first.",
+"الدور يحدد الصلاحيات الافتراضية، وزر «الصلاحيات» يحدد الشاشات التي يراها كل مستخدم": "The role sets default access; the Permissions button sets which screens each user sees",
 "نسخ": "Copy",
 "دائم": "Perpetual",
 "تفعيل": "Activate",
@@ -1902,6 +1925,24 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^مخصصة \\((\\d+) شاشة معدّلة\\)$",
+"Custom ($1 screens changed)"
+],
+["^تم حفظ صلاحيات (.+) — تُطبَّق عند تحديث صفحته أو دخوله التالي$",
+"Permissions saved for $1 — applied when they refresh or next sign in"
+],
+["^صلاحيات (.+)$",
+"Permissions — $1"
+],
+["^(\\d+) شاشة ظاهرة$",
+"$1 visible screens"
+],
+["^مرحبًا بك في (.+)$",
+"Welcome to $1"
+],
+["^(.+) للكل$",
+"$1 for all"
+],
 ["^مرخص لـ (.+) حتى (.+)$",
 "Licensed to $1 until $2"
 ],

@@ -63,8 +63,8 @@ function KpiCard({ title, value, sub, icon: Icon, tone, onClick }: {
 }
 
 /** الوصول السريع: كل شاشات النظام المتاحة للمستخدم في مربعات صغيرة — ضغطة واحدة */
-function QuickAccess({ role, onNavigate }: { role: string; onNavigate: (k: string) => void }) {
-  const items = NAV_GROUPS.flatMap((g) => g.items.filter((it) => visible(it, role)));
+function QuickAccess({ role, screens, onNavigate }: { role: string; screens?: Record<string, string>; onNavigate: (k: string) => void }) {
+  const items = NAV_GROUPS.flatMap((g) => g.items.filter((it) => visible(it, role, screens)));
   return (
     <Card>
       <CardHeader className="pb-2"><CardTitle className="text-base">الوصول السريع</CardTitle></CardHeader>
@@ -89,7 +89,7 @@ function QuickAccess({ role, onNavigate }: { role: string; onNavigate: (k: strin
   );
 }
 
-export function DashboardSection({ role = 'admin', onNavigate = () => {} }: { role?: string; onNavigate?: (k: string) => void }) {
+export function DashboardSection({ role = 'admin', screens, onNavigate = () => {} }: { role?: string; screens?: Record<string, string>; onNavigate?: (k: string) => void }) {
   const go = (k: string) => () => onNavigate(k);
   const [data, setData] = useState<DashboardData | null>(null);
   const [live, setLive] = useState(true);
@@ -143,7 +143,7 @@ export function DashboardSection({ role = 'admin', onNavigate = () => {} }: { ro
         }
       />
 
-      <QuickAccess role={role} onNavigate={onNavigate} />
+      <QuickAccess role={role} screens={screens} onNavigate={onNavigate} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

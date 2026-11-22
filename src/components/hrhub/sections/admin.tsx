@@ -15,9 +15,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BrandingSettingsCard } from '@/components/hrhub/branding-settings';
 import { LicenseCard } from '@/components/hrhub/license';
+import { PermissionsDialog, permissionsSummary } from '@/components/hrhub/permissions-editor';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Save, History, Undo2, Trash2, KeyRound, Plus } from 'lucide-react';
+import { Save, History, Undo2, Trash2, KeyRound, Plus, ShieldCheck } from 'lucide-react';
 import { EOS_BASIS_OPTIONS } from '@/lib/indemnity';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -105,19 +106,26 @@ interface UserRow extends Record<string, unknown> {
 }
 
 export function UsersSection() {
+  const [permsOf, setPermsOf] = useState<UserRow | null>(null);
   return (
+    <>
+    {permsOf && <PermissionsDialog user={permsOf} onClose={() => setPermsOf(null)} onSaved={() => window.dispatchEvent(new Event('hrhub:refresh'))} />}
     <CrudPanel<UserRow>
       entityPath="/api/users"
       entityLabel="مستخدم"
       title="المستخدمون والأدوار"
-      subtitle="خمسة أدوار: مدير النظام، موارد بشرية، محاسب، مشرف، مشاهد — مع صلاحيات JSON دقيقة تتجاوز الافتراضي"
+      subtitle="الدور يحدد الصلاحيات الافتراضية، وزر «الصلاحيات» يحدد الشاشات التي يراها كل مستخدم"
       canWrite
       searchPlaceholder="بحث..."
       columns={[
         { key: 'name', header: 'المستخدم', render: (r) => <div><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground font-mono">{r.username}</p></div> },
         { key: 'role', header: 'الدور', render: (r) => <StatusBadge status={r.role} /> },
         { key: 'active', header: 'الحالة', render: (r) => <StatusBadge status={r.active ? 'active' : 'suspended'} /> },
-        { key: 'perm', header: 'صلاحيات دقيقة', render: (r) => r.permissions ? <code className="text-[11px] bg-muted px-1 rounded">{r.permissions}</code> : 'افتراضي الدور', hideOnMobile: true },
+        { key: '__perm', header: 'الصلاحيات', render: (r) => (
+          <Button variant="outline" size="sm" className="h-7 text-xs text-emerald-700" onClick={() => setPermsOf(r)}>
+            <ShieldCheck className="h-3.5 w-3.5" /> {r.role === 'admin' ? 'كل الصلاحيات' : permissionsSummary(r.permissions)}
+          </Button>
+        ) },
         { key: 'created', header: 'أُنشئ', render: (r) => <span className="tabular text-xs">{fmtDateTime(r.createdAt).slice(0, 10)}</span>, hideOnMobile: true },
       ]}
       fields={[
@@ -129,12 +137,12 @@ export function UsersSection() {
           { value: 'admin', label: 'مدير النظام' }, { value: 'hr', label: 'موارد بشرية' },
           { value: 'accountant', label: 'محاسب' }, { value: 'supervisor', label: 'مشرف' }, { value: 'viewer', label: 'مشاهد' },
         ] },
-        { key: 'permissions', label: 'صلاحيات JSON (اختياري)', type: 'textarea', span: 2, hint: 'مثال: {"payroll": true, "devices": false}' },
         { key: 'active', label: 'الحساب نشط', type: 'switch' },
       ]}
       defaultValues={{ role: 'viewer', active: true }}
-      rowToForm={(r) => ({ username: r.username, name: r.name, email: r.email || '', role: r.role, permissions: r.permissions || '', active: r.active, password: '' })}
+      rowToForm={(r) => ({ username: r.username, name: r.name, email: r.email || '', role: r.role, active: r.active, password: '' })}
     />
+    </>
   );
 }
 

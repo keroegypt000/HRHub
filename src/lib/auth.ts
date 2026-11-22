@@ -1,5 +1,6 @@
 // lib/auth.ts — مصادقة مخصصة بدون مكتبات: scrypt + جلسات في قاعدة البيانات + أدوار وصلاحيات
 import crypto from 'crypto';
+import { SCREENS, LOOKUP_ENTITIES, type ScreenLevel } from '@/lib/screens';
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 
@@ -47,7 +48,7 @@ export interface AuthUser {
   username: string;
   name: string;
   role: string;
-  permissions: Record<string, boolean> | null;
+  permissions: Record<string, unknown> | null;
   active: boolean;
   employeeId: string | null; // حساب بوابة الموظف
 }
@@ -68,7 +69,7 @@ export async function getSessionUser(req: NextRequest): Promise<AuthUser | null>
   if (!session.user.active) return null;
   await maybeRenew(session.id, session.expiresAt).catch(() => {});
 
-  let permissions: Record<string, boolean> | null = null;
+  let permissions: Record<string, unknown> | null = null;
   if (session.user.permissions) {
     try {
       permissions = JSON.parse(session.user.permissions);
@@ -164,6 +165,11 @@ export function permissionOverride(
 export function canWrite(user: AuthUser, entity: string): boolean {
   const override = permissionOverride(user, entity, 'write');
   if (override !== undefined) return override;
+  const custom = customScreens(user);
+  if (custom) {
+    const owners = SCREENS.filter((sc) => sc.entities.includes(entity));
+    if (owners.length) return owners.some((sc) => screenLevel(user, sc.key, custom) === 'edit');
+  }
   return roleCan(WRITE_MATRIX, user.role, entity);
 }
 
@@ -171,7 +177,47 @@ export function canRead(user: AuthUser, entity: string): boolean {
   const override = permissionOverride(user, entity, 'read');
   if (override !== undefined) return override;
   if (ADMIN_ONLY_READ.has(entity) && user.role !== 'admin') return false;
+  const custom = customScreens(user);
+  if (custom) {
+    const owners = SCREENS.filter((sc) => sc.entities.includes(entity));
+    if (owners.some((sc) => screenLevel(user, sc.key, custom) !== 'none')) return true;
+    // بيانات القوائم المرجعية تبقى مقروءة (قوائم اختيار الموظف/القسم...) حتى لو شاشتها مخفية
+    if (LOOKUP_ENTITIES.has(entity)) return roleCan(READ_MATRIX, user.role, entity) || owners.length > 0;
+    if (owners.length) return false;
+  }
   return roleCan(READ_MATRIX, user.role, entity);
+}
+
+// ===== صلاحيات الشاشات لكل مستخدم: {"screens": {"payroll": "none", "employees": "view", ...}} =====
+function customScreens(user: AuthUser): Record<string, ScreenLevel> | null {
+  if (user.role === 'admin' || user.role === 'employee') return null; // المدير له كل شيء دائمًا
+  const sc = user.permissions?.screens;
+  return sc && typeof sc === 'object' ? (sc as Record<string, ScreenLevel>) : null;
+}
+
+/** مستوى الشاشة حسب الدور فقط (الافتراضي قبل أي تخصيص) */
+export function roleScreenLevel(role: string, key: string): ScreenLevel {
+  const sc = SCREENS.find((x) => x.key === key);
+  if (!sc) return 'none';
+  if (role === 'admin') return 'edit';
+  if (sc.adminOnly) return 'none';
+  if (sc.entities.some((e) => roleCan(WRITE_MATRIX, role, e))) return 'edit';
+  if (sc.entities.some((e) => roleCan(READ_MATRIX, role, e))) return 'view';
+  return 'none';
+}
+
+function screenLevel(user: AuthUser, key: string, custom = customScreens(user)): ScreenLevel {
+  const sc = SCREENS.find((x) => x.key === key);
+  if (!sc) return 'none';
+  if (user.role === 'admin') return 'edit';
+  if (sc.adminOnly) return 'none';
+  const v = custom?.[key];
+  return v === 'none' || v === 'view' || v === 'edit' ? v : roleScreenLevel(user.role, key);
+}
+
+/** كل الشاشات بمستوى المستخدم الفعلي (للواجهة: إظهار القائمة وأزرار التعديل) */
+export function userScreens(user: AuthUser): Record<string, ScreenLevel> {
+  return Object.fromEntries(SCREENS.map((sc) => [sc.key, screenLevel(user, sc.key)]));
 }
 
 /** هل يستطيع المستخدم إنشاء طلب إجازة لموظف معين؟ (المشرف لفريقه = نفس القسم) */

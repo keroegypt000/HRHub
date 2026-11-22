@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { requireUser, ok, handle } from '@/lib/api';
-import { canWrite } from '@/lib/auth';
+import { canWrite, userScreens } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   return handle(async () => {
@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
     return ok({
       id: user.id, username: user.username, name: user.name, role: user.role, permissions: user.permissions,
       employeeId: user.employeeId,
+      screens: userScreens(user), // مستوى كل شاشة: none | view | edit
       can: {
         // الخريطة التي تعتمدها الواجهة لإخفاء أزرار الكتابة
         employees: canWrite(user, 'employees'),

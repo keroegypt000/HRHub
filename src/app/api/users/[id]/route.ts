@@ -67,3 +67,6 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     return ok({ deleted: true });
   });
 }
+
+/** نموذج التعديل في الواجهة يرسل PUT — نفس المعالجة */
+export const PUT = PATCH;

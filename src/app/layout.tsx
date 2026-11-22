@@ -7,7 +7,7 @@ import { I18nBoot } from "@/components/hrhub/language";
 const LANG_BOOT = `try{if(localStorage.getItem('hrhub-lang')==='en'){var h=document.documentElement;h.lang='en';h.dir='ltr';h.setAttribute('data-i18n','pending');setTimeout(function(){h.removeAttribute('data-i18n')},1500)}}catch(e){}`;
 
 export const metadata: Metadata = {
-  title: "HRHub",
+  title: "Ad Mas",
   description: "نظام إدارة الموارد البشرية والحضور بالبصمة والرواتب",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "بوابة الموظف", statusBarStyle: "default" },
