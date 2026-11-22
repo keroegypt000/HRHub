@@ -1925,6 +1925,9 @@ export const EN_EXACT: Record<string, string> = {
 };
 
 export const EN_PATTERNS: [string, string][] = [
+["^حاضرون اليوم (\\d+) من (\\d+) موظفًا نشطًا$",
+"Present today: $1 of $2 active employees"
+],
 ["^مخصصة \\((\\d+) شاشة معدّلة\\)$",
 "Custom ($1 screens changed)"
 ],

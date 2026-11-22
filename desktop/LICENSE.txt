@@ -1,5 +1,5 @@
-﻿اتفاقية ترخيص استخدام برنامج Ad Mas
-End-User License Agreement (EULA) — Ad Mas
+﻿اتفاقية ترخيص استخدام برنامج ADAMAS
+End-User License Agreement (EULA) — ADAMAS
 
 باستمرارك في تثبيت البرنامج فأنت توافق على الشروط التالية:
 
@@ -29,4 +29,4 @@ By installing this software you agree to the following:
 6. Disclaimer: The software is provided "as is". The developer is not liable for indirect damages, and total liability is limited to the license fee paid.
 7. Termination: This license terminates automatically if you breach any of these terms.
 
-© 2026 Ad Mas. All rights reserved.
+© 2026 ADAMAS. All rights reserved.

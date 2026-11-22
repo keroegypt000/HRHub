@@ -3,11 +3,11 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nBoot } from "@/components/hrhub/language";
 
-// يضبط الاتجاه قبل الرسم لو المستخدم اختار الإنجليزية (بدون وميض للنص العربي)
-const LANG_BOOT = `try{if(localStorage.getItem('hrhub-lang')==='en'){var h=document.documentElement;h.lang='en';h.dir='ltr';h.setAttribute('data-i18n','pending');setTimeout(function(){h.removeAttribute('data-i18n')},1500)}}catch(e){}`;
+// الإنجليزية افتراضيًا: يضبط الاتجاه قبل الرسم (بدون وميض للنص العربي) — إلا لو المستخدم اختار العربية
+const LANG_BOOT = `try{if(localStorage.getItem('hrhub-lang')!=='ar'){var h=document.documentElement;h.lang='en';h.dir='ltr';h.setAttribute('data-i18n','pending');setTimeout(function(){h.removeAttribute('data-i18n')},1500)}}catch(e){}`;
 
 export const metadata: Metadata = {
-  title: "Ad Mas",
+  title: "ADAMAS",
   description: "نظام إدارة الموارد البشرية والحضور بالبصمة والرواتب",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "بوابة الموظف", statusBarStyle: "default" },

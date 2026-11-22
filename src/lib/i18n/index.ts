@@ -6,9 +6,10 @@ export type Lang = 'ar' | 'en';
 const KEY = 'hrhub-lang';
 const AR = /[؀-ۿ]/;
 
+/** الإنجليزية هي الافتراضية — العربية فقط لو اختارها المستخدم */
 export function getLang(): Lang {
-  if (typeof window === 'undefined') return 'ar';
-  try { return localStorage.getItem(KEY) === 'en' ? 'en' : 'ar'; } catch { return 'ar'; }
+  if (typeof window === 'undefined') return 'en';
+  try { return localStorage.getItem(KEY) === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
 }
 
 export function setLang(lang: Lang) {

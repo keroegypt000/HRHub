@@ -21,7 +21,7 @@ const LOG_DIR = path.join(DATA, 'logs');
 const BACKUP_DIR = path.join(DATA, 'backups');
 const ICON = path.join(__dirname, 'icon.png');
 const VERSION = app.getVersion();
-const APP_NAME = 'Ad Mas';
+const APP_NAME = 'ADAMAS';
 const TITLE = `${APP_NAME} — الإصدار ${VERSION}`;
 
 let win = null; let tray = null; let server = null; let quitting = false;

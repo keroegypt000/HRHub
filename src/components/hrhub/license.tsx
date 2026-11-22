@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { KeyRound, Copy, ShieldCheck, ShieldAlert, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { tr } from '@/lib/i18n';
+import { APP_NAME } from '@/lib/brand';
 
 export interface LicenseInfo {
   state: 'unrestricted' | 'licensed' | 'grace' | 'trial' | 'trial_ended' | 'expired' | 'wrong_machine';
@@ -28,52 +30,53 @@ export function useLicense() {
   return { info, reload };
 }
 
-function MachineCode({ code }: { code: string }) {
-  const copy = () => { navigator.clipboard?.writeText(code).then(() => toast.success('تم نسخ رقم الجهاز')).catch(() => {}); };
+function MachineCode({ code, english = false }: { code: string; english?: boolean }) {
+  const copy = () => { navigator.clipboard?.writeText(code).then(() => toast.success(english ? 'Machine code copied' : 'تم نسخ رقم الجهاز')).catch(() => {}); };
   return (
     <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-      <span className="text-xs text-muted-foreground">رقم الجهاز</span>
+      <span className="text-xs text-muted-foreground">{english ? 'Machine code' : 'رقم الجهاز'}</span>
       <span className="font-mono text-lg font-bold tracking-wider" dir="ltr">{code}</span>
-      <Button variant="ghost" size="sm" className="mr-auto h-7" onClick={copy}><Copy className="h-3.5 w-3.5" /> نسخ</Button>
+      <Button variant="ghost" size="sm" className="ms-auto h-7" onClick={copy}><Copy className="h-3.5 w-3.5" /> {english ? 'Copy' : 'نسخ'}</Button>
     </div>
   );
 }
 
-function ActivateForm({ onDone }: { onDone: () => void }) {
+function ActivateForm({ onDone, english = false }: { onDone: () => void; english?: boolean }) {
   const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);
   const activate = async () => {
     setBusy(true);
     try {
       await api('/api/license', { method: 'POST', body: JSON.stringify({ key: key.trim() }), skipAuth401: true });
-      toast.success('تم تفعيل البرنامج بنجاح');
+      toast.success(english ? 'Activated successfully' : 'تم تفعيل البرنامج بنجاح');
       setKey('');
       onDone();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'تعذّر التفعيل');
+      const m = e instanceof Error ? e.message : 'تعذّر التفعيل';
+      toast.error(english ? tr(m) : m);
     } finally { setBusy(false); }
   };
   return (
     <div className="space-y-2">
       <Textarea value={key} onChange={(e) => setKey(e.target.value)} rows={3} dir="ltr" className="font-mono text-xs" placeholder="HRHUB-..." />
-      <Button onClick={activate} disabled={busy || key.trim().length < 40}><KeyRound className="h-4 w-4" /> {busy ? 'جارٍ التفعيل...' : 'تفعيل'}</Button>
+      <Button onClick={activate} disabled={busy || key.trim().length < 40}><KeyRound className="h-4 w-4" /> {busy ? (english ? 'Activating...' : 'جارٍ التفعيل...') : (english ? 'Activate' : 'تفعيل')}</Button>
     </div>
   );
 }
 
-/** شاشة كاملة: البرنامج متوقف حتى التفعيل (البصمات تستمر في الوصول والبيانات محفوظة) */
+/** شاشة كاملة (بالإنجليزية دائمًا): البرنامج متوقف حتى التفعيل — البيانات محفوظة والبصمات تستمر في الوصول */
 export function ActivationScreen({ info, onActivated }: { info: LicenseInfo; onActivated: () => void }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-bl from-emerald-50 via-white to-emerald-100/60 p-4" dir="rtl">
+    <div lang="en" dir="ltr" className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-amber-600" /> تفعيل البرنامج</CardTitle>
+          <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-amber-600" /> Activate {APP_NAME}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{info.message}</p>
-          <p className="text-sm text-muted-foreground">أرسل رقم الجهاز إلى مزوّد البرنامج للحصول على مفتاح الترخيص، ثم الصقه هنا. بياناتك محفوظة، وأجهزة البصمة تواصل إرسال الحركات.</p>
-          <MachineCode code={info.machine} />
-          <ActivateForm onDone={onActivated} />
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{tr(info.message)}</p>
+          <p className="text-sm text-muted-foreground">Send the machine code to your provider to receive a license key, then paste it below. Your data is safe and punch devices keep sending records.</p>
+          <MachineCode code={info.machine} english />
+          <ActivateForm onDone={onActivated} english />
         </CardContent>
       </Card>
     </div>
