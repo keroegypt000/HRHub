@@ -1,7 +1,7 @@
 {
   "name": "hrhub-desktop",
   "productName": "HRHub",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "ADAMAS — HR, attendance and payroll",
   "author": "HRHub",
   "main": "main.js",

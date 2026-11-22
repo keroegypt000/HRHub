@@ -1,7 +1,7 @@
 'use client';
 
 // شاشات الدخول والإعداد الأول — بالإنجليزية دائمًا (مهما كانت لغة البرنامج)
-import { APP_NAME, APP_NAME_AR, APP_MARK, APP_TAGLINE_EN } from '@/lib/brand';
+import { APP_NAME, APP_MARK, APP_TAGLINE_EN } from '@/lib/brand';
 import { useState } from 'react';
 import { api, setToken } from '@/lib/client';
 import { tr } from '@/lib/i18n';
@@ -43,7 +43,6 @@ function BrandPanel() {
       </div>
       <div className="relative">
         <h1 className="text-6xl font-black tracking-[0.06em] text-white xl:text-7xl">{APP_NAME}</h1>
-        <p className="mt-2 text-2xl font-semibold text-emerald-300/90" dir="rtl" style={{ textAlign: 'left' }}>{APP_NAME_AR}</p>
         <div className="mt-6 h-1 w-16 rounded-full bg-emerald-400" />
         <p className="mt-6 max-w-sm text-lg leading-relaxed text-white/70">{APP_TAGLINE_EN}</p>
       </div>
@@ -207,9 +206,9 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
         method: 'POST',
         body: JSON.stringify({
           username: form.username,
-          name: form.name || 'مدير النظام',
+          name: form.name || 'Administrator',
           password: form.password,
-          companyName: form.companyName || 'الشركة',
+          companyName: form.companyName || 'Company',
         }),
       });
       toast.success('System ready — sign in now');
