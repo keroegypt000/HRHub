@@ -15,7 +15,7 @@ services:
       cp -r .next/static .next/standalone/.next/static &&
       cp -r public .next/standalone/public
     startCommand: node .next/standalone/server.js
-    healthCheckPath: /api/health?quick=1
+    healthCheckPath: /api/health?live=1 # بدون استعلام للقاعدة (يحافظ على حصة Neon)
     envVars:
       - key: NODE_VERSION
         value: "22"

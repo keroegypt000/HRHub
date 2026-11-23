@@ -144,7 +144,7 @@ function AlertsBell({ onNavigate }: { onNavigate: (k: string) => void }) {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 5 * 60_000); // تحديث كل 5 دقائق
+    const t = setInterval(() => { if (!document.hidden) load(); }, 5 * 60_000); // تحديث كل 5 دقائق (والصفحة ظاهرة فقط)
     window.addEventListener('hrhub:refresh', load);
     return () => {
       clearInterval(t);

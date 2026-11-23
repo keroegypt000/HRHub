@@ -98,12 +98,14 @@ export function DashboardSection({ role = 'admin', screens, onNavigate = () => {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
+      if (document.hidden) return; // لا تحديث والصفحة غير ظاهرة — حتى لا تبقى القاعدة مستيقظة
       try {
         const d = await api<DashboardData>('/api/dashboard');
         if (mounted) setData(d);
       } catch { /* تجاهل أخطاء polling */ }
     };
     const loadExpiry = () => {
+      if (document.hidden) return;
       api<{ alerts: ExpiryAlert[]; summary: { expired: number; d30: number; d60: number; d90: number } }>('/api/alerts')
         .then((d) => { if (mounted) setExpiry(d); })
         .catch(() => {});

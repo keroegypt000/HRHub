@@ -9,7 +9,10 @@ import { NextRequest } from 'next/server';
  * بدون quick → فحص شامل: كل الجداول + سلامة العلاقات (27+ استعلام — استخدمه يدويًا فقط).
  */
 export async function GET(req: NextRequest) {
-  const quick = new URL(req.url).searchParams.get('quick') === '1';
+  const params = new URL(req.url).searchParams;
+  // ?live=1 → السيرفر يعمل فقط بدون أي استعلام — لفحص Render الدوري حتى لا تبقى القاعدة مستيقظة وتستهلك الحصة
+  if (params.get('live') === '1') return ok({ status: 'alive', checkedAt: new Date().toISOString() });
+  const quick = params.get('quick') === '1';
 
   if (quick) {
     try {
